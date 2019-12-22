@@ -1,0 +1,19 @@
+fn str_len(s: *char) int {
+    var i: int = 0;
+    while s[i] != '\0' {
+        i += 1;
+    }
+    return i;
+}
+
+fn str_concat(s1: *char, s2: *char) *char {
+    var l_len: int = str_len(s1);
+    var r_len: int = str_len(s2);
+    var total_len: int = l_len + r_len + 1;
+    var rtn: *char = malloc(sizeof(char) * total_len);
+    var l_occ: int = sizeof(char) * l_len;
+    mem_copy(s1, rtn, l_occ);
+    mem_copy(s2, rtn + l_occ, sizeof(char) * r_len);
+    rtn[total_len - 1] = '\0';
+    return rtn;
+}
