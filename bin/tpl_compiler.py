@@ -115,11 +115,8 @@ class ByteOutput:
         self.write_int(left)
         self.write_int(right)
 
-    # def add_binary_op_bool(self, op: int, res: int, left: int, right: int):
-    #     self.write_one(op)
-
     def add_return(self, src, total_len):
-        self.codes.append(RETURN)
+        self.write_one(RETURN)
         self.write_int(src)
         self.write_int(total_len)
 
