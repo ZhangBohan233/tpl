@@ -1,0 +1,40 @@
+include "string"
+
+
+fn main() int {
+    var a: char[] = "asd";
+    var ch: char = 'f';
+    printf("%c", a[1]);
+    printf("gg%d", sizeof(char));
+    var b: *char = malloc(sizeof(char) * 5);
+    printf("%d", b);
+    b[0] = 'q';
+    b[1] = 'w';
+    b[4] = '\0';
+
+    var c: *char = malloc(8);
+    c[0] = 'a';
+    c[1] = 'b';
+    c[2] = 'c';
+    c[3] = 'd';
+    c[4] = 'f';
+    c[5] = 'g';
+    c[6] = 'h';
+    c[7] = '\0';
+
+    printf("%s", c);
+    var d: *char = str_concat(b, c);
+    var bool: boolean = b[2] == '\0';
+    printf("%b", bool);
+
+    free(b);
+    free(c);
+
+    printf("%d", str_len(d));
+    printf("%s", d);
+
+    memory_view();
+    memory_ava();
+
+    return 0;
+}

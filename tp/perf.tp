@@ -1,0 +1,38 @@
+struct Node {
+    var num: int;
+    var ptr: *Node;
+}
+
+fn main() int {
+    const t1: int = clock();
+
+    var h: *Node = malloc(sizeof(Node));
+    var x: *Node = h;
+
+    const ava: int = heap_ava();
+
+    for var i: int = 0; i < 1000; i += 1 {
+        var y: *Node = malloc(sizeof(Node));
+        (*x).num = i;
+        (*x).ptr = y;
+        x = y;
+    }
+
+    const ava1: int = heap_ava();
+
+    var z: *Node = h;
+    var y: *Node;
+    while z != null {
+        y = (*z).ptr;
+        //printf("%d", (*z).num);
+        free(z);
+        z = y;
+    }
+
+    const ava2: int = heap_ava();
+
+    const t2: int = clock();
+    printf("Time: %d, min memory available: %d, leak memory: %d", t2 - t1, ava1, ava2 - ava);
+    memory_ava();
+    return 0;
+}

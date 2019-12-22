@@ -1,0 +1,23 @@
+fn fib(n: int) int {
+    if n < 2 {
+        return n;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
+
+fn main() int {
+    var t0: int = clock();
+    var f: int = fib(30);
+    var t1: int = clock();
+
+    var i: int = 0;
+    while i < 1000000 {
+        i = i + 1;
+    }
+
+    var t2: int = clock();
+    printf("fib time: %d\n", t1 - t0);
+    printf("loop time: %d\n", t2 - t1);
+    return f + i;
+}

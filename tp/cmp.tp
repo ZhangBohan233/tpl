@@ -1,0 +1,17 @@
+
+fn main() int {
+    var j: int = 235;
+    var i: int = 0;
+    while i < 1000 {
+        //printf("%d\n", i);
+        i = i + 1;
+    }
+    var x: int = 127;
+    if x <= 126 {
+        printf("This is true\n");
+    } else {
+        printf("This is not true\n");
+    }
+
+    return i;
+}

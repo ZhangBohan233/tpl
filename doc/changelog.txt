@@ -1,0 +1,39 @@
+#### Build 1006 ####
+2019/12/21
+
+* VM performance optimization
+    * Replaced simple functions by macros
+    * Register
+
+#### Build 1005 ####
+2019/12/21
+
+* Added binary operators:
+    * &&, ||, >=, <=
+
+#### Build 1004 ####
+2019/12/21
+
+* Compiler in Python, Virtual machine in C
+* Dramatically improved performance
+* Re-implemented everything: currently finished:
+    * Variable assignment and retrievement
+    * Basic arithmetic of int
+    * Function call
+    * Types: int, char, boolean
+    * If-else statement
+    * Simple pointer operation
+    * One-dimensional indexing
+    * While loop
+
+#### Build 1002 ####
+
+* Memory updates:
+    * Re-implemented the available memory pool using a heap. Improved memory fragment management but reduced speed
+* Added more memory related built-in functions
+* Bug fixes:
+    * Fixed that every 'null' occupied 8 bytes
+
+#### Build 1001 ####
+
+* Created TPL: Trash Programming Language

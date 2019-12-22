@@ -1,0 +1,25 @@
+#### Build 1006 ####
+=== C vm ===
+
+Under Windows cmd:
+30 fib: 590 ms
+1m while loop: 150 ms
+
+#### Build 1004 ####
+=== C vm ===
+
+30 fib: 800 ms
+1m while loop: 200 ms
+
+#### Build 1003 ####
+
+20 fib: 1140 ms
+1000 struct malloc and free: 730 ms
+
+#### Build 1002 ####
+
+1000 struct malloc and free: 750 ms
+
+#### Build 1001 ####
+
+1000 struct malloc and free: 180 ms

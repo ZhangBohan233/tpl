@@ -1,0 +1,14 @@
+fn main() int {
+
+    var a: *int = malloc(8);
+    var b: *int = malloc(8);
+
+    memory_ava();
+
+    free(a);
+    free(b);
+
+    memory_ava();
+
+    return 0;
+}
