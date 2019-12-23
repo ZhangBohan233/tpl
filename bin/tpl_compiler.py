@@ -17,6 +17,7 @@ RETURN = 5  # RETURN   VALUE_PTR
 GOTO = 6  # JUMP       CODE_PTR
 PUSH = 7  # PUSH
 ASSIGN_I = 8  # A      PTR       REAL VALUE         | store the real value in PTR
+ASSIGN_B = 9
 ADD_I = 10  # ADD_I    RESULT_P  LEFT_P   RIGHT_P   | add the ints pointed by pointers, store the result to RESULT_P
 CAST_I = 11  # CAST_I  RESULT_P  SRC_P              | cast to int
 SUB_I = 12
@@ -84,7 +85,7 @@ class ByteOutput:
 
     def assign(self, tar: int, src: int, length: int):
         # print("assign", tar, src, length)
-        self.codes.append(ASSIGN)
+        self.write_one(ASSIGN)
         self.write_int(tar)
         self.write_int(src)
         self.write_int(length)
@@ -93,6 +94,13 @@ class ByteOutput:
         self.write_one(ASSIGN_I)
         self.write_int(des)
         self.write_int(real_value)
+
+    def assign_byte(self, des: int, real_value: int):
+        if real_value != 0 and real_value != 1:
+            raise lib.CompileTimeException("Boolean can only be 0 or 1")
+        self.write_one(ASSIGN_B)
+        self.write_int(des)
+        self.write_one(real_value)
 
     def unpack_addr(self, des: int, addr_ptr: int, length: int):
         self.write_one(UNPACK_ADDR)
@@ -132,6 +140,42 @@ class ByteOutput:
 
     def set_bytes(self, from_: int, b: bytes):
         self.codes[from_: from_ + len(b)] = b
+
+    def get_loop_indicator(self):
+        raise lib.CompileTimeException("Break outside loop")
+
+    def get_loop_length(self):
+        raise lib.CompileTimeException("Continue outside loop")
+
+
+class LoopByteOutput(ByteOutput):
+    def __init__(self, loop_indicator_pos, cond_len, step_node):
+        ByteOutput.__init__(self)
+
+        # self.outer = outer
+        self.loop_indicator_pos = loop_indicator_pos
+        self.cond_len = cond_len
+        self.step_node = step_node
+
+    def get_loop_indicator(self):
+        return self.loop_indicator_pos
+
+    def get_loop_length(self):
+        return self.step_node, self.cond_len + len(self) + INT_LEN * 2 + 1
+
+
+class BlockByteOutput(ByteOutput):
+    def __init__(self, outer):
+        ByteOutput.__init__(self)
+
+        self.outer: ByteOutput = outer
+
+    def get_loop_indicator(self):
+        return self.outer.get_loop_indicator()
+
+    def get_loop_length(self):
+        out_res = self.outer.get_loop_length()
+        return out_res[0], out_res[1] + len(self) + INT_LEN * 2 + 1
 
 
 class MemoryManager:
@@ -240,7 +284,9 @@ class Compiler:
             ast.FOR_LOOP_STMT: self.compile_for_loop,
             ast.WHILE_STMT: self.compile_while_loop,
             ast.UNDEFINED_NODE: self.compile_undefined,
-            ast.INDEXING_NODE: self.compile_getitem
+            ast.INDEXING_NODE: self.compile_getitem,
+            ast.BREAK_STMT: self.compile_break,
+            ast.CONTINUE_STMT: self.compile_continue
         }
 
     def add_native_functions(self, env: en.GlobalEnvironment):
@@ -269,7 +315,7 @@ class Compiler:
             main_ptr = env.functions["main"]
             self.function_call(main_ptr, [], env, bo)
 
-        print(self.memory.global_bytes)
+        # print(self.memory.global_bytes)
         lit_and_global = ByteOutput()
         lit_and_global.write_int(len(self.literal_bytes))
         lit_and_global.write_int(len(self.memory.global_bytes))
@@ -574,8 +620,9 @@ class Compiler:
         # print(node.condition.lines[0])
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
         # print(cond_ptr)
-        if_bo = ByteOutput()
-        else_bo = ByteOutput()
+        if_bo = BlockByteOutput(bo)
+        else_bo = BlockByteOutput(bo)
+
         if_env = en.BlockEnvironment(env)
         else_env = en.BlockEnvironment(env)
         self.compile(node.then_block, if_env, if_bo)
@@ -601,17 +648,28 @@ class Compiler:
         self.memory.store_sp()
         bo.write_one(STORE_SP)  # before loop
 
+        loop_indicator = self.memory.allocate(BOOLEAN_LEN)
+        bo.push_stack(BOOLEAN_LEN)
+        bo.assign_byte(loop_indicator, 1)
+
         title_env = en.LoopEnvironment(env)
         body_env = en.BlockEnvironment(title_env)
-
-        body_bo = ByteOutput()
 
         self.compile(node.condition.lines[0], title_env, bo)  # start
 
         init_len = len(bo)
 
+        self.memory.store_sp()
         bo.write_one(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
+
+        real_cond_ptr = self.memory.allocate(BOOLEAN_LEN)
+        bo.push_stack(BOOLEAN_LEN)
+        bo.add_binary_op_int(AND, real_cond_ptr, cond_ptr, loop_indicator)
+
+        cond_len = len(bo) - init_len
+
+        body_bo = LoopByteOutput(loop_indicator, cond_len, node.condition.lines[2])
 
         self.compile(node.body, body_env, body_bo)
         self.compile(node.condition.lines[2], title_env, body_bo)  # step
@@ -621,15 +679,15 @@ class Compiler:
 
         bo.write_one(IF_ZERO_GOTO)
         bo.write_int(body_len)
-        bo.write_int(cond_ptr)
+        bo.write_int(real_cond_ptr)
 
-        cond_len = len(bo) - init_len
         body_bo.write_one(GOTO)
-        body_bo.write_int(-body_len - cond_len)
+        body_bo.write_int(-body_len - cond_len - INT_LEN * 2 - 1)  # length of if_zero_goto
 
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)
         bo.write_one(RES_SP)
+        self.memory.restore_sp()
         bo.write_one(RES_SP)
         self.memory.restore_sp()
 
@@ -638,7 +696,14 @@ class Compiler:
             raise lib.CompileTimeException("While loop title must have 1 part.")
 
         self.memory.store_sp()
+        bo.write_one(STORE_SP)
+
+        loop_indicator = self.memory.allocate(BOOLEAN_LEN)
+        bo.push_stack(BOOLEAN_LEN)
+        bo.assign_byte(loop_indicator, 1)
+
         init_len = len(bo)
+        self.memory.store_sp()
         bo.write_one(STORE_SP)
 
         title_env = en.LoopEnvironment(env)
@@ -646,7 +711,13 @@ class Compiler:
 
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
 
-        body_bo = ByteOutput()
+        real_cond_ptr = self.memory.allocate(BOOLEAN_LEN)
+        bo.push_stack(BOOLEAN_LEN)
+        bo.add_binary_op_int(AND, real_cond_ptr, cond_ptr, loop_indicator)
+
+        cond_len = len(bo) - init_len
+
+        body_bo = LoopByteOutput(loop_indicator, cond_len, None)
 
         self.compile(node.body, body_env, body_bo)
         body_bo.write_one(RES_SP)
@@ -654,16 +725,18 @@ class Compiler:
 
         bo.write_one(IF_ZERO_GOTO)
         bo.write_int(body_len)
-        bo.write_int(cond_ptr)
+        bo.write_int(real_cond_ptr)
 
-        cond_len = len(bo) - init_len
         body_bo.write_one(GOTO)
-        body_bo.write_int(-body_len - cond_len)
+        body_bo.write_int(-body_len - cond_len - INT_LEN * 2 - 1)
 
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)
-        bo.write_one(RES_SP)
         self.memory.restore_sp()
+        bo.write_one(RES_SP)
+
+        self.memory.restore_sp()
+        bo.write_one(RES_SP)
 
     def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
         tal = get_tal_of_evaluated_node(node, env)
@@ -671,6 +744,21 @@ class Compiler:
             raise lib.CompileTimeException("Conditional statement can only have boolean output. Got '{}'."
                                            .format(tal.type_name))
         return self.compile(node, env, bo)
+
+    def compile_break(self, node: ast.BreakStmt, env: en.Environment, bo: ByteOutput):
+        loop_indicator = bo.get_loop_indicator()
+        bo.assign_byte(loop_indicator, 0)
+        self.compile_continue(None, env, bo)
+
+    def compile_continue(self, node: ast.ContinueStmt, env: en.Environment, bo: ByteOutput):
+        step_node, length_before = bo.get_loop_length()
+
+        cur_len = len(bo)
+        self.compile(step_node, env, bo)
+        len_diff = len(bo) - cur_len
+
+        bo.write_one(GOTO)
+        bo.write_int(-length_before - len_diff - INT_LEN - 1)
 
     def compile_undefined(self, node: ast.UndefinedNode, env: en.Environment, bo: ByteOutput):
         return 0

@@ -1,3 +1,10 @@
+#### Build 1008 ####
+=== C vm ===
+
+Under Windows cmd:
+30 fib: 580 ms
+1m while loop: 180 ms
+
 #### Build 1006 ####
 === C vm ===
 

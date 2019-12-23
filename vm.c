@@ -380,6 +380,12 @@ void vm_run() {
                 int_to_bytes(MEMORY + reg1, reg2);
 //                printf("%lld %lld\n", reg1, reg2);
                 break;
+            case 9:  // ASSIGN_B
+                reg1 = true_ptr(bytes_to_int(MEMORY + PC));
+                PC += INT_LEN;
+                reg11 = MEMORY[PC++];
+                MEMORY[reg1] = reg11;
+                break;
             case 10:  // ADD INT
                 read_3_true_ptr  // res ptr, left ptr, right ptr
                 reg4 = bytes_to_int(MEMORY + reg2);  // left value

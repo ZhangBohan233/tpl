@@ -8,14 +8,22 @@ import script
 
 
 def parse_args():
-    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "tpa_file": None}
+    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "tpa_file": None, "optimize": 0}
     i = 1
     while i < len(sys.argv):
         arg = sys.argv[i]
         if arg[0] == "-":
-            if arg[1:] == "a":
+            if len(arg) == 1:
+                print("Illegal syntax")
+            elif arg[1:].lower() == "a":
                 i += 1
                 args_dict["tpa_file"] = sys.argv[i]
+            elif arg[1].lower() == "o":
+                try:
+                    op_level = int(arg[2:])
+                    args_dict["optimize"] = op_level
+                except ValueError:
+                    print("Illegal optimize level")
             else:
                 print("Unknown flag '{}'".format(arg))
         elif args_dict["src_file"] is None:

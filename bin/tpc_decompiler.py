@@ -66,7 +66,12 @@ class Decompiler:
         elif instruction == cpl.PUSH:
             out_stream.write("PUSH            {}\n".format(self.read_1_int()))
         elif instruction == cpl.ASSIGN_I:
-            out_stream.write("ASSIGN_I        {}  {}  {}\n".format(*self.read_3_ints()))
+            out_stream.write("ASSIGN_I        {}  {}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.ASSIGN_B:
+            i1 = self.read_1_int()
+            b1 = self.codes[self.pc]
+            self.pc += 1
+            out_stream.write("ASSIGN_B        {}  {}\n".format(i1, b1))
         elif instruction == cpl.ADD_I:
             out_stream.write("ADD_I           {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.SUB_I:
@@ -106,6 +111,7 @@ class Decompiler:
             out_stream.write("RES_SP\n")
         else:
             print("Unknown instruction: {}".format(instruction))
+            raise Exception
 
     def read_4_ints(self) -> (int, int, int, int):
         i1 = typ.bytes_to_int(self.get(self.pc, INT_LEN))

@@ -1,26 +1,33 @@
 fn for_loop() int {
     var x: int = 99;
     for var i: int = 0; i < 10; i = i + 1 {
-        for var j: int = i; j < 10; j = j + 1 {
-            printf("%d ", j);
+        printf("begin %d \n", i);
+        if i == 6 {
+            break;
         }
-        printf("\n");
+        printf("end %d \n", i);
     }
     var y: int = 123;
     return x + y;
 }
 
-fn while_loop() void {
+fn while_loop() int {
     var j: int = 0;
     while j < 10 {
+        if j == 6 {
+            j = j + 2;
+            continue;
+        }
         printf("while: %d\n", j);
         j = j + 1;
     }
+    return j;
 }
 
 fn main() int {
 
-    var g: int = for_loop();
+    var g: int = while_loop();
+    var h : int = for_loop();
 
-    return g;
+    return g + h;
 }
