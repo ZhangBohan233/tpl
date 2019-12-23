@@ -107,7 +107,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=tpl3
+CMAKE_PROJECT_NAME:STATIC=tpl
 
 //RC compiler
 CMAKE_RC_COMPILER:FILEPATH=C:/Program Files (x86)/Windows Kits/10/bin/10.0.17134.0/x86/rc.exe
@@ -185,6 +185,12 @@ tpl3_BINARY_DIR:STATIC=E:/GitHub/tpl/cmake-build-debug
 
 //Value Computed by CMake
 tpl3_SOURCE_DIR:STATIC=E:/GitHub/tpl
+
+//Value Computed by CMake
+tpl_BINARY_DIR:STATIC=E:/GitHub/tpl/cmake-build-debug
+
+//Value Computed by CMake
+tpl_SOURCE_DIR:STATIC=E:/GitHub/tpl
 
 
 ########################

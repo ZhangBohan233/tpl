@@ -8,15 +8,14 @@ import script
 
 
 def parse_args():
-    args_dict = {"py": sys.argv[0], "spa": False, "src_file": None, "tar_file": None, "spa_file": None}
+    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "tpa_file": None}
     i = 1
     while i < len(sys.argv):
         arg = sys.argv[i]
         if arg[0] == "-":
             if arg[1:] == "a":
-                args_dict["spa"] = True
                 i += 1
-                args_dict["spa_file"] = sys.argv[i]
+                args_dict["tpa_file"] = sys.argv[i]
             else:
                 print("Unknown flag '{}'".format(arg))
         elif args_dict["src_file"] is None:
@@ -57,7 +56,7 @@ if __name__ == '__main__':
         with open(args["tar_file"], "wb") as wf:
             wf.write(byt)
 
-        if args["spa_file"]:
-            with open(args["spa_file"], "w") as wf:
+        if args["tpa_file"]:
+            with open(args["tpa_file"], "w") as wf:
                 dec = decompiler.Decompiler(byt)
                 dec.decompile(wf)

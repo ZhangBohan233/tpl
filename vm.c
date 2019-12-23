@@ -513,7 +513,7 @@ void vm_run() {
                 break;
             case 36:  // RESTORE SP
                 SP = LOOP_STACK[LSP--];
-//                printf("res: %lld ", SP);
+//                printf("res: %lld %d ", SP, LSP);
                 break;
             default:
                 fprintf(stderr, "Unknown instruction %d\n", instruction);

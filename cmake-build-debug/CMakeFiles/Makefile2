@@ -54,12 +54,12 @@ CMAKE_BINARY_DIR = E:\GitHub\tpl\cmake-build-debug
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles\tpl3.dir\all
+all: CMakeFiles\tpl.dir\all
 
 .PHONY : all
 
 # The main recursive "clean" target.
-clean: CMakeFiles\tpl3.dir\clean
+clean: CMakeFiles\tpl.dir\clean
 
 .PHONY : clean
 
@@ -69,31 +69,31 @@ preinstall:
 .PHONY : preinstall
 
 #=============================================================================
-# Target rules for target CMakeFiles/tpl3.dir
+# Target rules for target CMakeFiles/tpl.dir
 
 # All Build rule for target.
-CMakeFiles\tpl3.dir\all:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\depend
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=E:\GitHub\tpl\cmake-build-debug\CMakeFiles --progress-num=1,2,3 "Built target tpl3"
-.PHONY : CMakeFiles\tpl3.dir\all
+CMakeFiles\tpl.dir\all:
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\depend
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=E:\GitHub\tpl\cmake-build-debug\CMakeFiles --progress-num=1,2,3 "Built target tpl"
+.PHONY : CMakeFiles\tpl.dir\all
 
 # Build rule for subdir invocation for target.
-CMakeFiles\tpl3.dir\rule: cmake_check_build_system
+CMakeFiles\tpl.dir\rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start E:\GitHub\tpl\cmake-build-debug\CMakeFiles 3
-	$(MAKE) -f CMakeFiles\Makefile2 /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\all
+	$(MAKE) -f CMakeFiles\Makefile2 /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\all
 	$(CMAKE_COMMAND) -E cmake_progress_start E:\GitHub\tpl\cmake-build-debug\CMakeFiles 0
-.PHONY : CMakeFiles\tpl3.dir\rule
+.PHONY : CMakeFiles\tpl.dir\rule
 
 # Convenience name for target.
-tpl3: CMakeFiles\tpl3.dir\rule
+tpl: CMakeFiles\tpl.dir\rule
 
-.PHONY : tpl3
+.PHONY : tpl
 
 # clean rule for target.
-CMakeFiles\tpl3.dir\clean:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\clean
-.PHONY : CMakeFiles\tpl3.dir\clean
+CMakeFiles\tpl.dir\clean:
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\clean
+.PHONY : CMakeFiles\tpl.dir\clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

@@ -18,7 +18,7 @@ GOTO = 6  # JUMP       CODE_PTR
 PUSH = 7  # PUSH
 ASSIGN_I = 8  # A      PTR       REAL VALUE         | store the real value in PTR
 ADD_I = 10  # ADD_I    RESULT_P  LEFT_P   RIGHT_P   | add the ints pointed by pointers, store the result to RESULT_P
-CAST_I = 11  # CAST_I                               | cast to int
+CAST_I = 11  # CAST_I  RESULT_P  SRC_P              | cast to int
 SUB_I = 12
 MUL_I = 13
 DIV_I = 14
@@ -31,11 +31,13 @@ OR = 20
 IF_ZERO_GOTO = 30
 # IF_ZERO   GOTO      VALUE_P            | if VALUE P is 0 then goto
 CALL_NAT = 31
-STORE_ADDR = 32
+# STORE_ADDR = 32
 UNPACK_ADDR = 33
 PTR_ASSIGN = 34  # | assign the addr stored in ptr with the value stored in right
 STORE_SP = 35
 RES_SP = 36
+
+NATIVE_FUNCTION_COUNT = 5
 
 INT_RESULT_TABLE_INT = {
     "+": ADD_I,
@@ -142,9 +144,9 @@ class MemoryManager:
 
         self.literal = literal_bytes
         self.global_bytes = bytearray()
-        # self.functions = {}
 
         self.blocks = []
+        self.loop_sp_stack = []
 
         self.type_sizes = {
             "int": INT_LEN,
@@ -165,6 +167,12 @@ class MemoryManager:
 
     def restore_stack(self):
         self.sp = self.blocks.pop()
+
+    def store_sp(self):
+        self.loop_sp_stack.append(self.sp)
+
+    def restore_sp(self):
+        self.sp = self.loop_sp_stack.pop()
 
     def allocate(self, length) -> int:
         if len(self.blocks) == 0:  # global
@@ -286,15 +294,11 @@ class Compiler:
         return self.memory.calculate_lit_ptr(node.lit_pos)
 
     def compile_string_literal(self, node: ast.StringLiteralNode, env: en.Environment, bo: ByteOutput):
-        # print(self.literal_bytes)
-        # print(node.literal)
-        # print(node.byte_length)
         return self.compile(node.literal, env, bo)
 
     def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
         r_tal = get_tal_of_defining_node(node.r_type, env, self.memory)
 
-        inner_bo = ByteOutput()
         scope = en.FunctionEnvironment(env)
         self.memory.push_stack()
 
@@ -306,8 +310,6 @@ class Compiler:
             total_len = tal.total_len(self.memory)
 
             ptr = self.memory.allocate(total_len)
-            # print(ptr)
-            # inner_bo.push_stack(total_len)
 
             scope.define_var(name_node.name, tal, ptr)
 
@@ -319,6 +321,7 @@ class Compiler:
         fake_ftn = Function(param_pairs, r_tal, fake_ftn_ptr)
         env.define_function(node.name, fake_ftn)
 
+        inner_bo = ByteOutput()
         self.compile(node.body, scope, inner_bo)
 
         self.memory.restore_stack()
@@ -592,20 +595,28 @@ class Compiler:
         # bo.add_if_zero_goto(, cond_ptr)
 
     def compile_for_loop(self, node: ast.ForLoopStmt, env: en.Environment, bo: ByteOutput):
-        pass
+        if len(node.condition.lines) != 3:
+            raise lib.CompileTimeException("For loop title must have 3 parts.")
 
-    def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: ByteOutput):
-        init_len = len(bo)
-        bo.write_one(STORE_SP)
-        cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
-
-        body_bo = ByteOutput()
+        self.memory.store_sp()
+        bo.write_one(STORE_SP)  # before loop
 
         title_env = en.LoopEnvironment(env)
         body_env = en.BlockEnvironment(title_env)
 
+        body_bo = ByteOutput()
+
+        self.compile(node.condition.lines[0], title_env, bo)  # start
+
+        init_len = len(bo)
+
+        bo.write_one(STORE_SP)
+        cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
+
         self.compile(node.body, body_env, body_bo)
+        self.compile(node.condition.lines[2], title_env, body_bo)  # step
         body_bo.write_one(RES_SP)
+
         body_len = len(body_bo) + INT_LEN + 1
 
         bo.write_one(IF_ZERO_GOTO)
@@ -619,6 +630,40 @@ class Compiler:
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)
         bo.write_one(RES_SP)
+        bo.write_one(RES_SP)
+        self.memory.restore_sp()
+
+    def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: ByteOutput):
+        if len(node.condition.lines) != 1:
+            raise lib.CompileTimeException("While loop title must have 1 part.")
+
+        self.memory.store_sp()
+        init_len = len(bo)
+        bo.write_one(STORE_SP)
+
+        title_env = en.LoopEnvironment(env)
+        body_env = en.BlockEnvironment(title_env)
+
+        cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
+
+        body_bo = ByteOutput()
+
+        self.compile(node.body, body_env, body_bo)
+        body_bo.write_one(RES_SP)
+        body_len = len(body_bo) + INT_LEN + 1  # body length + GOTO length
+
+        bo.write_one(IF_ZERO_GOTO)
+        bo.write_int(body_len)
+        bo.write_int(cond_ptr)
+
+        cond_len = len(bo) - init_len
+        body_bo.write_one(GOTO)
+        body_bo.write_int(-body_len - cond_len)
+
+        bo.codes.extend(body_bo.codes)
+        # print(len(bo) - body_len - cond_len, init_len)
+        bo.write_one(RES_SP)
+        self.memory.restore_sp()
 
     def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
         tal = get_tal_of_evaluated_node(node, env)

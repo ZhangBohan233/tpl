@@ -112,17 +112,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named tpl3
+# Target rules for targets named tpl
 
 # Build rule for target.
-tpl3: cmake_check_build_system
-	$(MAKE) -f CMakeFiles\Makefile2 /nologo -$(MAKEFLAGS) tpl3
-.PHONY : tpl3
+tpl: cmake_check_build_system
+	$(MAKE) -f CMakeFiles\Makefile2 /nologo -$(MAKEFLAGS) tpl
+.PHONY : tpl
 
 # fast build rule for target.
-tpl3\fast:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\build
-.PHONY : tpl3\fast
+tpl\fast:
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\build
+.PHONY : tpl\fast
 
 lib.obj: lib.c.obj
 
@@ -130,7 +130,7 @@ lib.obj: lib.c.obj
 
 # target to build an object file
 lib.c.obj:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\lib.c.obj
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\lib.c.obj
 .PHONY : lib.c.obj
 
 lib.i: lib.c.i
@@ -139,7 +139,7 @@ lib.i: lib.c.i
 
 # target to preprocess a source file
 lib.c.i:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\lib.c.i
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\lib.c.i
 .PHONY : lib.c.i
 
 lib.s: lib.c.s
@@ -148,7 +148,7 @@ lib.s: lib.c.s
 
 # target to generate assembly for a file
 lib.c.s:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\lib.c.s
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\lib.c.s
 .PHONY : lib.c.s
 
 vm.obj: vm.c.obj
@@ -157,7 +157,7 @@ vm.obj: vm.c.obj
 
 # target to build an object file
 vm.c.obj:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\vm.c.obj
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\vm.c.obj
 .PHONY : vm.c.obj
 
 vm.i: vm.c.i
@@ -166,7 +166,7 @@ vm.i: vm.c.i
 
 # target to preprocess a source file
 vm.c.i:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\vm.c.i
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\vm.c.i
 .PHONY : vm.c.i
 
 vm.s: vm.c.s
@@ -175,7 +175,7 @@ vm.s: vm.c.s
 
 # target to generate assembly for a file
 vm.c.s:
-	$(MAKE) -f CMakeFiles\tpl3.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl3.dir\vm.c.s
+	$(MAKE) -f CMakeFiles\tpl.dir\build.make /nologo -$(MAKEFLAGS) CMakeFiles\tpl.dir\vm.c.s
 .PHONY : vm.c.s
 
 # Help Target
@@ -184,7 +184,7 @@ help:
 	@echo ... all (the default if no target is provided)
 	@echo ... clean
 	@echo ... depend
-	@echo ... tpl3
+	@echo ... tpl
 	@echo ... edit_cache
 	@echo ... rebuild_cache
 	@echo ... lib.obj
