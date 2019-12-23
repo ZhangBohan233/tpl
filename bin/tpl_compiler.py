@@ -48,6 +48,15 @@ INT_RESULT_TABLE_INT = {
     "%": MOD_I
 }
 
+EXTENDED_INT_RESULT_TABLE_INT = {
+    **INT_RESULT_TABLE_INT,
+    "+=": ADD_I,
+    "-=": SUB_I,
+    "*=": MUL_I,
+    "/=": DIV_I,
+    "%=": MOD_I
+}
+
 BOOL_RESULT_TABLE_INT = {
     ">": GT_I,
     "==": EQ_I,
@@ -565,12 +574,17 @@ class Compiler:
             if r_tal.type_name != "int" and r_tal.type_name[0] != "*":
                 rp = self.case_to_int(rp, bo)
 
-            if node.operation in INT_RESULT_TABLE_INT:
-                res_pos = self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
-                op_code = INT_RESULT_TABLE_INT[node.operation]
-                bo.add_binary_op_int(op_code, res_pos, lp, rp)
-                return res_pos
+            if node.operation in EXTENDED_INT_RESULT_TABLE_INT:
+                if node.operation in INT_RESULT_TABLE_INT:
+                    res_pos = self.memory.allocate(INT_LEN)
+                    bo.push_stack(INT_LEN)
+                    op_code = INT_RESULT_TABLE_INT[node.operation]
+                    bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                    return res_pos
+                else:
+                    op_code = EXTENDED_INT_RESULT_TABLE_INT[node.operation]
+                    bo.add_binary_op_int(op_code, lp, lp, rp)
+                    return lp
             elif node.operation in EXTENDED_BOOL_RESULT_TABLE_INT:
                 res_pos = self.memory.allocate(BOOLEAN_LEN)
                 bo.push_stack(BOOLEAN_LEN)

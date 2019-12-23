@@ -1,3 +1,11 @@
+#### Build 1009 ####
+2019/12/23
+
+* Added support for operation-assignment operators:
+    * '+=', '-=', '*=', '/=', '%='
+* VM optimization:
+    * Binary operation uses less registers
+
 #### Build 1008 ####
 2019/12/23
 
