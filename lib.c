@@ -65,3 +65,35 @@ void int_to_bytes(unsigned char *b, int64_t i) {
     *(b + 6) = (i >> 8U);
     *(b + 7) = i;
 }
+
+Int64List *create_list() {
+    Int64List *list = malloc(sizeof(Int64List));
+    list->capacity = 8;
+    list->size = 0;
+    list->array = malloc(sizeof(int64_t) * list->capacity);
+    return list;
+}
+
+void list_expand(Int64List *list) {
+    list->capacity *= 2;
+    int64_t *new_array = malloc(sizeof(int64_t) * list->capacity);
+    memcpy(new_array, list->array, list->size);
+    free(list->array);
+    list->array = new_array;
+}
+
+void append_list(Int64List *list, int64_t value) {
+    if (list->size == list->capacity) {
+        list_expand(list);
+    }
+    list->array[list->size++] = value;
+}
+
+int64_t get_list(Int64List *list, int index) {
+    return list->array[index];
+}
+
+void free_list(Int64List *list) {
+    free(list->array);
+    free(list);
+}

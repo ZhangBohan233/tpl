@@ -1,3 +1,11 @@
+#### Build 1010 ####
+2019/12/24
+
+* Enable level 1 compile time optimize:
+    * Merge assignment and binary operation/function call
+* Implemented heap memory management:
+    * malloc, free
+
 #### Build 1009 ####
 2019/12/23
 

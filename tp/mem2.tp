@@ -1,14 +1,16 @@
 fn main() int {
 
     var a: *int = malloc(8);
-    var b: *int = malloc(8);
+    var b: *char = malloc(5);
+    var c: *int = malloc(8);
 
-    memory_ava();
+    *a = 233;
+    *c = 16777215;
 
-    free(a);
     free(b);
 
-    memory_ava();
+    var d: *int = malloc(8);
+    *d = 121;
 
-    return 0;
+    return *d;
 }

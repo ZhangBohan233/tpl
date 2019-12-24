@@ -11,6 +11,8 @@ extern const int INT_LEN, PTR_LEN, FLOAT_LEN, CHAR_LEN, BOOLEAN_LEN, VOID_LEN;
 
 void vm_load(const unsigned char *codes, int read);
 
+void vm_shutdown();
+
 void print_memory();
 
 #endif //TPL3_VM_H

@@ -9,6 +9,7 @@
 #include <time.h>
 #include "vm.h"
 #include "lib.h"
+#include "heap.h"
 
 #define true_ptr(ptr) (ptr < LITERAL_START && CSP >= 0 ? ptr + CALL_STACK[CSP] : ptr)
 
@@ -57,8 +58,8 @@ int64_t FUNCTIONS_START = 1024;
 int64_t CODE_START = 1024;
 int64_t HEAP_START = 1024;
 
-const int64_t MEMORY_SIZE = 4096;
-unsigned char MEMORY[4096];
+const int64_t MEMORY_SIZE = 2048;
+unsigned char MEMORY[2048];
 
 int64_t SP = 1;
 int64_t PC = 1024;
@@ -104,8 +105,9 @@ void print_memory() {
     }
 
     printf("\nHeap %lld: ", HEAP_START);
-    for (; i < HEAP_START + 20; i++) {
+    for (; i < HEAP_START + 128; i++) {
         printf("%d ", MEMORY[i]);
+        if ((i - HEAP_START) % 8 == 7) printf("| ");
     }
     printf("\n");
 }
@@ -131,7 +133,12 @@ void vm_load(const unsigned char *codes, int read) {
 
     memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 2, copy_len);
 
+    AVAILABLE = build_heap(HEAP_START, MEMORY_SIZE, &AVA_SIZE);
 //    print_memory();
+}
+
+void vm_shutdown() {
+    free(AVAILABLE);
 }
 
 void mem_copy(int64_t from, int64_t to, int64_t len) {
@@ -142,50 +149,6 @@ void exit_func() {
     SP = CALL_STACK[CSP--];
     PC = PC_STACK[PSP--];
 }
-
-//int64_t true_ptr(int64_t ptr) {
-//    if (ptr < LITERAL_START && CSP >= 0) {
-//        return ptr + CALL_STACK[CSP];
-//    }
-//    if (ptr >= MEMORY_SIZE) {
-//        fprintf(stderr, "\nCannot access address %lld\n", ptr);
-//        ERROR_CODE = 1;
-//        return 0;
-//    }
-//    return ptr;
-//}
-
-//void read_2_ints(int64_t *reg1, int64_t *reg2) {
-//    *reg1 = bytes_to_int(MEMORY + PC);
-//    *reg2 = bytes_to_int(MEMORY + PC + INT_LEN);
-//    PC += INT_LEN * 2;
-//}
-
-//void read_3_ints(int64_t *reg1, int64_t *reg2, int64_t *reg3) {
-//    *reg1 = bytes_to_int(MEMORY + PC);
-//    *reg2 = bytes_to_int(MEMORY + PC + INT_LEN);
-//    *reg3 = bytes_to_int(MEMORY + PC + INT_LEN * 2);
-//    PC += INT_LEN * 3;
-//}
-//
-//void read_4_ints(int64_t *reg1, int64_t *reg2, int64_t *reg3, int64_t *reg4) {
-//    *reg1 = bytes_to_int(MEMORY + PC);
-//    *reg2 = bytes_to_int(MEMORY + PC + INT_LEN);
-//    *reg3 = bytes_to_int(MEMORY + PC + INT_LEN * 2);
-//    *reg4 = bytes_to_int(MEMORY + PC + INT_LEN * 3);
-//    PC += INT_LEN * 4;
-//}
-
-//void read_3_true_ptr(int64_t *reg1, int64_t *reg2, int64_t *reg3) {
-//    read_3_ints(reg1, reg2, reg3);
-//    *reg1 = true_ptr(*reg1);
-//    *reg2 = true_ptr(*reg2);
-//    *reg3 = true_ptr(*reg3);
-//}
-
-//void int_cmp(int64_t *reg1, int64_t *reg2, int64_t *reg3, int64_t *reg4) {
-//    read_3_true_ptr(reg1, reg2, reg3);
-//}
 
 void native_printf(int64_t argc, const int64_t *argv) {
     if (argc <= 0) {
@@ -239,28 +202,100 @@ void native_printf(int64_t argc, const int64_t *argv) {
     free(fmt);
 }
 
+int64_t find_ava(int length) {
+    Int64List *pool = create_list();
+    int found = 0;
+    while (found == 0) {
+        if (AVA_SIZE < length) {
+            break;
+        }
+        int i = 0;
+        while (i < length) {
+            i++;
+            int64_t x = extract_heap(AVAILABLE, &AVA_SIZE);
+            append_list(pool, x);
+            int64_t y = peek_heap(AVAILABLE);
+//            printf("x %lld y %lld\n", x, y);
+            if (x != y - HEAP_GAP) {
+                break;
+            }
+        }
+        if (i == length) {
+            found = 1;
+        }
+    }
+
+    if (found) {
+        for (int i = 0; i < pool->size - length; i++) {
+            insert_heap(AVAILABLE, &AVA_SIZE, pool->array[i]);
+        }
+        int64_t result = pool->array[pool->size - length];
+        free_list(pool);
+        return result;
+    } else {
+        free_list(pool);
+        fprintf(stderr, "Cannot allocate length %d, available memory %d\n", length, AVA_SIZE);
+        ERROR_CODE = 2;
+        return -1;
+    }
+}
+
 void native_malloc(int64_t argc, int64_t ret_len, int64_t ret_ptr, int64_t *argv) {
     if (argc != 1 || ret_len != PTR_LEN) {
         printf("Unmatched arg length or return length");
         ERROR_CODE = 2;
         return;
     }
-    int64_t result = HEAP_START;
-    int_to_bytes(MEMORY + ret_ptr, result);
+
+    int64_t asked_len = bytes_to_int(MEMORY + argv[0]);
+    int64_t real_len = asked_len + INT_LEN;
+    int64_t allocate_len = real_len % 8 == 0 ? real_len / 8 : real_len / 8 + 1;
+
+//    print_sorted(AVAILABLE, AVA_SIZE);
+
+//    printf("alloc %lld\n", allocate_len);
+    int64_t location = find_ava(allocate_len);
+//    printf("malloc %lld\n", location + INT_LEN);
+
+//    print_sorted(AVAILABLE, AVA_SIZE);
+
+    int_to_bytes(MEMORY + location, allocate_len);
+
+    int_to_bytes(MEMORY + ret_ptr, location + INT_LEN);
 }
 
 void native_clock(int64_t arg_count, int64_t ret_len, int64_t ret_ptr) {
-    int64_t t = clock();
     if (arg_count != 0 || ret_len != INT_LEN) {
         printf("Unmatched arg length or return length");
         ERROR_CODE = 2;
         return;
     }
+    int64_t t = clock();
     int_to_bytes(MEMORY + ret_ptr, t);
 }
 
-void native_free() {
+void native_free(int64_t argc, const int64_t *argv) {
+    if (argc != 1) {
+        printf("Unmatched arg length or return length");
+        ERROR_CODE = 2;
+        return;
+    }
+    int64_t free_ptr = bytes_to_int(MEMORY + argv[0]);
+    int64_t real_ptr = free_ptr - INT_LEN;
+    int64_t alloc_len = bytes_to_int(MEMORY + real_ptr);
 
+    if (real_ptr < HEAP_START || real_ptr > MEMORY_SIZE) {
+        printf("Cannot free pointer outside heap");
+        ERROR_CODE = 2;
+        return;
+    }
+
+    for (int i = 0; i < alloc_len; i++) {
+        insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_GAP);
+//        printf("free %lld \n", real_ptr + i * HEAP_GAP);
+    }
+
+//    print_sorted(AVAILABLE, AVA_SIZE);
 }
 
 void native_mem_copy(int64_t argc, const int64_t *argv) {
@@ -294,6 +329,7 @@ void call_native(int64_t func, int64_t ret_ptr, int64_t ret_len, int64_t arg_cou
             native_mem_copy(arg_count, arg_array);
             break;
         case 5:  // free
+            native_free(arg_count, arg_array);
             break;
         default:
             printf("Unknown native function %lld", func);
@@ -510,7 +546,7 @@ void vm_run() {
                 reg2 = true_ptr(reg2);
                 reg4 = bytes_to_int(MEMORY + reg1);  // address of value
                 reg4 = true_ptr(reg4);
-                printf("%lld %lld %lld\n", reg1, reg2, reg4);
+//                printf("%lld %lld %lld\n", reg1, reg2, reg4);
                 mem_copy(reg2, reg4, reg3);
                 break;
             case 35:  // STORE SP
@@ -581,6 +617,8 @@ int main(int argc, char **argv) {
 
     if (p_memory) print_memory();
     if (p_exit) printf("Process finished with exit code %lld\n", bytes_to_int(MEMORY + 1));
+
+    vm_shutdown();
 
     exit(0);
 }

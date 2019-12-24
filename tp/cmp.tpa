@@ -1,86 +1,38 @@
 LITERALS:
-0100000002000000010000000300000000000000156664102105983211610510910158323710010010811111111232116105109101583237100100
+0100000008000000050000000233000002552552550000000121
 NATIVE FUNCTIONS: 5
 
 FUNCTIONS: 
-#111 PUSH            1
-#120 LT_I            8  0  1026
-#145 IF_ZERO_GOTO    26  8
-#162 RETURN          0  8
-#179 GOTO            219
-#188 PUSH            8
-#197 SUB_I           9  0  1034
-#222 PUSH            8
-#231 CALL            1135  8  1
+#82 PUSH            8
+#91 CALL_NAT        1074  8  0  1
     ARGS:
-        9  8
-#272 PUSH            8
-#281 SUB_I           25  0  1026
-#306 PUSH            8
-#315 CALL            1135  8  1
+        1026  8
+#140 PUSH            8
+#149 CALL_NAT        1074  8  8  1
     ARGS:
-        25  8
-#356 PUSH            8
-#365 ADD_I           41  17  33
-#390 RETURN          41  8
-#407 STOP
-
-#408 PUSH            8
-#417 CALL_NAT        1095  8  0  0
+        1034  8
+#198 PUSH            8
+#207 CALL_NAT        1074  8  16  1
     ARGS:
-#450 PUSH            8
-#459 ASSIGN          8  0  8
-#484 PUSH            8
-#493 CALL            1135  8  1
+        1026  8
+#256 PTR_ASSIGN      0  1042  8
+#281 PTR_ASSIGN      16  1050  8
+#306 PUSH            0
+#315 CALL_NAT        1098  0  24  1
     ARGS:
-        1042  8
-#534 PUSH            8
-#543 ASSIGN          24  16  8
-#568 PUSH            8
-#577 CALL_NAT        1095  8  32  0
+        8  8
+#364 PUSH            8
+#373 CALL_NAT        1074  8  24  1
     ARGS:
-#610 PUSH            8
-#619 ASSIGN          40  32  8
-#644 STORE_SP
-#645 PUSH            1
-#654 ASSIGN_B        48  1
-#664 PUSH            8
-#673 ASSIGN          49  1050  8
-#698 STORE_SP
-#699 PUSH            1
-#708 LT_I            57  49  1058
-#733 PUSH            1
-#742 AND_I           58  57  48
-#767 IF_ZERO_GOTO    35  58
-#784 ADD_I           49  49  1034
-#809 RES_SP
-#810 GOTO            -121
-#819 RES_SP
-#820 RES_SP
-#821 PUSH            8
-#830 CALL_NAT        1095  8  48  0
-    ARGS:
-#863 PUSH            8
-#872 ASSIGN          56  48  8
-#897 PUSH            8
-#906 SUB_I           64  40  8
-#931 PUSH            0
-#940 CALL_NAT        1111  0  72  2
-    ARGS:
-        1066  14
-        64  8
-#1005 PUSH            8
-#1014 SUB_I           72  56  40
-#1039 PUSH            0
-#1048 CALL_NAT        1111  0  80  2
-    ARGS:
-        1080  15
-        72  8
-#1113 RETURN          24  8
-#1130 STOP
+        1026  8
+#422 PTR_ASSIGN      24  1058  8
+#447 PUSH            8
+#456 UNPACK_ADDR     32  24  8
+#481 RETURN          32  8
+#498 STOP
 
 
 MAIN: 
-#1131 PUSH            8
-#1140 CALL            1432  8  0
+#499 PUSH            8
+#508 CALL            1106  8  0
     ARGS:

@@ -64,6 +64,7 @@ class Heap:
         self.heap = lst.copy()
         mid = len(self.heap) // 2 - 1
         for i in range(mid, -1, -1):
+            print(i)
             self._heapify(i)
 
     def insert(self, value):
@@ -265,6 +266,7 @@ class Memory:
                 x = self.available2.extract()
                 pool.append(x)
                 y = self.available2.get()
+                print("x", x, "y", y)
                 if x != y + 1:
                     break
                 i += 1
@@ -331,8 +333,8 @@ def bytes_to_int(b: bytes) -> int:
 if __name__ == "__main__":
     m = Memory()
     m.initialize(bytes(0))
-    m.available2.heap = [32767, 32766, 32765, 32764, 32763, 32762, 32761, 32760, 32759]
+    m.available2.build_heap([1, 2, 3, 4, 6, 7, 8, 9])
     m.available2.print_sorted()
-    ava2 = m._find_available2(4)
+    ava2 = m._find_available2(2)
     print(ava2)
     m.available2.print_sorted()

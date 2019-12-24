@@ -7,6 +7,12 @@
 
 #include <stdint.h>
 
+typedef struct {
+    int capacity;
+    int size;
+    int64_t *array;
+} Int64List;
+
 unsigned char *read_file(char *file_name, int *length_ptr);
 
 int64_t bytes_to_int(const unsigned char *bytes);
@@ -14,5 +20,13 @@ int64_t bytes_to_int(const unsigned char *bytes);
 unsigned char *bytes_to_str(const unsigned char *bytes, int *str_len);
 
 void int_to_bytes(unsigned char *b, int64_t i);
+
+Int64List *create_list();
+
+void append_list(Int64List *list, int64_t value);
+
+int64_t get_list(Int64List *list, int index);
+
+void free_list(Int64List *list);
 
 #endif //TPL3_LIB_H
