@@ -1,3 +1,17 @@
+#### Build 1011 ####
+2019/12/24
+
+* Modified pointer system:
+    * Types with '*' now stores true pointer, which can be passes between functions
+* Supports for null statement
+* Added compile time functions:
+    * sizeof
+* Struct
+* VM optimization:
+    * Uses 'int_fast64_t' instead of 'int64_t'
+* Known bugs:
+    * Struct attr not working
+
 #### Build 1010 ####
 2019/12/24
 

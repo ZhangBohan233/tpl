@@ -30,9 +30,8 @@ LT_I = 18
 AND = 19
 OR = 20
 IF_ZERO_GOTO = 30
-# IF_ZERO   GOTO      VALUE_P            | if VALUE P is 0 then goto
 CALL_NAT = 31
-# STORE_ADDR = 32
+STORE_ADDR = 32
 UNPACK_ADDR = 33
 PTR_ASSIGN = 34  # | assign the addr stored in ptr with the value stored in right
 STORE_SP = 35
@@ -110,6 +109,11 @@ class ByteOutput:
         self.write_one(ASSIGN_B)
         self.write_int(des)
         self.write_one(real_value)
+
+    def store_addr_to_des(self, des: int, rel_value: int):
+        self.write_one(STORE_ADDR)
+        self.write_int(des)
+        self.write_int(rel_value)
 
     def unpack_addr(self, des: int, addr_ptr: int, length: int):
         self.write_one(UNPACK_ADDR)
@@ -215,6 +219,9 @@ class MemoryManager:
             return self.pointer_length
         return self.type_sizes[name]
 
+    def add_type(self, name, length):
+        self.type_sizes[name] = length
+
     def push_stack(self):
         self.blocks.append(self.sp)
 
@@ -273,6 +280,27 @@ class NativeFunction:
         self.ptr = ptr
 
 
+class CompileTimeFunction:
+    def __init__(self, r_tal, func):
+        self.r_tal: en.Type = r_tal
+        self.func = func
+
+
+class Struct:
+    def __init__(self, name: str):
+        self.name = name
+        self.vars: {str: (int, en.Type)} = {}  # position, type
+
+    def get_attr_pos(self, attr_name: str) -> int:
+        return self.vars[attr_name][0]
+
+    def get_attr_tal(self, attr_name: str) -> en.Type:
+        return self.vars[attr_name][1]
+
+    def __str__(self):
+        return "Struct {}: {}".format(self.name, self.vars)
+
+
 class Compiler:
     def __init__(self, literal_bytes: bytes):
         self.memory = MemoryManager(literal_bytes)
@@ -297,7 +325,10 @@ class Compiler:
             ast.UNDEFINED_NODE: self.compile_undefined,
             ast.INDEXING_NODE: self.compile_getitem,
             ast.BREAK_STMT: self.compile_break,
-            ast.CONTINUE_STMT: self.compile_continue
+            ast.CONTINUE_STMT: self.compile_continue,
+            ast.NULL_STMT: self.compile_null,
+            ast.STRUCT_NODE: self.compile_struct,
+            ast.DOT: self.compile_dot
         }
 
     def set_optimize(self, level):
@@ -315,11 +346,15 @@ class Compiler:
         p5 = self.memory.define_func(typ.int_to_bytes(5))  # 3: free
         env.define_function("free", NativeFunction(en.Type("void"), p5))
 
+    def add_compile_time_functions(self, env: en.GlobalEnvironment):
+        env.define_function("sizeof", CompileTimeFunction(en.Type("int"), self.function_sizeof))
+
     def compile_all(self, root: ast.Node) -> bytes:
         bo = ByteOutput()
 
         env = en.GlobalEnvironment()
         self.add_native_functions(env)
+        self.add_compile_time_functions(env)
 
         # print(self.memory.global_bytes)
 
@@ -474,16 +509,25 @@ class Compiler:
 
         elif node.left.node_type == ast.INDEXING_NODE:  # set item
             left_node: ast.IndexingNode = node.left
+            if r is None:
+                r = self.compile(node.right, env, bo)
             self.compile_setitem(left_node, r, env, bo)
 
         elif node.left.node_type == ast.UNARY_OPERATOR:
             left_node: ast.UnaryOperator = node.left
             l_tal = get_tal_of_evaluated_node(left_node, env)
+            if r is None:
+                r = self.compile(node.right, env, bo)
             if left_node.operation == "unpack" or en.is_array(l_tal):
                 res_ptr = self.get_unpack_final_pos(left_node, env, bo)
                 # print(res_ptr)
                 orig_tal = get_tal_of_evaluated_node(left_node, env)
                 bo.ptr_assign(res_ptr, r, orig_tal.unit_len(self.memory))
+
+        elif isinstance(node.left, ast.Dot):
+            if r is None:
+                r = self.compile(node.right, env, bo)
+            self.compile_attr_assign(node.left, r, env, bo)
 
     def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, env: en.Environment, bo: ByteOutput):
         indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
@@ -497,6 +541,11 @@ class Compiler:
         bo.push_stack(unit_len)
         bo.unpack_addr(result_ptr, indexing_ptr, unit_len)
         return result_ptr
+
+    def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: ByteOutput):
+        indexing_ptr, tal = self.get_struct_attr_ptr_and_tal(node, env, bo)
+
+        bo.ptr_assign(indexing_ptr, value_ptr, tal.total_len(self.memory))
 
     def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
         if isinstance(node.call_obj, ast.IndexingNode):
@@ -513,16 +562,41 @@ class Compiler:
         array_ptr = self.compile(node.call_obj, env, bo)
         bo.add_binary_op_int(ADD_I, indexing_ptr, array_ptr, indexing_ptr)
 
-        # print(unit_len)
+        # print(index_ptr, indexing_ptr)
 
         return indexing_ptr, unit_len
 
+    def get_struct_attr_ptr_and_tal(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, en.Type):
+        struct_ptr = self.compile(node.left, env, bo)
+        left_tal = get_tal_of_evaluated_node(node.left, env)
+        print(struct_ptr, left_tal)
+        if not env.is_struct(left_tal.type_name):
+            raise lib.CompileTimeException("Left branch of dot must be struct. " + generate_lf(node))
+        assert isinstance(node.right, ast.NameNode)
+        struct = env.get_struct(left_tal.type_name)
+        attr_pos = struct.get_attr_pos(node.right.name)
+
+        attr_pos_ptr = self.memory.allocate(INT_LEN)
+        bo.push_stack(INT_LEN)
+        bo.assign_i(attr_pos_ptr, attr_pos)
+
+        indexing_ptr = self.memory.allocate(INT_LEN)
+        bo.push_stack(INT_LEN)
+
+        bo.add_binary_op_int(ADD_I, indexing_ptr, struct_ptr, attr_pos_ptr)
+        print(indexing_ptr, struct_ptr, attr_pos_ptr)
+
+        return indexing_ptr, struct.get_attr_tal(node.right.name)
+
     def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput, preset_return=None):
-        assert node.call_obj.node_type == ast.NAME_NODE
+        assert isinstance(node.call_obj, ast.NameNode)
 
         lf = node.line_num, node.file
 
         ftn = env.get_function(node.call_obj.name, lf)
+
+        if isinstance(ftn, CompileTimeFunction):
+            return self.call_compile_time_functions(ftn, node.args, env, bo, preset_return)
 
         args = []  # args tuple
         for arg_node in node.args.lines:
@@ -584,13 +658,14 @@ class Compiler:
             num_ptr = self.compile(node.value, env, bo)
             ptr_ptr = self.memory.allocate(PTR_LEN)
             bo.push_stack(PTR_LEN)
-            bo.assign_i(ptr_ptr, num_ptr)
+            # bo.assign_i(ptr_ptr, num_ptr)
+            bo.store_addr_to_des(ptr_ptr, num_ptr)
             return ptr_ptr
         elif node.operation == "unpack":
             orig_tal = get_tal_of_evaluated_node(node, env)
             total_len = orig_tal.total_len(self.memory)
             ptr_ptr = self.compile(node.value, env, bo)
-            # print(unit_len)
+            # print(total_len)
             num_ptr = self.memory.allocate(total_len)
             # print(num_ptr)
             bo.push_stack(total_len)
@@ -822,6 +897,47 @@ class Compiler:
     def compile_undefined(self, node: ast.UndefinedNode, env: en.Environment, bo: ByteOutput):
         return 0
 
+    def compile_null(self, node, env, bo: ByteOutput):
+        null_ptr = self.memory.allocate(PTR_LEN)
+        bo.push_stack(PTR_LEN)
+        bo.assign_i(null_ptr, 0)
+        return null_ptr
+
+    def compile_struct(self, node: ast.StructNode, env: en.Environment, bo: ByteOutput):
+        struct = Struct(node.name)
+        pos = 0
+        for line in node.block.lines:
+            if not isinstance(line, ast.AssignmentNode):
+                raise lib.CompileTimeException("Struct must only contain variable declaration. " +
+                                               generate_lf(node))
+            if not isinstance(line.right, ast.UndefinedNode):
+                raise lib.CompileTimeException("Variable assignment not supported in struct declaration" +
+                                               generate_lf(node))
+            type_node: ast.TypeNode = line.left
+            tal = get_tal_of_defining_node(type_node.right, env, self.memory)
+            name = type_node.left.name
+            struct.vars[name] = pos, tal
+            total_len = tal.total_len(self.memory)
+            pos += total_len
+
+        self.memory.add_type(node.name, pos)
+        env.add_struct(node.name, struct)
+
+    def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput):
+        # indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
+        #
+        # result_ptr = self.memory.allocate(unit_len)
+        # bo.push_stack(unit_len)
+        # bo.unpack_addr(result_ptr, indexing_ptr, unit_len)
+        # return result_ptr
+
+        indexing_ptr, tal = self.get_struct_attr_ptr_and_tal(node, env, bo)
+        total_len = tal.total_len(self.memory)
+        result_ptr = self.memory.allocate(total_len)
+        bo.push_stack(total_len)
+        bo.unpack_addr(result_ptr, indexing_ptr, total_len)
+        return result_ptr
+
     def get_unpack_final_pos(self, node: ast.UnaryOperator, env: en.Environment, bo):
         if isinstance(node, ast.UnaryOperator) and node.operation == "unpack":
             return self.get_unpack_final_pos(node.value, env, bo)
@@ -831,6 +947,29 @@ class Compiler:
             return self.compile(node, env, bo)
         else:
             raise lib.CompileTimeException()
+
+    def call_compile_time_functions(self, func: CompileTimeFunction, arg_node: ast.BlockStmt, env: en.Environment,
+                                    bo: ByteOutput, preset_return):
+        if preset_return is None:
+            r_len = func.r_tal.total_len(self.memory)
+            r_ptr = self.memory.allocate(r_len)
+            bo.push_stack(r_len)
+        else:
+            r_ptr = preset_return
+
+        return func.func(r_ptr, bo, arg_node.lines)
+
+    def function_sizeof(self, r_ptr: int, bo: ByteOutput, args: list):
+        if len(args) != 1:
+            raise lib.CompileTimeException("Function 'sizeof' takes exactly 1 argument, {} given."
+                                           .format(len(args)))
+        arg = args[0]
+        if not isinstance(arg, ast.NameNode):
+            raise lib.CompileTimeException("Unexpected argument type. Got {}"
+                                           .format(type(arg)))
+        size = self.memory.get_type_size(arg.name)
+        bo.assign_i(r_ptr, size)
+        return r_ptr
 
 
 def index_node_depth(node: ast.IndexingNode):
@@ -851,7 +990,8 @@ def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryMan
             return en.Type(tn_al_inner.type_name, 0)
         length_lit = node.arg.lines[0]
         if not isinstance(length_lit, ast.Literal) or length_lit.lit_type != 0:
-            raise lib.CompileTimeException("Array length must be fixed int literal")
+            raise lib.CompileTimeException("Array length must be fixed int literal. " +
+                                           generate_lf(node))
         lit_pos = length_lit.lit_pos
         arr_len_b = mem.literal[lit_pos: lit_pos + INT_LEN]
         arr_len_v = typ.bytes_to_int(arr_len_b)
@@ -937,3 +1077,15 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         return get_tal_of_evaluated_node(node.value, env)
     elif node.node_type == ast.NULL_STMT:
         return en.Type("*void")
+    elif node.node_type == ast.DOT:
+        node: ast.Dot
+        left_tal = get_tal_of_evaluated_node(node.left, env)
+        if env.is_struct(left_tal.type_name):
+            struct = env.get_struct(left_tal.type_name)
+            return struct.get_attr_tal(node.right.name)
+        else:
+            raise lib.TypeException()
+
+
+def generate_lf(node: ast.Node) -> str:
+    return "In file '{}', at line {}.".format(node.file, node.line_num)

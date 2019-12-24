@@ -34,15 +34,15 @@ unsigned char *read_file(char *file_name, int *length_ptr) {
 /*
  * This function is only valid when INT_LEN == 8
  */
-int64_t bytes_to_int(const unsigned char *b) {
-    return ((int64_t) *b << 56U) |
-           ((int64_t) *(b + 1) << 48U) |
-           ((int64_t) *(b + 2) << 40U) |
-           ((int64_t) *(b + 3) << 32U) |
-           ((int64_t) *(b + 4) << 24U) |
-           ((int64_t) *(b + 5) << 16U) |
-           ((int64_t) *(b + 6) << 8U) |
-           (int64_t) *(b + 7);
+int_fast64_t bytes_to_int(const unsigned char *b) {
+    return ((int_fast64_t) *b << 56U) |
+           ((int_fast64_t) *(b + 1) << 48U) |
+           ((int_fast64_t) *(b + 2) << 40U) |
+           ((int_fast64_t) *(b + 3) << 32U) |
+           ((int_fast64_t) *(b + 4) << 24U) |
+           ((int_fast64_t) *(b + 5) << 16U) |
+           ((int_fast64_t) *(b + 6) << 8U) |
+           (int_fast64_t) *(b + 7);
 }
 
 /*
@@ -55,7 +55,7 @@ unsigned char *bytes_to_str(const unsigned char *bytes, int *str_len) {
     return ptr;
 }
 
-void int_to_bytes(unsigned char *b, int64_t i) {
+void int_to_bytes(unsigned char *b, int_fast64_t i) {
     *b = (i >> 56U);
     *(b + 1) = (i >> 48U);
     *(b + 2) = (i >> 40U);
@@ -70,26 +70,26 @@ Int64List *create_list() {
     Int64List *list = malloc(sizeof(Int64List));
     list->capacity = 8;
     list->size = 0;
-    list->array = malloc(sizeof(int64_t) * list->capacity);
+    list->array = malloc(sizeof(int_fast64_t) * list->capacity);
     return list;
 }
 
 void list_expand(Int64List *list) {
     list->capacity *= 2;
-    int64_t *new_array = malloc(sizeof(int64_t) * list->capacity);
+    int_fast64_t *new_array = malloc(sizeof(int_fast64_t) * list->capacity);
     memcpy(new_array, list->array, list->size);
     free(list->array);
     list->array = new_array;
 }
 
-void append_list(Int64List *list, int64_t value) {
+void append_list(Int64List *list, int_fast64_t value) {
     if (list->size == list->capacity) {
         list_expand(list);
     }
     list->array[list->size++] = value;
 }
 
-int64_t get_list(Int64List *list, int index) {
+int_fast64_t get_list(Int64List *list, int index) {
     return list->array[index];
 }
 

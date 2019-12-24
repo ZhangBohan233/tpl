@@ -24,6 +24,9 @@ class Type:
     def __str__(self):
         return "({}, {})".format(self.type_name, self.array_lengths)
 
+    def __repr__(self):
+        return self.__str__()
+
     def total_len(self, mm):
         arr_len = 1
         for x in self.array_lengths:
@@ -84,6 +87,9 @@ class Environment:
 
     def get_struct(self, name: str):
         return self.outer.get_struct(name)
+
+    def is_struct(self, name: str):
+        return self.outer.is_struct(name)
 
     def define_var(self, name: str, type_: Type, ptr: int):
         # check if already defined
@@ -223,6 +229,9 @@ class GlobalEnvironment(MainAbstractEnvironment):
 
     def get_struct(self, name: str):
         return self.structs[name]
+
+    def is_struct(self, name: str):
+        return name in self.structs
 
     def get(self, name: str, lf):
         if name in self.constants:

@@ -9,17 +9,17 @@
 
 extern const int HEAP_GAP;
 
-int64_t *AVAILABLE;
+int_fast64_t *AVAILABLE;
 int AVA_SIZE;
 
-void insert_heap(int64_t *heap, int *heap_size, int64_t value);
+void insert_heap(int_fast64_t *heap, int *heap_size, int_fast64_t value);
 
-int64_t *build_heap(int lower, int upper, int *capacity_ptr);
+int_fast64_t *build_heap(int lower, int upper, int *capacity_ptr);
 
-int64_t peek_heap(int64_t *heap);
+int_fast64_t peek_heap(int_fast64_t *heap);
 
-int64_t extract_heap(int64_t *heap, int *heap_size);
+int_fast64_t extract_heap(int_fast64_t *heap, int *heap_size);
 
-void print_sorted(int64_t *heap, int heap_size);
+void print_sorted(int_fast64_t *heap, int heap_size);
 
 #endif //TPL_HEAP_H

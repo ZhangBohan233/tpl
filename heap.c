@@ -10,16 +10,16 @@
 const int HEAP_GAP = 8;
 
 #define swap(heap, i, j) {\
-int64_t temp = heap[i];\
+int_fast64_t temp = heap[i];\
 heap[i] = heap[j];\
 heap[j] = temp;\
 }
 
-void heapify(int64_t *heap, int heap_size, int index) {
+void heapify(int_fast64_t *heap, int heap_size, int index) {
     int left = (index + 1) * 2 - 1;
     int right = (index + 1) * 2;
 
-    int64_t extreme = heap[index];
+    int_fast64_t extreme = heap[index];
     int is_left = 1;
     if (left < heap_size) {
         if (extreme > heap[left]) {  // change if max/min heap
@@ -44,7 +44,7 @@ void heapify(int64_t *heap, int heap_size, int index) {
     }
 }
 
-void rise_node(int64_t *heap, int index) {
+void rise_node(int_fast64_t *heap, int index) {
     int parent_index = (index + 1) / 2 - 1;
     if (parent_index >= 0) {
         if (heap[parent_index] > heap[index]) {  // change if max/min heap
@@ -54,18 +54,18 @@ void rise_node(int64_t *heap, int index) {
     }
 }
 
-void insert_heap(int64_t *heap, int *heap_size, int64_t value) {
+void insert_heap(int_fast64_t *heap, int *heap_size, int_fast64_t value) {
     heap[*heap_size] = value;
 //    printf("bef %d", *heap_size);
     rise_node(heap, (*heap_size)++);
 //    printf("aft %d", *heap_size);
 }
 
-int64_t *build_heap(int lower, int upper, int *capacity_ptr) {
+int_fast64_t *build_heap(int lower, int upper, int *capacity_ptr) {
     int capacity = (upper - lower) / HEAP_GAP;
     *capacity_ptr = capacity;
 
-    int64_t *heap = malloc(sizeof(int64_t) * capacity);
+    int_fast64_t *heap = malloc(sizeof(int_fast64_t) * capacity);
 
     for (int i = 0 ; i < capacity; i++) {
         heap[i] = lower + i * HEAP_GAP;
@@ -81,27 +81,27 @@ int64_t *build_heap(int lower, int upper, int *capacity_ptr) {
     return heap;
 }
 
-int64_t peek_heap(int64_t *heap) {
+int_fast64_t peek_heap(int_fast64_t *heap) {
     return heap[0];
 }
 
-int64_t extract_heap(int64_t *heap, int *heap_size) {
+int_fast64_t extract_heap(int_fast64_t *heap, int *heap_size) {
     (*heap_size) -= 1;
     swap(heap, 0, *heap_size)
-    int64_t minimum = heap[*heap_size];
+    int_fast64_t minimum = heap[*heap_size];
     if (*heap_size > 0) {
         heapify(heap, *heap_size, 0);
     }
     return minimum;
 }
 
-void print_sorted(int64_t *heap, int heap_size) {
+void print_sorted(int_fast64_t *heap, int heap_size) {
 //    printf("\nOrig heap: [");
 
-    int64_t *cpy_heap = malloc(sizeof(int64_t) * heap_size);
+    int_fast64_t *cpy_heap = malloc(sizeof(int_fast64_t) * heap_size);
     int size = heap_size;
 
-    memcpy(cpy_heap, heap, sizeof(int64_t) * size);
+    memcpy(cpy_heap, heap, sizeof(int_fast64_t) * size);
 
 //    for (int i = 0; i < size; i++) {
 //        printf("%lld ", cpy_heap[i]);
@@ -111,7 +111,7 @@ void print_sorted(int64_t *heap, int heap_size) {
     printf("\nSorted heap: [");
 
     while (size > 0) {
-        int64_t peek = extract_heap(cpy_heap, &size);
+        int_fast64_t peek = extract_heap(cpy_heap, &size);
         printf("%lld ", peek);
     }
     printf("]\n");

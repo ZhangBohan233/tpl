@@ -1,4 +1,21 @@
+
+fn test(x: *int) void {
+    *x = 12;
+}
+
+fn test2() *int {
+    return null;
+}
+
 fn main() int {
+
+    var n: int = 6;
+    var p: *int = &n;
+
+    printf("%d\n", *p);
+    test(&n);
+    printf("%d\n", *p);
+    printf("%d\n", n);
 
     var a: *int = malloc(8);
     var b: *char = malloc(5);
@@ -12,5 +29,7 @@ fn main() int {
     var d: *int = malloc(8);
     *d = 121;
 
-    return *d;
+    var e: *int = test2();
+
+    return sizeof(int);
 }

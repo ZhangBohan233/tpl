@@ -1,17 +1,16 @@
+struct A {
+    var a: int;
+    var b: int;
+}
+
+struct B {
+    var a: *A;
+    var b: int;
+}
 
 fn main() int {
-    var j: int = 235;
-    var i: int = 0;
-    while i < 1000 {
-        //printf("%d\n", i);
-        i = i + 1;
-    }
-    var x: int = 127;
-    if x <= 126 {
-        printf("This is true\n");
-    } else {
-        printf("This is not true\n");
-    }
+    var x: *A = malloc(sizeof(A));
+    *(x + 8) = 66;
 
-    return i;
+    return (*x).b;
 }

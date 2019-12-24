@@ -101,6 +101,8 @@ class Decompiler:
             for i in range(i4):
                 arg_ptr, arg_len = self.read_2_ints()
                 out_stream.write("        {}  {}\n".format(arg_ptr, arg_len))
+        elif instruction == cpl.STORE_ADDR:
+            out_stream.write("STORE_ADDR      {}  {}\n".format(*self.read_2_ints()))
         elif instruction == cpl.UNPACK_ADDR:
             out_stream.write("UNPACK_ADDR     {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.PTR_ASSIGN:
