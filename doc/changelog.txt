@@ -1,3 +1,10 @@
+#### Build 1012 ####
+2019/12/25
+
+* New syntax for struct attr:
+    * struct.attr for struct self
+    * struct_ptr..attr for struct pointer
+
 #### Build 1011 ####
 2019/12/24
 
