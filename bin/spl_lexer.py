@@ -6,7 +6,7 @@ import os
 
 OTHER_ARITHMETIC = {"*", "/", "%"}
 SELF_CONCATENATE = {
-    0, 1, 8, 9, 10, 11, 14, 17, 20, 21
+    0, 1, 8, 9, 10, 11, 12, 14, 17, 20, 21
 }
 CROSS_CONCATENATE = {
     (8, 9),  # >=
@@ -229,6 +229,8 @@ class Tokenizer:
                 self.tokens.append(stl.IdToken(line_num, part))
             elif part == stl.EOL:
                 self.tokens.append(stl.IdToken(line_num, stl.EOL))
+            elif stl.is_dots(part):
+                self.tokens.append(stl.IdToken(line_num, part))
             elif part in stl.OMITS:
                 pass
             else:
@@ -262,87 +264,6 @@ class Tokenizer:
             lexer.tokenize(file)
             self.tokens += lexer.tokens
             self.tokens.pop()  # remove the EOF token
-
-    # def find_import(self, from_, to):
-    #     """
-    #     Looks for import statement between the given slice of the tokens list.
-    #
-    #     :param from_: the beginning position of search
-    #     :param to: the end position of search
-    #     :return: None
-    #     """
-    #     for i in range(from_, to, 1):
-    #         token = self.tokens[i]
-    #         if isinstance(token, stl.IdToken) and token.symbol == "import":
-    #             next_token: stl.Token = self.tokens[i + 1]
-    #             namespace_token = None
-    #             if isinstance(next_token, stl.IdToken) and next_token.symbol == "namespace":
-    #                 namespace_token = next_token
-    #                 self.tokens.pop(i + 1)
-    #                 path_token: stl.LiteralToken = self.tokens[i + 1]
-    #             elif isinstance(next_token, stl.LiteralToken):
-    #                 path_token: stl.LiteralToken = self.tokens[i + 1]
-    #             else:
-    #                 raise stl.ParseException("Unexpected token in file '{}', at line {}"
-    #                                          .format(next_token.file, next_token.line))
-    #             name = path_token.text
-    #
-    #             if name[-3:] == ".tp":  # user lib
-    #                 if len(self.script_dir) == 0:
-    #                     file_name = name[:-3] + ".tp"
-    #                 else:
-    #                     file_name = self.script_dir + "{}{}".format("/", name[:-3]) + ".tp"
-    #                     # file_name = "{}{}{}".format(self.script_dir, os.sep, name[:-3]).replace(".", "/") + ".tp"
-    #                 if "/" in name:
-    #                     import_name = name[name.rfind("/") + 1:-3]
-    #                 else:
-    #                     import_name = name[:-3]
-    #             else:  # system lib
-    #                 file_name = "{}{}lib{}{}.tp".format(self.spl_path, os.sep, os.sep, name)
-    #                 import_name = name
-    #
-    #             if len(self.tokens) > i + 2:
-    #                 as_token: stl.IdToken = self.tokens[i + 2]
-    #                 if as_token.symbol == "as":
-    #                     if namespace_token is not None:
-    #                         raise stl.ParseException("Unexpected combination 'import namespace ... as ...'")
-    #                     name_token: stl.IdToken = self.tokens[i + 3]
-    #                     import_name = name_token.symbol
-    #                     self.tokens.pop(i + 1)
-    #                     self.tokens.pop(i + 1)
-    #
-    #             self.tokens.pop(i + 1)  # remove the import name token
-    #
-    #             self.import_file(file_name, import_name)
-    #             if namespace_token:
-    #                 lf = namespace_token.line, namespace_token.file
-    #                 self.tokens.append(namespace_token)
-    #                 self.tokens.append(stl.IdToken(lf, import_name))
-    #                 self.tokens.append(stl.IdToken(lf, stl.EOL))
-    #             break
-    #
-    # def import_file(self, full_path, import_name):
-    #     """
-    #     Imports an external tp file.
-    #
-    #     This method tokenize the imported file, and inserts all tokens except the EOF token of the imported
-    #     file into the current file.
-    #
-    #     :param full_path: the path of the file to be imported
-    #     :param import_name: the name to be used
-    #     """
-    #     with open(full_path, "r") as file:
-    #         lexer = Tokenizer()
-    #         lexer.setup(self.spl_path, full_path, get_dir(full_path))
-    #         # lexer.script_dir = get_dir(full_path)
-    #         lexer.tokenize(file)
-    #         # print(lexer.tokens)
-    #         self.tokens.append(stl.IdToken(LINE_FILE, import_name))
-    #         self.tokens.append(stl.IdToken(LINE_FILE, full_path))
-    #         self.tokens.append(stl.IdToken(LINE_FILE, "{"))
-    #         self.tokens += lexer.tokens
-    #         self.tokens.pop()  # remove the EOF token
-    #         self.tokens.append(stl.IdToken(LINE_FILE, "}"))
 
     def get_tokens(self):
         """
@@ -390,7 +311,7 @@ def normalize(string):
 
 
 def put_string(lst: list, s: str):
-    if len(s) > 1 and s[-1] == ".":  # Scenario of a name ended with a number.
+    if s[0].isidentifier() and len(s) > 1 and s[-1] == ".":  # Scenario of a name ended with a number.
         lst.append(s[:-1])
         lst.append(s[-1])
     else:

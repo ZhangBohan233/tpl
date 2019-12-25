@@ -18,15 +18,15 @@ GOTO = 6  # JUMP       CODE_PTR
 PUSH = 7  # PUSH
 ASSIGN_I = 8  # A      PTR       REAL VALUE         | store the real value in PTR
 ASSIGN_B = 9
-ADD_I = 10  # ADD_I    RESULT_P  LEFT_P   RIGHT_P   | add the ints pointed by pointers, store the result to RESULT_P
-CAST_I = 11  # CAST_I  RESULT_P  SRC_P              | cast to int
-SUB_I = 12
-MUL_I = 13
-DIV_I = 14
-MOD_I = 15
-EQ_I = 16  # EQ       RES PTR   LEFT_P   RIGHT_P   | set RES PTR to 0 if LEFT_P == RIGHT_P
-GT_I = 17  # GT
-LT_I = 18
+ADD = 10  # ADD_I    RESULT_P  LEFT_P   RIGHT_P   | add the ints pointed by pointers, store the result to RESULT_P
+CAST = 11  # CAST_I  RESULT_P  SRC_P              | cast to int
+SUB = 12
+MUL = 13
+DIV = 14
+MOD = 15
+EQ = 16  # EQ       RES PTR   LEFT_P   RIGHT_P   | set RES PTR to 0 if LEFT_P == RIGHT_P
+GT = 17  # GT
+LT = 18
 AND = 19
 OR = 20
 IF_ZERO_GOTO = 30
@@ -36,36 +36,38 @@ UNPACK_ADDR = 33
 PTR_ASSIGN = 34  # | assign the addr stored in ptr with the value stored in right
 STORE_SP = 35
 RES_SP = 36
+TO_REL = 37      # | transform absolute addr to
+ADD_I = 38       # | add with real value
 
 NATIVE_FUNCTION_COUNT = 5
 
 INT_RESULT_TABLE_INT = {
-    "+": ADD_I,
-    "-": SUB_I,
-    "*": MUL_I,
-    "/": DIV_I,
-    "%": MOD_I
+    "+": ADD,
+    "-": SUB,
+    "*": MUL,
+    "/": DIV,
+    "%": MOD
 }
 
 EXTENDED_INT_RESULT_TABLE_INT = {
     **INT_RESULT_TABLE_INT,
-    "+=": ADD_I,
-    "-=": SUB_I,
-    "*=": MUL_I,
-    "/=": DIV_I,
-    "%=": MOD_I
+    "+=": ADD,
+    "-=": SUB,
+    "*=": MUL,
+    "/=": DIV,
+    "%=": MOD
 }
 
 BOOL_RESULT_TABLE_INT = {
-    ">": GT_I,
-    "==": EQ_I,
-    "<": LT_I
+    ">": GT,
+    "==": EQ,
+    "<": LT
 }
 
 EXTENDED_BOOL_RESULT_TABLE_INT = {
     **BOOL_RESULT_TABLE_INT,
-    ">=": (GT_I, EQ_I),
-    "<=": (LT_I, EQ_I)
+    ">=": (GT, EQ),
+    "<=": (LT, EQ)
 }
 
 BOOL_RESULT_TABLE_BOOL = {
@@ -128,7 +130,7 @@ class ByteOutput:
         self.write_int(length)
 
     def cast_to_int(self, tar: int, src: int):
-        self.write_one(CAST_I)
+        self.write_one(CAST)
         self.write_int(tar)
         self.write_int(src)
 
@@ -142,6 +144,15 @@ class ByteOutput:
         self.write_one(RETURN)
         self.write_int(src)
         self.write_int(total_len)
+
+    def add_to_rel_addr(self, addr_addr: int):
+        self.write_one(TO_REL)
+        self.write_int(addr_addr)
+
+    def add_i(self, operand_addr, adder_value: int):
+        self.write_one(ADD_I)
+        self.write_int(operand_addr)
+        self.write_int(adder_value)
 
     def write_int(self, i):
         self.codes.extend(typ.int_to_bytes(i))
@@ -463,6 +474,7 @@ class Compiler:
             if node.level == ast.VAR:
                 tal = get_tal_of_defining_node(type_node.right, env, self.memory)
                 total_len = tal.total_len(self.memory)
+                # print(total_len)
 
                 if total_len == 0:  # pull the right
                     tal = get_tal_of_evaluated_node(node.right, env)
@@ -543,9 +555,19 @@ class Compiler:
         return result_ptr
 
     def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: ByteOutput):
-        indexing_ptr, tal = self.get_struct_attr_ptr_and_tal(node, env, bo)
+        attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
 
-        bo.ptr_assign(indexing_ptr, value_ptr, tal.total_len(self.memory))
+        bo.ptr_assign(attr_addr, value_ptr, length)
+
+    def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput):
+        attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
+
+        res_ptr = self.memory.allocate(length)
+        bo.push_stack(length)
+
+        bo.unpack_addr(res_ptr, attr_addr, length)
+        # print(res_ptr, attr_addr, length)
+        return res_ptr
 
     def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
         if isinstance(node.call_obj, ast.IndexingNode):
@@ -558,35 +580,56 @@ class Compiler:
         bo.assign_i(unit_len_ptr, unit_len)
         indexing_ptr = self.memory.allocate(INT_LEN)
         bo.push_stack(INT_LEN)
-        bo.add_binary_op_int(MUL_I, indexing_ptr, index_ptr, unit_len_ptr)
+        bo.add_binary_op_int(MUL, indexing_ptr, index_ptr, unit_len_ptr)
         array_ptr = self.compile(node.call_obj, env, bo)
-        bo.add_binary_op_int(ADD_I, indexing_ptr, array_ptr, indexing_ptr)
-
-        # print(index_ptr, indexing_ptr)
+        bo.add_binary_op_int(ADD, indexing_ptr, array_ptr, indexing_ptr)
 
         return indexing_ptr, unit_len
 
-    def get_struct_attr_ptr_and_tal(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, en.Type):
-        struct_ptr = self.compile(node.left, env, bo)
+    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, int):
+        # obj_tal = get_tal_of_evaluated_node(node.left, env)
+        # total_len = obj_tal.total_len(self.memory)
+        #
+        # struct = env.get_struct(obj_tal.type_name)
+        # struct_ptr = self.compile(node.left, env, bo)
+        # attr_pos = struct.get_attr_pos(node.right.name)
+        # attr_tal = struct.get_attr_tal(node.right.name)
+        #
+        # addr_ptr = self.memory.allocate(PTR_LEN)
+        # bo.push_stack(PTR_LEN)
+        #
+        # bo.assign_i(addr_ptr, struct_ptr)
+        # bo.add_i(addr_ptr, attr_pos)
+        #
+        # return addr_ptr, attr_tal.total_len(self.memory)
         left_tal = get_tal_of_evaluated_node(node.left, env)
-        print(struct_ptr, left_tal)
-        if not env.is_struct(left_tal.type_name):
-            raise lib.CompileTimeException("Left branch of dot must be struct. " + generate_lf(node))
-        assert isinstance(node.right, ast.NameNode)
-        struct = env.get_struct(left_tal.type_name)
+        ptr_depth = pointer_depth(left_tal.type_name)
+        if ptr_depth != node.dot_count - 1:
+            raise lib.CompileTimeException("Must be struct")
+
+        ltn = left_tal.type_name[ptr_depth:]
+        # attr_tal = get_tal_of_evaluated_node(node, env)
+        struct_ptr = self.compile(node.left, env, bo)
+        struct = env.get_struct(ltn)
+        attr_tal = struct.get_attr_tal(node.right.name)
+
+        attr_len = attr_tal.total_len(self.memory)
         attr_pos = struct.get_attr_pos(node.right.name)
 
-        attr_pos_ptr = self.memory.allocate(INT_LEN)
-        bo.push_stack(INT_LEN)
-        bo.assign_i(attr_pos_ptr, attr_pos)
+        # print(struct, attr_tal, struct_ptr)
 
-        indexing_ptr = self.memory.allocate(INT_LEN)
-        bo.push_stack(INT_LEN)
-
-        bo.add_binary_op_int(ADD_I, indexing_ptr, struct_ptr, attr_pos_ptr)
-        print(indexing_ptr, struct_ptr, attr_pos_ptr)
-
-        return indexing_ptr, struct.get_attr_tal(node.right.name)
+        if node.dot_count == 1:  # self
+            addr_ptr = self.memory.allocate(PTR_LEN)
+            bo.push_stack(PTR_LEN)
+            bo.store_addr_to_des(addr_ptr, struct_ptr + attr_pos)
+            return addr_ptr, attr_len
+        elif node.dot_count == 2:
+            # print(struct_ptr)
+            real_addr_ptr = self.memory.allocate(PTR_LEN)
+            bo.push_stack(PTR_LEN)
+            bo.assign(real_addr_ptr, struct_ptr, attr_len)
+            bo.add_i(real_addr_ptr, attr_pos)
+            return real_addr_ptr, attr_len
 
     def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput, preset_return=None):
         assert isinstance(node.call_obj, ast.NameNode)
@@ -923,21 +966,6 @@ class Compiler:
         self.memory.add_type(node.name, pos)
         env.add_struct(node.name, struct)
 
-    def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput):
-        # indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
-        #
-        # result_ptr = self.memory.allocate(unit_len)
-        # bo.push_stack(unit_len)
-        # bo.unpack_addr(result_ptr, indexing_ptr, unit_len)
-        # return result_ptr
-
-        indexing_ptr, tal = self.get_struct_attr_ptr_and_tal(node, env, bo)
-        total_len = tal.total_len(self.memory)
-        result_ptr = self.memory.allocate(total_len)
-        bo.push_stack(total_len)
-        bo.unpack_addr(result_ptr, indexing_ptr, total_len)
-        return result_ptr
-
     def get_unpack_final_pos(self, node: ast.UnaryOperator, env: en.Environment, bo):
         if isinstance(node, ast.UnaryOperator) and node.operation == "unpack":
             return self.get_unpack_final_pos(node.value, env, bo)
@@ -1080,11 +1108,22 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
     elif node.node_type == ast.DOT:
         node: ast.Dot
         left_tal = get_tal_of_evaluated_node(node.left, env)
-        if env.is_struct(left_tal.type_name):
-            struct = env.get_struct(left_tal.type_name)
+        ptr_depth = pointer_depth(left_tal.type_name)
+        if ptr_depth != node.dot_count - 1:
+            raise lib.TypeException()
+        real_l_tal = en.Type(left_tal.type_name[ptr_depth], left_tal.array_lengths)
+        if env.is_struct(real_l_tal.type_name):
+            struct = env.get_struct(real_l_tal.type_name)
             return struct.get_attr_tal(node.right.name)
         else:
             raise lib.TypeException()
+
+
+def pointer_depth(type_name: str) -> int:
+    for i in range(len(type_name)):
+        if type_name[i] != "*":
+            return i
+    raise lib.CompileTimeException()
 
 
 def generate_lf(node: ast.Node) -> str:

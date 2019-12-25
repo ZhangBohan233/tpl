@@ -8,7 +8,8 @@ import script
 
 
 def parse_args():
-    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "tpa_file": None, "optimize": 0}
+    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "tpa_file": None, "optimize": 0,
+                 "tokens": False, "ast": False}
     i = 1
     while i < len(sys.argv):
         arg = sys.argv[i]
@@ -24,6 +25,10 @@ def parse_args():
                     args_dict["optimize"] = op_level
                 except ValueError:
                     print("Illegal optimize level")
+            elif arg[1:].lower() == "tk":
+                args_dict["tokens"] = True
+            elif arg[1:].lower() == "ast":
+                args_dict["ast"] = True
             else:
                 print("Unknown flag '{}'".format(arg))
         elif args_dict["src_file"] is None:
@@ -48,14 +53,18 @@ if __name__ == '__main__':
 
         tokens = lexer.get_tokens()
 
+        if args["tokens"]:
+            print(tokens)
+
         parser = psr.Parser(tokens)
         root = parser.parse()
 
         preprocessor = pre.Preprocessor()
         preprocessor.preprocess(root)
 
-        print(root)
-        print("========== End of AST ==========")
+        if args["ast"]:
+            print(root)
+            print("========== End of AST ==========")
 
         compiler = cmp.Compiler(parser.literal_bytes)
         compiler.set_optimize(args["optimize"])

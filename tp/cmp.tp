@@ -9,8 +9,18 @@ struct B {
 }
 
 fn main() int {
-    var x: *A = malloc(sizeof(A));
-    *(x + 8) = 66;
+    var i1: int = 231;
 
-    return (*x).b;
+    var x: A;
+    x.a = 11;
+    x.b = 33;
+
+    var y: *A = &x;
+    y..b = 44;
+
+    //printf("%d\n", y..a);
+
+    //var c: int = x..b;
+
+    return x.b;
 }

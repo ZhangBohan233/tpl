@@ -72,26 +72,26 @@ class Decompiler:
             b1 = self.codes[self.pc]
             self.pc += 1
             out_stream.write("ASSIGN_B        {}  {}\n".format(i1, b1))
-        elif instruction == cpl.ADD_I:
-            out_stream.write("ADD_I           {}  {}  {}\n".format(*self.read_3_ints()))
-        elif instruction == cpl.SUB_I:
-            out_stream.write("SUB_I           {}  {}  {}\n".format(*self.read_3_ints()))
-        elif instruction == cpl.MUL_I:
-            out_stream.write("MUL_I           {}  {}  {}\n".format(*self.read_3_ints()))
-        elif instruction == cpl.DIV_I:
-            out_stream.write("DIV_I           {}  {}  {}\n".format(*self.read_3_ints()))
-        elif instruction == cpl.MOD_I:
-            out_stream.write("MOD_I           {}  {}  {}\n".format(*self.read_3_ints()))
-        elif instruction == cpl.EQ_I:
-            out_stream.write("EQ_I            {}  {}  {}\n".format(*self.read_3_ints()))
-        elif instruction == cpl.GT_I:
-            out_stream.write("GT_I            {}  {}  {}\n".format(*self.read_3_ints()))
-        elif instruction == cpl.LT_I:
-            out_stream.write("LT_I            {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.ADD:
+            out_stream.write("ADD             {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.SUB:
+            out_stream.write("SUB             {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.MUL:
+            out_stream.write("MUL             {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.DIV:
+            out_stream.write("DIV             {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.MOD:
+            out_stream.write("MOD             {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.EQ:
+            out_stream.write("EQ              {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.GT:
+            out_stream.write("GT              {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.LT:
+            out_stream.write("LT              {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.AND:
-            out_stream.write("AND_I           {}  {}  {}\n".format(*self.read_3_ints()))
+            out_stream.write("AND             {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.OR:
-            out_stream.write("OR_I            {}  {}  {}\n".format(*self.read_3_ints()))
+            out_stream.write("OR              {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.IF_ZERO_GOTO:
             out_stream.write("IF_ZERO_GOTO    {}  {}\n".format(*self.read_2_ints()))
         elif instruction == cpl.CALL_NAT:
@@ -111,6 +111,10 @@ class Decompiler:
             out_stream.write("STORE_SP\n")
         elif instruction == cpl.RES_SP:
             out_stream.write("RES_SP\n")
+        elif instruction == cpl.TO_REL:
+            out_stream.write("TO_REL          {}\n".format(self.read_1_int()))
+        elif instruction == cpl.ADD_I:
+            out_stream.write("ADD_I           {}  {}\n".format(*self.read_2_ints()))
         else:
             print("Unknown instruction: {}".format(instruction))
             raise Exception

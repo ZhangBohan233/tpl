@@ -13,6 +13,8 @@
 
 #define true_ptr(ptr) (ptr < LITERAL_START && CSP >= 0 ? ptr + CALL_STACK[CSP] : ptr)
 
+#define rel_ptr(ptr) (ptr < LITERAL_START && CSP >= 0 ? ptr - CALL_STACK[CSP] : ptr)
+
 #define read_2_ints {\
 reg1 = bytes_to_int(MEMORY + PC);\
 reg2 = bytes_to_int(MEMORY + PC + INT_LEN);\
@@ -543,8 +545,7 @@ void vm_run() {
                 reg2 = true_ptr(reg2);   // address of pointer
 
                 reg4 = bytes_to_int(MEMORY + reg2);  // address stored in pointer
-//                reg4 = true_ptr(reg4);
-//                printf("%lld %lld\n", reg2, reg4);
+//                printf("unpack %lld, value %lld\n", reg2, reg4);
                 mem_copy(reg4, reg1, reg3);
                 break;
             case 34:  // PTR ASSIGN
@@ -553,7 +554,7 @@ void vm_run() {
                 reg2 = true_ptr(reg2);
                 reg4 = bytes_to_int(MEMORY + reg1);  // address of value
 //                reg4 = true_ptr(reg4);
-//                printf("%lld %lld %lld\n", reg1, reg2, reg4);
+//                printf("ptr assign: ptr at %lld, src %lld, len %lld\n", reg1, reg2, reg3);
                 mem_copy(reg2, reg4, reg3);
                 break;
             case 35:  // STORE SP
@@ -563,6 +564,21 @@ void vm_run() {
             case 36:  // RESTORE SP
                 SP = LOOP_STACK[LSP--];
 //                printf("res: %lld %d ", SP, LSP);
+                break;
+            case 37:  // TO REL
+                reg1 = bytes_to_int(MEMORY + PC);  // addr of ptr
+                PC += INT_LEN;
+                reg2 = bytes_to_int(MEMORY + reg1);
+                reg2 = rel_ptr(reg2);
+                int_to_bytes(MEMORY + reg1, reg2);
+                break;
+            case 38:  // ADD_I
+            read_2_ints
+                reg1 = true_ptr(reg1);
+                reg3 = bytes_to_int(MEMORY + reg1);
+                reg3 = reg3 + reg2;
+                int_to_bytes(MEMORY + reg1, reg3);
+//                printf("addi, addr %lld\n", reg1);
                 break;
             default:
                 fprintf(stderr, "Unknown instruction %d\n", instruction);

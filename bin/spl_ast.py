@@ -570,13 +570,15 @@ class ClassStmt(Node):
 
 
 class Dot(BinaryOperator):
-    def __init__(self, line):
+    def __init__(self, line, dot_count):
         BinaryOperator.__init__(self, line, ".")
+
+        self.dot_count = dot_count
 
         self.node_type = DOT
 
     def __str__(self):
-        return "({} dot {})".format(self.left, self.right)
+        return "({} dot*{} {})".format(self.left, self.dot_count, self.right)
 
     def __repr__(self):
         return "."
@@ -1067,12 +1069,12 @@ class AbstractSyntaxTree:
             class_node.block = node
             self.stack.append(class_node)
 
-    def add_dot(self, line):
+    def add_dot(self, line, dot_count: int):
         if self.inner:
-            self.inner.add_dot(line)
+            self.inner.add_dot(line, dot_count)
         else:
             self.in_expr = True
-            node = Dot(line)
+            node = Dot(line, dot_count)
             self.stack.append(node)
 
     def add_parenthesis(self):

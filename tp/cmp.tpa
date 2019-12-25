@@ -1,32 +1,35 @@
 LITERALS:
-0100000008000000066
+010000000231000000011000000033000000044
 NATIVE FUNCTIONS: 5
 
 FUNCTIONS: 
-#58 PUSH            8
-#67 ASSIGN_I        0  16
-#84 PUSH            8
-#93 CALL_NAT        1050  8  8  1
-    ARGS:
-        0  8
+#74 PUSH            8
+#83 ASSIGN          0  1026  8
+#108 PUSH            16
+#117 ASSIGN          8  0  16
 #142 PUSH            8
-#151 ASSIGN          16  8  8
-#176 PUSH            8
-#185 ADD_I           24  16  1026
-#210 PTR_ASSIGN      24  1034  16
-#235 PUSH            16
-#244 UNPACK_ADDR     32  16  16
-#269 PUSH            8
-#278 ASSIGN_I        48  8
-#295 PUSH            8
-#304 ADD_I           56  32  48
-#329 PUSH            8
-#338 UNPACK_ADDR     64  56  8
-#363 RETURN          64  8
-#380 STOP
+#151 STORE_ADDR      24  8
+#168 PTR_ASSIGN      24  1034  8
+#193 PUSH            8
+#202 STORE_ADDR      32  16
+#219 PTR_ASSIGN      32  1042  8
+#244 PUSH            8
+#253 STORE_ADDR      40  8
+#270 PUSH            8
+#279 ASSIGN          48  40  8
+#304 PUSH            8
+#313 ASSIGN          56  48  8
+#338 ADD_I           56  8
+#355 PTR_ASSIGN      56  1050  8
+#380 PUSH            8
+#389 STORE_ADDR      64  16
+#406 PUSH            8
+#415 UNPACK_ADDR     72  64  8
+#440 RETURN          72  8
+#457 STOP
 
 
 MAIN: 
-#381 PUSH            8
-#390 CALL            1082  8  0
+#458 PUSH            8
+#467 CALL            1098  8  0
     ARGS:

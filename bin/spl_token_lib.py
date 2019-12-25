@@ -99,6 +99,15 @@ def read_string(f: io.BytesIO) -> str:
     return byte_str.decode("utf-8")
 
 
+def is_dots(s: str) -> bool:
+    if '.' in s:
+        for ch in s:
+            if ch != '.':
+                return False
+        return True
+    return False
+
+
 class Token:
 
     def __init__(self, line):

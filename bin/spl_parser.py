@@ -173,8 +173,6 @@ class Parser:
                     elif sym == ",":
                         if var_level == ast.ASSIGN:  # the normal level
                             parser.build_line()
-                    elif sym == ".":
-                        parser.add_dot(line)
                     elif sym == "~":  # a special mark
                         pass
                     elif sym == "fn":
@@ -296,6 +294,8 @@ class Parser:
                             parser.add_unary(line, sym)
                     elif sym[:-1] in stl.OP_EQ:
                         parser.add_operator(line, sym, True)
+                    elif stl.is_dots(sym):
+                        parser.add_dot(line, len(sym))
                     # elif sym == "import":
                     #     i += 2
                     #     name_token: stl.IdToken = self.tokens[i - 1]
