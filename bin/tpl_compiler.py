@@ -19,7 +19,7 @@ PUSH = 7  # PUSH
 ASSIGN_I = 8  # A      PTR       REAL VALUE         | store the real value in PTR
 ASSIGN_B = 9
 ADD = 10  # ADD_I    RESULT_P  LEFT_P   RIGHT_P   | add the ints pointed by pointers, store the result to RESULT_P
-CAST = 11  # CAST_I  RESULT_P  SRC_P              | cast to int
+CAST_INT = 11  # CAST_INT  RESULT_P  SRC_P              | cast to int
 SUB = 12
 MUL = 13
 DIV = 14
@@ -29,6 +29,8 @@ GT = 17  # GT
 LT = 18
 AND = 19
 OR = 20
+NOT = 21
+NE = 22
 IF_ZERO_GOTO = 30
 CALL_NAT = 31
 STORE_ADDR = 32
@@ -61,18 +63,23 @@ EXTENDED_INT_RESULT_TABLE_INT = {
 BOOL_RESULT_TABLE_INT = {
     ">": GT,
     "==": EQ,
+    "!=": NE,
     "<": LT
 }
 
 EXTENDED_BOOL_RESULT_TABLE_INT = {
     **BOOL_RESULT_TABLE_INT,
     ">=": (GT, EQ),
-    "<=": (LT, EQ)
+    "<=": (LT, EQ),
 }
 
 BOOL_RESULT_TABLE_BOOL = {
     "&&": AND,
     "||": OR
+}
+
+OTHER_BOOL_RESULT_UNARY = {
+    "!"
 }
 
 
@@ -129,16 +136,22 @@ class ByteOutput:
         self.write_int(right)
         self.write_int(length)
 
-    def cast_to_int(self, tar: int, src: int):
-        self.write_one(CAST)
+    def cast_to_int(self, tar: int, src: int, src_len: int):
+        self.write_one(CAST_INT)
         self.write_int(tar)
         self.write_int(src)
+        self.write_int(src_len)
 
     def add_binary_op_int(self, op: int, res: int, left: int, right: int):
         self.write_one(op)
         self.write_int(res)
         self.write_int(left)
         self.write_int(right)
+
+    def add_unary_op_int(self, op: int, res: int, value: int):
+        self.write_one(op)
+        self.write_int(res)
+        self.write_int(value)
 
     def add_return(self, src, total_len):
         self.write_one(RETURN)
@@ -501,7 +514,7 @@ class Compiler:
                     arr_ptr = self.memory.allocate(total_len)
                     # print(total_len)
                     bo.push_stack(total_len)
-                    bo.assign_i(ptr, arr_ptr)
+                    bo.store_addr_to_des(ptr, arr_ptr)
 
                     if r != 0:
                         bo.assign(arr_ptr, r, total_len)
@@ -532,9 +545,9 @@ class Compiler:
                 r = self.compile(node.right, env, bo)
             if left_node.operation == "unpack" or en.is_array(l_tal):
                 res_ptr = self.get_unpack_final_pos(left_node, env, bo)
-                # print(res_ptr)
-                orig_tal = get_tal_of_evaluated_node(left_node, env)
-                bo.ptr_assign(res_ptr, r, orig_tal.unit_len(self.memory))
+                right_tal = get_tal_of_evaluated_node(node.right, env)
+                # orig_tal = get_tal_of_evaluated_node(left_node, env)
+                bo.ptr_assign(res_ptr, r, right_tal.total_len(self.memory))
 
         elif isinstance(node.left, ast.Dot):
             if r is None:
@@ -714,6 +727,15 @@ class Compiler:
             bo.push_stack(total_len)
             bo.unpack_addr(num_ptr, ptr_ptr, total_len)
             return num_ptr
+        elif node.operation == "!":
+            v_tal = get_tal_of_evaluated_node(node.value, env)
+            if v_tal.total_len(self.memory) != BOOLEAN_LEN:
+                raise lib.CompileTimeException()
+            vp = self.compile(node.value, env, bo)
+            res_ptr = self.memory.allocate(BOOLEAN_LEN)
+            bo.push_stack(BOOLEAN_LEN)
+            bo.add_unary_op_int(NOT, res_ptr, vp)
+            return res_ptr
         else:  # normal unary operators
             raise lib.CompileTimeException("Not implemented")
 
@@ -725,42 +747,12 @@ class Compiler:
             lp = self.compile(node.left, env, bo)
             rp = self.compile(node.right, env, bo)
             if r_tal.type_name != "int" and r_tal.type_name[0] != "*":
-                rp = self.case_to_int(rp, bo)
+                rip = self.memory.allocate(INT_LEN)
+                bo.push_stack(INT_LEN)
+                bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
+                rp = rip
 
-            if node.operation in EXTENDED_INT_RESULT_TABLE_INT:
-                if node.operation in INT_RESULT_TABLE_INT:
-                    if res is None:
-                        res_pos = self.memory.allocate(INT_LEN)
-                        bo.push_stack(INT_LEN)
-                    else:
-                        res_pos = res
-                    op_code = INT_RESULT_TABLE_INT[node.operation]
-                    bo.add_binary_op_int(op_code, res_pos, lp, rp)
-                    return res_pos
-                else:
-                    op_code = EXTENDED_INT_RESULT_TABLE_INT[node.operation]
-                    bo.add_binary_op_int(op_code, lp, lp, rp)
-                    return lp
-            elif node.operation in EXTENDED_BOOL_RESULT_TABLE_INT:
-                if res is None:
-                    res_pos = self.memory.allocate(BOOLEAN_LEN)
-                    bo.push_stack(BOOLEAN_LEN)
-                else:
-                    res_pos = res
-                if node.operation in BOOL_RESULT_TABLE_INT:
-                    op_code = BOOL_RESULT_TABLE_INT[node.operation]
-                    bo.add_binary_op_int(op_code, res_pos, lp, rp)
-                    return res_pos
-                else:
-                    op_tup = EXTENDED_BOOL_RESULT_TABLE_INT[node.operation]
-                    l_res = self.memory.allocate(BOOLEAN_LEN)
-                    bo.push_stack(INT_LEN)
-                    r_res = self.memory.allocate(BOOLEAN_LEN)
-                    bo.push_stack(INT_LEN)
-                    bo.add_binary_op_int(op_tup[0], l_res, lp, rp)
-                    bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
-                    bo.add_binary_op_int(OR, res_pos, l_res, r_res)
-                    return res_pos
+            return self.binary_op_int(node.operation, lp, rp, bo, res)
 
         elif l_tal.type_name == "boolean":
             if r_tal.type_name != "boolean":
@@ -779,13 +771,71 @@ class Compiler:
                 bo.add_binary_op_int(op_code, res_pos, lp, rp)
                 return res_pos
 
+        elif l_tal.type_name == "char":
+            lp = self.compile(node.left, env, bo)
+            rp = self.compile(node.right, env, bo)
+
+            lip = self.memory.allocate(INT_LEN)
+            bo.push_stack(INT_LEN)
+            bo.cast_to_int(lip, lp, CHAR_LEN)
+
+            if r_tal.type_name != "int":
+                rip = self.memory.allocate(INT_LEN)
+                bo.push_stack(INT_LEN)
+                bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
+            else:
+                rip = rp
+
+            return self.binary_op_int(node.operation, lip, rip, bo, res)
+
         raise lib.CompileTimeException("Unsupported binary operation '{}'".format(node.operation))
 
-    def case_to_int(self, ptr, bo: ByteOutput):
-        res_pos = self.memory.allocate(INT_LEN)
-        bo.push_stack(INT_LEN)
-        bo.cast_to_int(res_pos, ptr)
-        return res_pos
+    def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput, res) -> int:
+        if op in EXTENDED_INT_RESULT_TABLE_INT:
+            if op in INT_RESULT_TABLE_INT:
+                if res is None:
+                    res_pos = self.memory.allocate(INT_LEN)
+                    bo.push_stack(INT_LEN)
+                else:
+                    res_pos = res
+                op_code = INT_RESULT_TABLE_INT[op]
+                bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                return res_pos
+            else:
+                op_code = EXTENDED_INT_RESULT_TABLE_INT[op]
+                bo.add_binary_op_int(op_code, lp, lp, rp)
+                return lp
+        elif op in EXTENDED_BOOL_RESULT_TABLE_INT:
+            if res is None:
+                res_pos = self.memory.allocate(BOOLEAN_LEN)
+                bo.push_stack(BOOLEAN_LEN)
+            else:
+                res_pos = res
+            if op in BOOL_RESULT_TABLE_INT:
+                op_code = BOOL_RESULT_TABLE_INT[op]
+                bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                return res_pos
+            else:
+                op_tup = EXTENDED_BOOL_RESULT_TABLE_INT[op]
+                l_res = self.memory.allocate(BOOLEAN_LEN)
+                bo.push_stack(INT_LEN)
+                r_res = self.memory.allocate(BOOLEAN_LEN)
+                bo.push_stack(INT_LEN)
+                bo.add_binary_op_int(op_tup[0], l_res, lp, rp)
+                bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
+                bo.add_binary_op_int(OR, res_pos, l_res, r_res)
+                return res_pos
+        # elif op == "!=":
+        #     if res is None:
+        #         res_pos = self.memory.allocate(BOOLEAN_LEN)
+        #         bo.push_stack(BOOLEAN_LEN)
+        #     else:
+        #         res_pos = res
+        #     eq_pos = self.memory.allocate(BOOLEAN_LEN)
+        #     bo.push_stack(eq_pos)
+        #     bo.add_binary_op_int(EQ, eq_pos, lp, rp)
+        #     bo.add_unary_op_int(NOT, res_pos, eq_pos)
+        #     return res_pos
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
         r = self.compile(node.value, env, bo)
@@ -1077,6 +1127,8 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
                 raise lib.TypeException("Cannot unpack a non-pointer type")
         elif node.operation == "pack":
             return en.Type("*" + tal.type_name)
+        elif node.operation in OTHER_BOOL_RESULT_UNARY:
+            return en.Type("boolean")
         else:
             return tal
     elif node.node_type == ast.BINARY_OPERATOR:

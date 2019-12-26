@@ -1,3 +1,10 @@
+#### Build 1013 ####
+2019/12/25
+
+* Added support for more operators:
+    * '!', '!='
+* Finished char and char array implementation
+
 #### Build 1012 ####
 2019/12/25
 

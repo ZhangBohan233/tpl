@@ -74,6 +74,8 @@ class Decompiler:
             out_stream.write("ASSIGN_B        {}  {}\n".format(i1, b1))
         elif instruction == cpl.ADD:
             out_stream.write("ADD             {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.CAST_INT:
+            out_stream.write("CAST_INT        {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.SUB:
             out_stream.write("SUB             {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.MUL:
@@ -92,6 +94,10 @@ class Decompiler:
             out_stream.write("AND             {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.OR:
             out_stream.write("OR              {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.NOT:
+            out_stream.write("NOT             {}  {}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.NE:
+            out_stream.write("NE              {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.IF_ZERO_GOTO:
             out_stream.write("IF_ZERO_GOTO    {}  {}\n".format(*self.read_2_ints()))
         elif instruction == cpl.CALL_NAT:

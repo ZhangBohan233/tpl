@@ -12,8 +12,9 @@ fn str_concat(s1: *char, s2: *char) *char {
     var total_len: int = l_len + r_len + 1;
     var rtn: *char = malloc(sizeof(char) * total_len);
     var l_occ: int = sizeof(char) * l_len;
-    mem_copy(s1, rtn, l_occ);
-    mem_copy(s2, rtn + l_occ, sizeof(char) * r_len);
+    //printf("%d %d\n", total_len, l_occ);
+    mem_copy(rtn, s1, l_occ);
+    mem_copy(rtn + l_occ, s2, sizeof(char) * r_len);
     rtn[total_len - 1] = '\0';
     return rtn;
 }

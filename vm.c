@@ -432,6 +432,17 @@ void vm_run() {
                 reg2 = reg2 + reg3;  // result
                 int_to_bytes(MEMORY + reg1, reg2);
                 break;
+            case 11:  // CAST INT
+            read_3_ints  // res ptr, src ptr, src len
+                reg1 = true_ptr(reg1);
+                reg2 = true_ptr(reg2);
+                // TODO: float cast
+                if (reg3 <= 8) {
+                    mem_copy(reg2, reg1, reg3);
+//                    reg4 = bytes_to_int(MEMORY + reg2);
+//
+                } // TODO: else
+                break;
             case 12:  // SUB INT
             read_3_true_ptr  // res ptr, left ptr, right ptr
                 reg2 = bytes_to_int(MEMORY + reg2);  // left value
@@ -499,6 +510,21 @@ void vm_run() {
                 reg11 = MEMORY[reg2];  // left value
                 reg12 = MEMORY[reg3];  // right value
                 reg11 = reg11 || reg12;
+                MEMORY[reg1] = reg11;
+                break;
+            case 21:  // NOT
+            read_2_ints  // res ptr, bool value ptr
+                reg11 = MEMORY[reg2];
+                reg11 = !reg11;
+                MEMORY[reg1] = reg11;
+                break;
+            case 22:  // NE
+            read_3_true_ptr  // res ptr, left ptr, right ptr
+                reg2 = bytes_to_int(MEMORY + reg2);  // left value
+                reg3 = bytes_to_int(MEMORY + reg3);  // right value
+                reg2 = reg2 - reg3;  // cmp_result
+
+                reg11 = reg2 != 0 ? 1 : 0;
                 MEMORY[reg1] = reg11;
                 break;
             case 30:  // IF ZERO GOTO
