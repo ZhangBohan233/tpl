@@ -8,7 +8,7 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "=": 1, "+=": 3, "-=": 3, "*=": 3, "/=": 3, "%=": 3,
               "&=": 3, "^=": 3, "|=": 3, "<<=": 3, ">>=": 3,
               "===": 20, "!==": 20, "instanceof": 25, "subclassof": 25, "assert": 0,
-              "?": 4, "++": 300, "--": 300, ":": 3, "->": 2, "<-": 2}
+              "?": 4, "++": 300, "--": 300, ":": 3, "->": 2, "<-": 2, ":=": 1}
 
 MULTIPLIER = 1000
 
@@ -32,6 +32,7 @@ DEF_STMT = 20
 FUNCTION_CALL = 21
 CLASS_STMT = 22
 NULL_STMT = 23
+QUICK_ASSIGNMENT = 24
 # ABSTRACT = 25
 # TRY_STMT = 27
 # CATCH_STMT = 28
@@ -292,6 +293,14 @@ class TypeNode(BinaryExpr):
         BinaryExpr.__init__(self, line, ":")
 
         self.node_type = TYPE_NODE
+
+
+class QuickAssignmentNode(BinaryExpr):
+
+    def __init__(self, line):
+        BinaryExpr.__init__(self, line, ":=")
+
+        self.node_type = QUICK_ASSIGNMENT
 
 
 class AssignmentNode(BinaryExpr):
@@ -751,6 +760,14 @@ class AbstractSyntaxTree:
             self.in_expr = True
             op_node = BinaryOperator(line, op)
             op_node.assignment = assignment
+            self.stack.append(op_node)
+
+    def add_quick_assignment(self, line):
+        if self.inner:
+            self.inner.add_quick_assignment(line)
+        else:
+            self.in_expr = True
+            op_node = QuickAssignmentNode(line)
             self.stack.append(op_node)
 
     def add_lambda(self, line):

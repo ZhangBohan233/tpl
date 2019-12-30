@@ -77,7 +77,7 @@ Int64List *create_list() {
 void list_expand(Int64List *list) {
     list->capacity *= 2;
     int_fast64_t *new_array = malloc(sizeof(int_fast64_t) * list->capacity);
-    memcpy(new_array, list->array, list->size);
+    memcpy(new_array, list->array, sizeof(int_fast64_t) * list->size);
     free(list->array);
     list->array = new_array;
 }

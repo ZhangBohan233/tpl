@@ -1,3 +1,9 @@
+#### Build 1014 ####
+2019/12/30
+
+* Added quick assignment expression:
+    * ':='
+
 #### Build 1013 ####
 2019/12/25
 

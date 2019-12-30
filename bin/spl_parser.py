@@ -167,9 +167,6 @@ class Parser:
                         # print(parser.get_last())
                         parser.add_assignment(line, var_level)
                         var_level = ast.ASSIGN
-                    elif sym == ":=":
-                        parser.build_expr()
-                        parser.add_assignment(line, ast.VAR)
                     elif sym == ",":
                         if var_level == ast.ASSIGN:  # the normal level
                             parser.build_line()
@@ -200,75 +197,12 @@ class Parser:
                         name_token: stl.IdToken = self.tokens[i]
                         parser.add_struct(line, name_token.symbol)
                         struct_braces.append(brace_count)
-                    # elif sym == "->":
-                    #     parser.add_lambda(line)
-                    # elif sym == "<-":
-                    #     parser.add_anonymous_class(line)
-                    # elif sym == "operator":
-                    #     func_doc = self.get_doc(i)
-                    #     i += 1
-                    #     op_token = self.tokens[i]
-                    #     group = stl.BINARY_OPERATORS
-                    #     if isinstance(op_token, stl.NumToken):
-                    #         v = int(op_token.value)
-                    #         if v == 1:
-                    #             group = stl.UNARY_OPERATORS
-                    #         elif v == 2:
-                    #             group = stl.BINARY_OPERATORS
-                    #         elif v == 3:
-                    #             group = stl.TERNARY_OPERATORS
-                    #         else:
-                    #             raise stl.ParseException("Unsupported operator kind")
-                    #         i += 1
-                    #         op_token = self.tokens[i]
-                    #     op_name = "__" + group[op_token.symbol] + "__"
-                    #     parser.add_name(line, op_name)
-                    #     parser.add_assignment(line, ast.FUNC_DEFINE)
-                    #     parser.add_function(line, False, func_doc)
-                    #     param_nest_list.append(par_count)
-                    #     par_count += 1
-                    #     i += 1
-                    # elif sym == "class":
-                    #     class_doc = self.get_doc(i)
-                    #     i += 1
-                    #     c_token: stl.IdToken = self.tokens[i]
-                    #     class_name = c_token.symbol
-                    #     if class_name in stl.NO_CLASS_NAME:
-                    #         raise stl.ParseException("Name '{}' is forbidden for class name".format(class_name))
-                    #     parser.add_class(
-                    #         (c_token.line_number(), c_token.file_name()),
-                    #         class_name,
-                    #         is_abstract,
-                    #         class_doc
-                    #     )
-                    #     class_braces.append(brace_count)
-                    #     is_abstract = False
-                    # elif sym == "extends":
-                    #     parser.add_extends()
-                    #     is_extending = True
-                    # elif sym == "abstract":
-                    #     next_token = self.tokens[i + 1]
-                    #     if isinstance(next_token, stl.IdToken) and next_token.symbol in ABSTRACT_IDENTIFIER:
-                    #         is_abstract = True
-                    #     else:
-                    #         raise stl.ParseException("Unexpected token 'abstract', in file '{}', at line {}"
-                    #                                  .format(line[1], line[0]))
-                    #         # parser.add_abstract(line)
-                    # elif sym == "new":
-                    #     parser.add_unary(line, "new")
-                    # elif sym == "throw":
-                    #     parser.add_unary(line, "throw")
-                    # elif sym == "try":
-                    #     parser.add_try(line)
-                    # elif sym == "catch":
-                    #     parser.add_catch(line)
-                    #     is_conditional = True
-                    # elif sym == "finally":
-                    #     parser.add_finally(line)
                     elif sym == "assert":
                         parser.add_unary(line, "assert")
                     elif sym == "++" or sym == "--":
                         parser.add_increment_decrement(line, sym)
+                    elif sym == ":=":
+                        parser.add_quick_assignment(line)
                     elif sym in stl.TERNARY_OPERATORS and \
                             (parser.is_in_ternary() or stl.TERNARY_OPERATORS[sym]):
                         # This check should go strictly before the check of binary ops

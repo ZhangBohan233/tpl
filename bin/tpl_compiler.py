@@ -352,7 +352,8 @@ class Compiler:
             ast.CONTINUE_STMT: self.compile_continue,
             ast.NULL_STMT: self.compile_null,
             ast.STRUCT_NODE: self.compile_struct,
-            ast.DOT: self.compile_dot
+            ast.DOT: self.compile_dot,
+            ast.QUICK_ASSIGNMENT: self.compile_quick_assignment
         }
 
     def set_optimize(self, level):
@@ -458,6 +459,12 @@ class Compiler:
         lf = node.line_num, node.file
         ptr = env.get(node.name, lf)
         return ptr
+
+    def compile_quick_assignment(self, node: ast.QuickAssignmentNode, env: en.Environment, bo: ByteOutput):
+        name: str = node.left.name
+        tal = get_tal_of_evaluated_node(node.right, env)
+        r = self.compile(node.right, env, bo)  # TODO: optimize
+        env.define_var(name, tal, r)
 
     def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
         if self.optimize == 0:

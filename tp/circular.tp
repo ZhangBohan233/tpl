@@ -1,0 +1,18 @@
+fn t1(n: int) int;
+
+fn t2(n: int) int {
+    return t1(n + 1);
+}
+
+fn t1(n: int) int {
+    if n < 2 {
+        return t2(n);
+    } else {
+        return n;
+    }
+}
+
+fn main() int {
+    a := t1(3);
+    return a;
+}
