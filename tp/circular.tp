@@ -13,6 +13,6 @@ fn t1(n: int) int {
 }
 
 fn main() int {
-    a := t1(3);
+    a := t1(1);
     return a;
 }

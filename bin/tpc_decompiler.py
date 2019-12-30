@@ -19,8 +19,8 @@ class Decompiler:
         self.global_begin = literal_len
         self.code_begin = self.global_begin + global_len
         self.pc = self.global_begin
-
-        self.in_func = False
+        #
+        # self.in_func = False
 
     def decompile(self, out_stream):
         length = len(self.codes)
@@ -29,12 +29,21 @@ class Decompiler:
             out_stream.write(str(self.codes[i]))
         out_stream.write("\n")
 
+        # out_stream.write("NATIVE FUNCTIONS: {}\n".format(cpl.NATIVE_FUNCTION_COUNT))
+        # self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
+        # self.in_func = True
+
+        func_count = self.read_1_int()
+
+        out_stream.write("FUNC_POINTERS: ")
+        for i in range(func_count):
+            out_stream.write(str(self.read_1_int()) + "\n")
+
         out_stream.write("NATIVE FUNCTIONS: {}\n".format(cpl.NATIVE_FUNCTION_COUNT))
         self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
-        self.in_func = True
 
         out_stream.write("\nFUNCTIONS: \n")
-
+        # self.in_func = True
         while self.pc < self.code_begin:  # function codes
             out_stream.write("#{} ".format(self.pc))
             self.one_loop(out_stream)
@@ -44,6 +53,9 @@ class Decompiler:
         while self.pc < length:  # main codes
             out_stream.write("#{} ".format(self.pc))
             self.one_loop(out_stream)
+
+    def one_function(self):
+        pass
 
     def one_loop(self, out_stream):
         instruction = self.codes[self.pc]

@@ -1,3 +1,10 @@
+#### Build 1015 ####
+2019/12/30
+
+* Added support for function predefine, which provided the support of circular function call
+* Changed the function storing method:
+    * Intermediate pointers pointed to real function are now stored to support function predefining
+
 #### Build 1014 ####
 2019/12/30
 

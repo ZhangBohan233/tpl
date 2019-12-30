@@ -1,7 +1,93 @@
 LITERALS:
-01
+0100000002000000010000000300000000000000156664102105983211610510910158323710010010811111111232116105109101583237100100
+FUNC_POINTERS: 1159
+1167
+1175
+1183
+1191
+1199
+1496
 NATIVE FUNCTIONS: 5
 
 FUNCTIONS: 
+#175 PUSH            1
+#184 LT              8  0  1026
+#209 IF_ZERO_GOTO    26  8
+#226 RETURN          0  8
+#243 GOTO            219
+#252 PUSH            8
+#261 SUB             9  0  1034
+#286 PUSH            8
+#295 CALL            1143  8  1
+    ARGS:
+        9  8
+#336 PUSH            8
+#345 SUB             25  0  1026
+#370 PUSH            8
+#379 CALL            1143  8  1
+    ARGS:
+        25  8
+#420 PUSH            8
+#429 ADD             41  17  33
+#454 RETURN          41  8
+#471 STOP
+
+#472 PUSH            8
+#481 CALL_NAT        1103  8  0  0
+    ARGS:
+#514 PUSH            8
+#523 ASSIGN          8  0  8
+#548 PUSH            8
+#557 CALL            1143  8  1
+    ARGS:
+        1042  8
+#598 PUSH            8
+#607 ASSIGN          24  16  8
+#632 PUSH            8
+#641 CALL_NAT        1103  8  32  0
+    ARGS:
+#674 PUSH            8
+#683 ASSIGN          40  32  8
+#708 STORE_SP
+#709 PUSH            1
+#718 ASSIGN_B        48  1
+#728 PUSH            8
+#737 ASSIGN          49  1050  8
+#762 STORE_SP
+#763 PUSH            1
+#772 LT              57  49  1058
+#797 PUSH            1
+#806 AND             58  57  48
+#831 IF_ZERO_GOTO    35  58
+#848 ADD             49  49  1034
+#873 RES_SP
+#874 GOTO            -121
+#883 RES_SP
+#884 RES_SP
+#885 PUSH            8
+#894 CALL_NAT        1103  8  48  0
+    ARGS:
+#927 PUSH            8
+#936 ASSIGN          56  48  8
+#961 PUSH            8
+#970 SUB             64  40  8
+#995 PUSH            0
+#1004 CALL_NAT        1119  0  72  2
+    ARGS:
+        1066  14
+        64  8
+#1069 PUSH            8
+#1078 SUB             72  56  40
+#1103 PUSH            0
+#1112 CALL_NAT        1119  0  80  2
+    ARGS:
+        1080  15
+        72  8
+#1177 RETURN          24  8
+#1194 STOP
+
 
 MAIN: 
+#1195 PUSH            8
+#1204 CALL            1151  8  0
+    ARGS:

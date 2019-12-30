@@ -371,10 +371,12 @@ void vm_run() {
                 mem_copy(reg2, reg1, reg3);
                 break;
             case 4:  // CALL
-            read_3_ints  // func_ptr, r_len, arg_count
+            read_3_ints  // addr of func_ptr, r_len, arg_count
                 reg4 = PC;  // pc backup
                 PC += reg3 * (INT_LEN + PTR_LEN);
                 reg5 = SP;  // sp backup
+
+                reg1 = bytes_to_int(MEMORY + reg1);  // true func ptr
 
                 for (reg9 = 0; reg9 < reg3; reg9++) {
                     reg6 = bytes_to_int(MEMORY + reg4);  // arg_ptr
@@ -539,6 +541,7 @@ void vm_run() {
                 break;
             case 31:  // NATIVE CALL
             read_4_ints  // func ptr, rtype len, r ptr, arg count
+                reg1 = bytes_to_int(MEMORY + reg1);  // true func ptr
                 reg5 = bytes_to_int(MEMORY + reg1);  // function code
                 reg3 = true_ptr(reg3);  // true return ptr
                 reg6 = PC;  // PC backup

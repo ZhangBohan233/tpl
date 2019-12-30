@@ -221,10 +221,11 @@ class MemoryManager:
         self.sp = 1
         self.literal_begins = 1024
         self.global_begins = 1024 + len(literal_bytes)
-        self.gp = self.global_begins
+        self.gp = self.global_begins + INT_LEN
 
         self.literal = literal_bytes
-        self.global_bytes = bytearray()
+        self.global_bytes = bytearray(INT_LEN)  # function counts
+        self.functions = {}
 
         self.blocks = []
         self.loop_sp_stack = []
@@ -272,11 +273,29 @@ class MemoryManager:
     def get_last_call(self):
         return self.blocks[-1]
 
-    def define_func(self, fn_bytes: bytes):
+    def compile_all_functions(self):
+        self.global_bytes[0:INT_LEN] = typ.int_to_bytes(len(self.functions))
+        for ptr in self.functions:
+            fb = self.functions[ptr]
+            ptr_in_g = ptr - self.global_begins
+            self.global_bytes[ptr_in_g: ptr_in_g + PTR_LEN] = typ.int_to_bytes(self.gp)
+            self.global_bytes.extend(fb)
+            self.gp += len(fb)
+
+    def define_func_ptr(self):
         i = self.gp
-        self.global_bytes.extend(fn_bytes)
-        self.gp += len(fn_bytes)
+        self.global_bytes.extend(bytes(PTR_LEN))
+        self.gp += PTR_LEN
         return i
+
+    def implement_func(self, func_ptr: int, fn_bytes: bytes):
+        self.functions[func_ptr] = fn_bytes
+
+    # def define_func(self, fn_bytes: bytes):
+    #     i = self.gp
+    #     self.global_bytes.extend(fn_bytes)
+    #     self.gp += len(fn_bytes)
+    #     return i
 
 
 class ParameterPair:
@@ -360,16 +379,21 @@ class Compiler:
         self.optimize = level
 
     def add_native_functions(self, env: en.GlobalEnvironment):
-        p1 = self.memory.define_func(typ.int_to_bytes(1))  # 1: clock
+        p1 = self.memory.define_func_ptr()  # 1: clock
+        self.memory.implement_func(p1, typ.int_to_bytes(1))
         env.define_function("clock", NativeFunction(en.Type("int"), p1))
-        p2 = self.memory.define_func(typ.int_to_bytes(2))  # 2: malloc
+        p2 = self.memory.define_func_ptr()  # 2: malloc
+        self.memory.implement_func(p2, typ.int_to_bytes(2))
         env.define_function("malloc", NativeFunction(en.Type("*void"), p2))
-        p3 = self.memory.define_func(typ.int_to_bytes(3))  # 3: printf
+        p3 = self.memory.define_func_ptr()  # 3: printf
+        self.memory.implement_func(p3, typ.int_to_bytes(3))
         env.define_function("printf", NativeFunction(en.Type("void"), p3))
-        p4 = self.memory.define_func(typ.int_to_bytes(4))  # 3: mem_copy
+        p4 = self.memory.define_func_ptr()  # 4: mem_copy
+        self.memory.implement_func(p4, typ.int_to_bytes(4))
         env.define_function("mem_copy", NativeFunction(en.Type("void"), p4))
-        p5 = self.memory.define_func(typ.int_to_bytes(5))  # 3: free
+        p5 = self.memory.define_func_ptr()  # 5: free
         env.define_function("free", NativeFunction(en.Type("void"), p5))
+        self.memory.implement_func(p5, typ.int_to_bytes(5))
 
     def add_compile_time_functions(self, env: en.GlobalEnvironment):
         env.define_function("sizeof", CompileTimeFunction(en.Type("int"), self.function_sizeof))
@@ -384,6 +408,7 @@ class Compiler:
         # print(self.memory.global_bytes)
 
         self.compile(root, env, bo)
+        self.memory.compile_all_functions()
 
         if "main" in env.functions:
             main_ptr = env.functions["main"]
@@ -436,24 +461,26 @@ class Compiler:
             param_pair = ParameterPair(name_node.name, tal)
             param_pairs.append(param_pair)
 
-        fake_ftn_ptr = self.memory.define_func(bytes(0))  # pre-defined for recursion
-        # print("allocated to", fake_ftn_ptr, self.memory.global_bytes)
-        fake_ftn = Function(param_pairs, r_tal, fake_ftn_ptr)
-        env.define_function(node.name, fake_ftn)
+        if env.contains_function(node.name):  # is implementing
+            func = env.get_function(node.name, (node.line_num, node.file))
+            ftn_ptr = func.ptr
+        else:
+            ftn_ptr = self.memory.define_func_ptr()  # pre-defined for recursion
+            # print("allocated to", fake_ftn_ptr, self.memory.global_bytes)
+            ftn = Function(param_pairs, r_tal, ftn_ptr)
+            env.define_function(node.name, ftn)
 
-        inner_bo = ByteOutput()
-        self.compile(node.body, scope, inner_bo)
+        if node.body is not None:  # implementing
+            inner_bo = ByteOutput()
+            self.compile(node.body, scope, inner_bo)
+            inner_bo.write_one(STOP)
+            self.memory.implement_func(ftn_ptr, bytes(inner_bo))
 
         self.memory.restore_stack()
-        inner_bo.write_one(STOP)
-
-        ftn_ptr = self.memory.define_func(bytes(inner_bo))
-
-        assert fake_ftn_ptr == ftn_ptr
         # print(ftn_ptr)
 
-        ftn = Function(param_pairs, r_tal, ftn_ptr)
-        env.define_function(node.name, ftn)
+        # ftn = Function(param_pairs, r_tal, ftn_ptr)
+        # env.define_function(node.name, ftn)
 
     def compile_name_node(self, node: ast.NameNode, env: en.Environment, bo: ByteOutput):
         lf = node.line_num, node.file
@@ -607,21 +634,6 @@ class Compiler:
         return indexing_ptr, unit_len
 
     def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, int):
-        # obj_tal = get_tal_of_evaluated_node(node.left, env)
-        # total_len = obj_tal.total_len(self.memory)
-        #
-        # struct = env.get_struct(obj_tal.type_name)
-        # struct_ptr = self.compile(node.left, env, bo)
-        # attr_pos = struct.get_attr_pos(node.right.name)
-        # attr_tal = struct.get_attr_tal(node.right.name)
-        #
-        # addr_ptr = self.memory.allocate(PTR_LEN)
-        # bo.push_stack(PTR_LEN)
-        #
-        # bo.assign_i(addr_ptr, struct_ptr)
-        # bo.add_i(addr_ptr, attr_pos)
-        #
-        # return addr_ptr, attr_tal.total_len(self.memory)
         left_tal = get_tal_of_evaluated_node(node.left, env)
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:

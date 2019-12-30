@@ -122,6 +122,9 @@ class Environment:
         raise EnvironmentException("Function must be declared in global scope")
         # self.functions[name] = func
 
+    def contains_function(self, name: str):
+        return self.outer.contains_function(name)
+
     def get_function(self, name: str, lf):
         return self.outer.get_function(name, lf)
 
@@ -213,6 +216,9 @@ class GlobalEnvironment(MainAbstractEnvironment):
 
     def define_function(self, name: str, func):
         self.functions[name] = func
+
+    def contains_function(self, name: str):
+        return name in self.functions
 
     def get_function(self, name: str, lf):
         if name in self.functions:

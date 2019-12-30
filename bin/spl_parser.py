@@ -89,9 +89,9 @@ class Parser:
                             parser.new_block()
                         elif is_type_param:
                             parser.build_type_param()
-                            typ = parser.pop_last()
+                            typ_ = parser.pop_last()
                             func_node: ast.DefStmt = parser.get_last()
-                            func_node.r_type = typ
+                            func_node.r_type = typ_
                             parser.new_block()
                             is_type_param = False
                         else:
@@ -239,7 +239,15 @@ class Parser:
                     #     parser.add_import(line, import_name, path_token.symbol)
                     #     import_braces.append(brace_count)
                     elif token.is_eol():
-                        if var_level != ast.ASSIGN:
+                        if is_type_param:  # defining function header
+                            parser.build_type_param()
+                            typ_ = parser.pop_last()
+                            func_node: ast.DefStmt = parser.get_last()
+                            func_node.r_type = typ_
+                            # parser.new_block()
+                            is_type_param = False
+                            parser.try_build_func()
+                        elif var_level != ast.ASSIGN:
                             # active = parser.get_active()
                             # # active.build_line()
                             # active.build_expr()
