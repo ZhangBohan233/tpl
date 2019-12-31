@@ -54,7 +54,7 @@ class TpaParser:
         out.extend(typ.int_to_bytes(self.lit_len))
         out.extend(typ.int_to_bytes(self.global_len))
 
-        literal = self.tokens[2][0]
+        literal = self.tokens[2]
         for ch in literal:  # write literal
             out.append(int(ch))
 
@@ -154,3 +154,6 @@ class Optimizer:
 
         self.parser.tokens = new_lst
         # print(self.parser.tokens)
+
+    def tail_call_optimization(self):
+        pass

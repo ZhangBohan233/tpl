@@ -19,8 +19,8 @@ class TPAssemblyCompiler:
         self.global_begin = self.literal_len
         self.code_begin = self.global_begin + self.global_len
         self.pc = self.global_begin
-        #
-        # self.in_func = False
+
+        self.func_begin_pc = 0
 
     def compile(self, out_stream):
         length = len(self.codes)
@@ -31,7 +31,7 @@ class TPAssemblyCompiler:
         out_stream.write(str(self.global_len))
         out_stream.write("\n//LITERALS:\n")
         for i in range(self.global_begin):
-            out_stream.write(str(self.codes[i]))
+            out_stream.write(str(self.codes[i]) + " ")
         out_stream.write("\n")
 
         # out_stream.write("NATIVE FUNCTIONS: {}\n".format(cpl.NATIVE_FUNCTION_COUNT))
@@ -51,9 +51,9 @@ class TPAssemblyCompiler:
         self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
 
         out_stream.write("\n//FUNCTIONS: \n")
-        # self.in_func = True
+        self.func_begin_pc = self.pc
         while self.pc < self.code_begin:  # function codes
-            out_stream.write("#{} ".format(self.pc))
+            out_stream.write("#{} #{} ".format(self.pc, self.pc - self.func_begin_pc))
             self.one_loop(out_stream)
 
         out_stream.write("\n//MAIN: \n")
@@ -62,14 +62,12 @@ class TPAssemblyCompiler:
             out_stream.write("#{} ".format(self.pc))
             self.one_loop(out_stream)
 
-    def one_function(self):
-        pass
-
     def one_loop(self, out_stream):
         instruction = self.codes[self.pc]
         self.pc += 1
         if instruction == cpl.STOP:
             out_stream.write("STOP\n\n")
+            self.func_begin_pc = self.pc
         elif instruction == cpl.ASSIGN:
             out_stream.write("ASSIGN          {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.CALL:

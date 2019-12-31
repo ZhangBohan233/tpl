@@ -279,6 +279,7 @@ class MemoryManager:
         return self.blocks[-1]
 
     def compile_all_functions(self):
+        # print(self.functions)
         self.global_bytes[0:INT_LEN] = typ.int_to_bytes(len(self.functions))
         for ptr in self.functions:
             fb = self.functions[ptr]
@@ -753,7 +754,6 @@ class Compiler:
                 res_pos = self.memory.allocate(BOOLEAN_LEN)
                 bo.push_stack(BOOLEAN_LEN)
 
-                bo.push_stack(BOOLEAN_LEN)
                 op_code = BOOL_RESULT_TABLE_BOOL[node.operation]
                 bo.add_binary_op_int(op_code, res_pos, lp, rp)
                 return res_pos
@@ -801,9 +801,9 @@ class Compiler:
             else:
                 op_tup = EXTENDED_BOOL_RESULT_TABLE_INT[op]
                 l_res = self.memory.allocate(BOOLEAN_LEN)
-                bo.push_stack(INT_LEN)
+                bo.push_stack(BOOLEAN_LEN)
                 r_res = self.memory.allocate(BOOLEAN_LEN)
-                bo.push_stack(INT_LEN)
+                bo.push_stack(BOOLEAN_LEN)
                 bo.add_binary_op_int(op_tup[0], l_res, lp, rp)
                 bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
                 bo.add_binary_op_int(OR, res_pos, l_res, r_res)

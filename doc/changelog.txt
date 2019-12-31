@@ -1,3 +1,9 @@
+#### Build 1017 ####
+2019/12/31
+
+* Bug fixes:
+    * Operators "&&", "||", "<=", ">=" push wrong stack pointer value
+
 #### Build 1016 ####
 2019/12/31
 
