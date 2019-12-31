@@ -9,22 +9,27 @@ CHAR_LEN = 1
 VOID_LEN = 0
 
 
-class Decompiler:
+class TPAssemblyCompiler:
     def __init__(self, codes: bytes):
 
         self.codes = codes[INT_LEN * 2:]
 
-        literal_len = typ.bytes_to_int(codes[:INT_LEN])
-        global_len = typ.bytes_to_int(codes[INT_LEN: INT_LEN * 2])
-        self.global_begin = literal_len
-        self.code_begin = self.global_begin + global_len
+        self.literal_len = typ.bytes_to_int(codes[:INT_LEN])
+        self.global_len = typ.bytes_to_int(codes[INT_LEN: INT_LEN * 2])
+        self.global_begin = self.literal_len
+        self.code_begin = self.global_begin + self.global_len
         self.pc = self.global_begin
         #
         # self.in_func = False
 
-    def decompile(self, out_stream):
+    def compile(self, out_stream):
         length = len(self.codes)
-        out_stream.write("LITERALS:\n")
+
+        out_stream.write("//LITERAL LENGTH:\n")
+        out_stream.write(str(self.literal_len))
+        out_stream.write("\n//GLOBAL LENGTH:\n")
+        out_stream.write(str(self.global_len))
+        out_stream.write("\n//LITERALS:\n")
         for i in range(self.global_begin):
             out_stream.write(str(self.codes[i]))
         out_stream.write("\n")
@@ -35,20 +40,23 @@ class Decompiler:
 
         func_count = self.read_1_int()
 
-        out_stream.write("FUNC_POINTERS: ")
+        out_stream.write("//FUNCTIONS COUNT:\n")
+        out_stream.write(str(func_count))
+
+        out_stream.write("\n//FUNCTION POINTERS:\n")
         for i in range(func_count):
             out_stream.write(str(self.read_1_int()) + "\n")
 
-        out_stream.write("NATIVE FUNCTIONS: {}\n".format(cpl.NATIVE_FUNCTION_COUNT))
+        out_stream.write("//NATIVE FUNCTIONS COUNT:\n{}\n".format(cpl.NATIVE_FUNCTION_COUNT))
         self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
 
-        out_stream.write("\nFUNCTIONS: \n")
+        out_stream.write("\n//FUNCTIONS: \n")
         # self.in_func = True
         while self.pc < self.code_begin:  # function codes
             out_stream.write("#{} ".format(self.pc))
             self.one_loop(out_stream)
 
-        out_stream.write("\nMAIN: \n")
+        out_stream.write("\n//MAIN: \n")
 
         while self.pc < length:  # main codes
             out_stream.write("#{} ".format(self.pc))
@@ -67,7 +75,7 @@ class Decompiler:
         elif instruction == cpl.CALL:
             i1, i2, i3 = self.read_3_ints()
             out_stream.write("CALL            {}  {}  {}\n".format(i1, i2, i3))
-            out_stream.write("    ARGS:\n")
+            out_stream.write("    //ARGS:\n")
             for i in range(i3):
                 arg_ptr, arg_len = self.read_2_ints()
                 out_stream.write("        {}  {}\n".format(arg_ptr, arg_len))
@@ -115,7 +123,7 @@ class Decompiler:
         elif instruction == cpl.CALL_NAT:
             i1, i2, i3, i4 = self.read_4_ints()
             out_stream.write("CALL_NAT        {}  {}  {}  {}\n".format(i1, i2, i3, i4))
-            out_stream.write("    ARGS:\n")
+            out_stream.write("    //ARGS:\n")
             for i in range(i4):
                 arg_ptr, arg_len = self.read_2_ints()
                 out_stream.write("        {}  {}\n".format(arg_ptr, arg_len))
@@ -133,6 +141,14 @@ class Decompiler:
             out_stream.write("TO_REL          {}\n".format(self.read_1_int()))
         elif instruction == cpl.ADD_I:
             out_stream.write("ADD_I           {}  {}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.ABSENT_1:
+            out_stream.write("ABSENT_1\n")
+        elif instruction == cpl.ABSENT_8:
+            out_stream.write("ABSENT_8\n")
+            self.pc += 7
+        elif instruction == cpl.ABSENT_24:
+            out_stream.write("ABSENT_24\n")
+            self.pc += 23
         else:
             print("Unknown instruction: {}".format(instruction))
             raise Exception

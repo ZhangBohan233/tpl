@@ -609,6 +609,14 @@ void vm_run() {
                 int_to_bytes(MEMORY + reg1, reg3);
 //                printf("addi, addr %lld\n", reg1);
                 break;
+            case 40:  // ABSENT_1
+                break;
+            case 41:  // ABSENT_8
+                PC += 7;
+                break;
+            case 42:  // ABSENT_24
+                PC += 23;
+                break;
             default:
                 fprintf(stderr, "Unknown instruction %d\n", instruction);
                 return;

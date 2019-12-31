@@ -1,0 +1,9 @@
+fn add(x: int, y: int) int {
+    return x + y;
+}
+
+fn main() int {
+    var a: int = 5 + 4;
+    var b: int = add(a, 7);
+    return b + 3;
+}

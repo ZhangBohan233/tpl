@@ -3,12 +3,13 @@ import bin.tpl_compiler as cmp
 import bin.spl_parser as psr
 import bin.spl_lexer as lex
 import bin.tpl_preprocessor as pre
-import bin.tpc_decompiler as decompiler
+import bin.tpa_generator as decompiler
+import bin.tpa_optimizer as optimizer
 import script
 
 
 def parse_args():
-    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "tpa_file": None, "optimize": 0,
+    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "optimize": 0,
                  "tokens": False, "ast": False}
     i = 1
     while i < len(sys.argv):
@@ -16,9 +17,9 @@ def parse_args():
         if arg[0] == "-":
             if len(arg) == 1:
                 print("Illegal syntax")
-            elif arg[1:].lower() == "a":
-                i += 1
-                args_dict["tpa_file"] = sys.argv[i]
+            # elif arg[1:].lower() == "a":
+            #     i += 1
+            #     args_dict["tpa_file"] = sys.argv[i]
             elif arg[1].lower() == "o":
                 try:
                     op_level = int(arg[2:])
@@ -67,13 +68,29 @@ if __name__ == '__main__':
             print("========== End of AST ==========")
 
         compiler = cmp.Compiler(parser.literal_bytes)
-        compiler.set_optimize(args["optimize"])
+        # compiler.set_optimize(args["optimize"])
         byt = compiler.compile_all(root)
 
-        with open(args["tar_file"], "wb") as wf:
-            wf.write(byt)
+        tar_name = args["tar_file"]
+        pure_name = tar_name[:tar_name.rfind(".")]
+        tpa_name = pure_name + ".tpa"
 
-        if args["tpa_file"]:
-            with open(args["tpa_file"], "w") as wf:
-                dec = decompiler.Decompiler(byt)
-                dec.decompile(wf)
+        with open(tpa_name, "w") as wf:
+            dec = decompiler.TPAssemblyCompiler(byt)
+            dec.compile(wf)
+
+        if args["optimize"] > 0:
+            with open(tpa_name, "r") as tpa_f:
+                tpa_text = tpa_f.read()
+                opt_par = optimizer.TpaParser(tpa_text)
+                opt = optimizer.Optimizer(opt_par)
+                opt.optimize(args["optimize"])
+
+                byt = opt_par.to_byte_code()
+                opt_tpa_name = pure_name + ".o.tpa"
+                with open(opt_tpa_name, "w") as wf2:
+                    dec2 = decompiler.TPAssemblyCompiler(byt)
+                    dec2.compile(wf2)
+
+        with open(tar_name, "wb") as wf:
+            wf.write(byt)

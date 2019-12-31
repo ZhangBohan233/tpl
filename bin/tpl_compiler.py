@@ -3,6 +3,8 @@ import bin.spl_environment as en
 import bin.spl_types as typ
 import bin.spl_lib as lib
 
+STACK_SIZE = 1024
+
 INT_LEN = 8
 FLOAT_LEN = 8
 PTR_LEN = 8
@@ -40,6 +42,9 @@ STORE_SP = 35
 RES_SP = 36
 TO_REL = 37      # | transform absolute addr to
 ADD_I = 38       # | add with real value
+ABSENT_1 = 40
+ABSENT_8 = 41
+ABSENT_24 = 42
 
 NATIVE_FUNCTION_COUNT = 5
 
@@ -219,8 +224,8 @@ class MemoryManager:
     def __init__(self, literal_bytes):
         self.stack_begin = 1
         self.sp = 1
-        self.literal_begins = 1024
-        self.global_begins = 1024 + len(literal_bytes)
+        self.literal_begins = STACK_SIZE
+        self.global_begins = STACK_SIZE + len(literal_bytes)
         self.gp = self.global_begins + INT_LEN
 
         self.literal = literal_bytes
@@ -349,8 +354,6 @@ class Compiler:
         self.memory = MemoryManager(literal_bytes)
         self.literal_bytes = literal_bytes
 
-        self.optimize = 0
-
         self.node_table = {
             ast.LITERAL: self.compile_literal,
             ast.STRING_LITERAL: self.compile_string_literal,
@@ -374,9 +377,6 @@ class Compiler:
             ast.DOT: self.compile_dot,
             ast.QUICK_ASSIGNMENT: self.compile_quick_assignment
         }
-
-    def set_optimize(self, level):
-        self.optimize = level
 
     def add_native_functions(self, env: en.GlobalEnvironment):
         p1 = self.memory.define_func_ptr()  # 1: clock
@@ -494,12 +494,7 @@ class Compiler:
         env.define_var(name, tal, r)
 
     def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
-        if self.optimize == 0:
-            r = self.compile(node.right, env, bo)
-        elif isinstance(node.right, ast.BinaryOperator) or isinstance(node.right, ast.FuncCall):
-            r = None
-        else:
-            r = self.compile(node.right, env, bo)
+        r = self.compile(node.right, env, bo)
 
         lf = node.line_num, node.file
 
@@ -508,13 +503,8 @@ class Compiler:
                 tal = get_tal_of_evaluated_node(node.left, env)
                 ptr = env.get(node.left.name, lf)
                 total_len = tal.total_len(self.memory)
-                if r is None:  # in optimize, right must be binary operator
-                    if isinstance(node.right, ast.BinaryOperator):
-                        self.compile_binary_op(node.right, env, bo, ptr)
-                    else:
-                        self.compile_call(node.right, env, bo, ptr)
-                else:
-                    bo.assign(ptr, r, total_len)
+
+                bo.assign(ptr, r, total_len)
 
         elif node.left.node_type == ast.TYPE_NODE:  # define
             type_node: ast.TypeNode = node.left
@@ -532,13 +522,8 @@ class Compiler:
                     assert total_len == PTR_LEN
                     ptr = self.memory.allocate(PTR_LEN)
                     bo.push_stack(PTR_LEN)
-                    if r is None:
-                        if isinstance(node.right, ast.BinaryOperator):
-                            self.compile_binary_op(node.right, env, bo, ptr)
-                        else:
-                            self.compile_call(node.right, env, bo, ptr)
-                    else:
-                        bo.assign(ptr, r, PTR_LEN)
+
+                    bo.assign(ptr, r, PTR_LEN)
                 elif en.is_array(tal):  # right cannot be binary operator
                     assert r is not None
                     if len(tal.array_lengths) > 1:
@@ -556,27 +541,18 @@ class Compiler:
                 else:
                     ptr = self.memory.allocate(total_len)
                     bo.push_stack(total_len)
-                    if r is None:
-                        if isinstance(node.right, ast.BinaryOperator):
-                            self.compile_binary_op(node.right, env, bo, ptr)
-                        else:
-                            self.compile_call(node.right, env, bo, ptr)
-                    else:
-                        bo.assign(ptr, r, total_len)
+
+                    bo.assign(ptr, r, total_len)
 
                 env.define_var(type_node.left.name, tal, ptr)
 
         elif node.left.node_type == ast.INDEXING_NODE:  # set item
             left_node: ast.IndexingNode = node.left
-            if r is None:
-                r = self.compile(node.right, env, bo)
             self.compile_setitem(left_node, r, env, bo)
 
         elif node.left.node_type == ast.UNARY_OPERATOR:
             left_node: ast.UnaryOperator = node.left
             l_tal = get_tal_of_evaluated_node(left_node, env)
-            if r is None:
-                r = self.compile(node.right, env, bo)
             if left_node.operation == "unpack" or en.is_array(l_tal):
                 res_ptr = self.get_unpack_final_pos(left_node, env, bo)
                 right_tal = get_tal_of_evaluated_node(node.right, env)
@@ -584,8 +560,6 @@ class Compiler:
                 bo.ptr_assign(res_ptr, r, right_tal.total_len(self.memory))
 
         elif isinstance(node.left, ast.Dot):
-            if r is None:
-                r = self.compile(node.right, env, bo)
             self.compile_attr_assign(node.left, r, env, bo)
 
     def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, env: en.Environment, bo: ByteOutput):
@@ -663,7 +637,7 @@ class Compiler:
             bo.add_i(real_addr_ptr, attr_pos)
             return real_addr_ptr, attr_len
 
-    def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput, preset_return=None):
+    def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
         assert isinstance(node.call_obj, ast.NameNode)
 
         lf = node.line_num, node.file
@@ -671,7 +645,7 @@ class Compiler:
         ftn = env.get_function(node.call_obj.name, lf)
 
         if isinstance(ftn, CompileTimeFunction):
-            return self.call_compile_time_functions(ftn, node.args, env, bo, preset_return)
+            return self.call_compile_time_functions(ftn, node.args, env, bo)
 
         args = []  # args tuple
         for arg_node in node.args.lines:
@@ -683,19 +657,17 @@ class Compiler:
             args.append(tup)
 
         if isinstance(ftn, Function):
-            return self.function_call(ftn, args, env, bo, preset_return)
+            return self.function_call(ftn, args, env, bo)
         elif isinstance(ftn, NativeFunction):
-            return self.native_function_call(ftn, args, env, bo, preset_return)
+            return self.native_function_call(ftn, args, env, bo)
         else:
             raise lib.CompileTimeException("Unexpected function type")
 
-    def function_call(self, func: Function, args: list, call_env: en.Environment, bo: ByteOutput, preset_return=None):
+    def function_call(self, func: Function, args: list, call_env: en.Environment, bo: ByteOutput):
         r_len = func.r_tal.total_len(self.memory)
-        if preset_return is None:
-            r_ptr = self.memory.allocate(r_len)
-            bo.push_stack(r_len)
-        else:
-            r_ptr = preset_return
+
+        r_ptr = self.memory.allocate(r_len)
+        bo.push_stack(r_len)
 
         bo.write_one(CALL)
         bo.write_int(func.ptr)
@@ -708,13 +680,11 @@ class Compiler:
 
         return r_ptr
 
-    def native_function_call(self, func: NativeFunction, args: list, call_env, bo: ByteOutput, preset_return):
+    def native_function_call(self, func: NativeFunction, args: list, call_env, bo: ByteOutput):
         r_len = func.r_tal.total_len(self.memory)
-        if preset_return is None:
-            r_ptr = self.memory.allocate(r_len)
-            bo.push_stack(r_len)
-        else:
-            r_ptr = preset_return
+
+        r_ptr = self.memory.allocate(r_len)
+        bo.push_stack(r_len)
 
         bo.write_one(CALL_NAT)
         bo.write_int(func.ptr)
@@ -758,7 +728,7 @@ class Compiler:
         else:  # normal unary operators
             raise lib.CompileTimeException("Not implemented")
 
-    def compile_binary_op(self, node: ast.BinaryOperator, env: en.Environment, bo: ByteOutput, res=None):
+    def compile_binary_op(self, node: ast.BinaryOperator, env: en.Environment, bo: ByteOutput):
         l_tal = get_tal_of_evaluated_node(node.left, env)
         r_tal = get_tal_of_evaluated_node(node.right, env)
         # print(l_tal, r_tal, node.operation)
@@ -771,7 +741,7 @@ class Compiler:
                 bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
                 rp = rip
 
-            return self.binary_op_int(node.operation, lp, rp, bo, res)
+            return self.binary_op_int(node.operation, lp, rp, bo)
 
         elif l_tal.type_name == "boolean":
             if r_tal.type_name != "boolean":
@@ -780,11 +750,9 @@ class Compiler:
             rp = self.compile_condition(node.right, env, bo)
 
             if node.operation in BOOL_RESULT_TABLE_BOOL:
-                if res is None:
-                    res_pos = self.memory.allocate(BOOLEAN_LEN)
-                    bo.push_stack(BOOLEAN_LEN)
-                else:
-                    res_pos = res
+                res_pos = self.memory.allocate(BOOLEAN_LEN)
+                bo.push_stack(BOOLEAN_LEN)
+
                 bo.push_stack(BOOLEAN_LEN)
                 op_code = BOOL_RESULT_TABLE_BOOL[node.operation]
                 bo.add_binary_op_int(op_code, res_pos, lp, rp)
@@ -805,18 +773,16 @@ class Compiler:
             else:
                 rip = rp
 
-            return self.binary_op_int(node.operation, lip, rip, bo, res)
+            return self.binary_op_int(node.operation, lip, rip, bo)
 
         raise lib.CompileTimeException("Unsupported binary operation '{}'".format(node.operation))
 
-    def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput, res) -> int:
+    def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
         if op in EXTENDED_INT_RESULT_TABLE_INT:
             if op in INT_RESULT_TABLE_INT:
-                if res is None:
-                    res_pos = self.memory.allocate(INT_LEN)
-                    bo.push_stack(INT_LEN)
-                else:
-                    res_pos = res
+                res_pos = self.memory.allocate(INT_LEN)
+                bo.push_stack(INT_LEN)
+
                 op_code = INT_RESULT_TABLE_INT[op]
                 bo.add_binary_op_int(op_code, res_pos, lp, rp)
                 return res_pos
@@ -825,11 +791,9 @@ class Compiler:
                 bo.add_binary_op_int(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_BOOL_RESULT_TABLE_INT:
-            if res is None:
-                res_pos = self.memory.allocate(BOOLEAN_LEN)
-                bo.push_stack(BOOLEAN_LEN)
-            else:
-                res_pos = res
+            res_pos = self.memory.allocate(BOOLEAN_LEN)
+            bo.push_stack(BOOLEAN_LEN)
+
             if op in BOOL_RESULT_TABLE_INT:
                 op_code = BOOL_RESULT_TABLE_INT[op]
                 bo.add_binary_op_int(op_code, res_pos, lp, rp)
@@ -844,17 +808,6 @@ class Compiler:
                 bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
                 bo.add_binary_op_int(OR, res_pos, l_res, r_res)
                 return res_pos
-        # elif op == "!=":
-        #     if res is None:
-        #         res_pos = self.memory.allocate(BOOLEAN_LEN)
-        #         bo.push_stack(BOOLEAN_LEN)
-        #     else:
-        #         res_pos = res
-        #     eq_pos = self.memory.allocate(BOOLEAN_LEN)
-        #     bo.push_stack(eq_pos)
-        #     bo.add_binary_op_int(EQ, eq_pos, lp, rp)
-        #     bo.add_unary_op_int(NOT, res_pos, eq_pos)
-        #     return res_pos
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
         r = self.compile(node.value, env, bo)
@@ -1046,13 +999,10 @@ class Compiler:
             raise lib.CompileTimeException()
 
     def call_compile_time_functions(self, func: CompileTimeFunction, arg_node: ast.BlockStmt, env: en.Environment,
-                                    bo: ByteOutput, preset_return):
-        if preset_return is None:
-            r_len = func.r_tal.total_len(self.memory)
-            r_ptr = self.memory.allocate(r_len)
-            bo.push_stack(r_len)
-        else:
-            r_ptr = preset_return
+                                    bo: ByteOutput):
+        r_len = func.r_tal.total_len(self.memory)
+        r_ptr = self.memory.allocate(r_len)
+        bo.push_stack(r_len)
 
         return func.func(r_ptr, bo, arg_node.lines)
 

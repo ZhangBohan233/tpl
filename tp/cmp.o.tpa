@@ -24,9 +24,10 @@
 #189 STOP
 
 #190 PUSH            8
-#199 ADD             0  1026  1034
+#199 ADD             8  1026  1034
 #224 PUSH            8
-#233 ASSIGN          8  0  8
+#233 ABSENT_1
+#234 ABSENT_24
 #258 PUSH            8
 #267 CALL            1106  8  2
     //ARGS:
