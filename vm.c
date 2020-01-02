@@ -644,6 +644,7 @@ void vm_run() {
                 reg2 = true_ptr(reg2);
                 reg13 = bytes_to_double(MEMORY + reg2);
                 reg3 = (int_fast64_t) reg13;
+//                printf("%lld %f\n", reg3, reg13);
                 int_to_bytes(MEMORY + reg1, reg3);
                 break;
             case 50:  // ADD_F
@@ -743,6 +744,8 @@ void test() {
     unsigned char *arr = malloc(12);
     int_to_bytes(arr + 1, i);
     printf("%lld\n", bytes_to_int(arr + 1));
+
+    float c = (int) 6.6;
 }
 
 int main(int argc, char **argv) {

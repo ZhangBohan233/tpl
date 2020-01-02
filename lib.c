@@ -101,10 +101,6 @@ void append_list(Int64List *list, int_fast64_t value) {
     list->array[list->size++] = value;
 }
 
-int_fast64_t get_list(Int64List *list, int index) {
-    return list->array[index];
-}
-
 void free_list(Int64List *list) {
     free(list->array);
     free(list);

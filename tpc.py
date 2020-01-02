@@ -1,4 +1,5 @@
 import sys
+import time
 import bin.tpl_compiler as cmp
 import bin.spl_parser as psr
 import bin.spl_lexer as lex
@@ -43,6 +44,8 @@ def parse_args():
 
 
 if __name__ == '__main__':
+    t0 = time.time()
+
     args = parse_args()
     if not args["src_file"] or not args["tar_file"]:
         print("Usage: python tpc.py -[FLAGS] source target")
@@ -96,3 +99,6 @@ if __name__ == '__main__':
 
         with open(tar_name, "wb") as wf:
             wf.write(byt)
+
+    t1 = time.time()
+    print("Compilation finished in {} seconds.".format(t1 - t0))

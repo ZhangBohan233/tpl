@@ -9,6 +9,7 @@ import bin.tpl_compiler as cmp  # used in eval
 class Line:
     def __init__(self, *args):
         self.tokens = list(args)
+        self.pointers = set()
         self.byte_index = -1
 
     def __getitem__(self, item):
@@ -40,13 +41,19 @@ class TpaParser:
                     if len(tk) > 0:
                         if tk[0] == "#":
                             line_obj.byte_index = int(tk[1:])
+                        elif tk[0] == "$":
+                            line_obj.pointers.add(len(line_obj))
+                            line_obj.tokens.append(tk[1:])
                         else:
                             line_obj.tokens.append(tk)
-                if len(line_obj) == 2 and line_obj[0].isdigit():
-                    last_line: Line = self.tokens[-1]
-                    last_line.tokens.extend(line_obj.tokens)
-                elif len(line_obj) > 0:
-                    self.tokens.append(line_obj)
+                if len(line_obj) > 0:
+                    if line_obj[0] == "@":  # is function call
+                        last_line: Line = self.tokens[-1]
+                        for p in line_obj.pointers:
+                            last_line.pointers.add(p + len(last_line) - 1)
+                        last_line.tokens.extend(line_obj.tokens[1:])
+                    else:
+                        self.tokens.append(line_obj)
 
         self.lit_len = 0
         self.global_len = 0
@@ -108,34 +115,40 @@ BINARY_OP_INS = {
     "ADD_F", "SUB_F", "MUL_F", "DIV_F", "MOD_F"
 }
 
-NEED_LESS_PUSH = {
-    "ADD": (1, 2, 3),
-    "SUB": (1, 2, 3),
-    "MUL": (1, 2, 3),
-    "DIV": (1, 2, 3),
-    "MOD": (1, 2, 3),
-    "LT": (1, 2, 3),
-    "GT": (1, 2, 3),
-    "EQ": (1, 2, 3),
-    "NE": (1, 2, 3),
-    "AND": (1, 2, 3),
-    "OR": (1, 2, 3),
-    "NOT": (1, 2),
-    "ADD_F": (1, 2, 3),
-    "SUB_F": (1, 2, 3),
-    "MUL_F": (1, 2, 3),
-    "DIV_F": (1, 2, 3),
-    "MOD_F": (1, 2, 3),
-    "LT_F": (1, 2, 3),
-    "GT_F": (1, 2, 3),
-    "EQ_F": (1, 2, 3),
-    "NE_F": (1, 2, 3),
-    "ASSIGN": (1, 2),
-    "RETURN": (1,)
-}
-
-
-NEED_LESS_PUSH_SPECIAL = {"CALL", "CALL_NAT"}
+# NEED_LESS_PUSH = {
+#     "ADD": (1, 2, 3),
+#     "SUB": (1, 2, 3),
+#     "MUL": (1, 2, 3),
+#     "DIV": (1, 2, 3),
+#     "MOD": (1, 2, 3),
+#     "LT": (1, 2, 3),
+#     "GT": (1, 2, 3),
+#     "EQ": (1, 2, 3),
+#     "NE": (1, 2, 3),
+#     "AND": (1, 2, 3),
+#     "OR": (1, 2, 3),
+#     "NOT": (1, 2),
+#     "ADD_F": (1, 2, 3),
+#     "SUB_F": (1, 2, 3),
+#     "MUL_F": (1, 2, 3),
+#     "DIV_F": (1, 2, 3),
+#     "MOD_F": (1, 2, 3),
+#     "LT_F": (1, 2, 3),
+#     "GT_F": (1, 2, 3),
+#     "EQ_F": (1, 2, 3),
+#     "NE_F": (1, 2, 3),
+#     "ASSIGN": (1, 2),
+#     "RETURN": (1,),
+#     "INT_TO_FLOAT": (1, 2),
+#     "FLOAT_TO_INT": (1, 2),
+#     "CAST_INT": (1, 2),
+#     "STORE_ADDR": (1, ),
+#     "UNPACK_ADDR": (1, 2),
+#     "PTR_ASSIGN": (1, 2)
+# }
+#
+#
+# NEED_LESS_PUSH_SPECIAL = {"CALL", "CALL_NAT"}
 
 
 def _in_modify_range(begin_sp, ptr):
@@ -143,26 +156,33 @@ def _in_modify_range(begin_sp, ptr):
 
 
 def _modify_ptr(line: Line, begin_sp: int, less_push: int):
-    if line[0] in NEED_LESS_PUSH_SPECIAL:
-        if line[0] == "CALL":
-            for i in range(4, len(line), 2):
-                ptr = int(line[i])
-                if _in_modify_range(begin_sp, ptr):
-                    line[i] = ptr - less_push
-        elif line[0] == "CALL_NAT":
-            r_ptr = int(line[3])
-            if _in_modify_range(begin_sp, r_ptr):
-                line[3] = r_ptr - less_push
-            for i in range(5, len(line), 2):
-                ptr = int(line[i])
-                if _in_modify_range(begin_sp, ptr):
-                    line[i] = ptr - less_push
-    elif line[0] in NEED_LESS_PUSH:
-        mod_pos = NEED_LESS_PUSH[line[0]]
-        for pos in mod_pos:
-            orig_ptr = int(line[pos])
-            if _in_modify_range(begin_sp, orig_ptr):
-                line[pos] = orig_ptr - less_push
+    # if line.tokens[0] == "CALL_NAT":
+    #     print(line.pointers)
+    for i in range(len(line)):
+        if i in line.pointers:
+            ptr = int(line[i])
+            if _in_modify_range(begin_sp, ptr):
+                line[i] = ptr - less_push
+    # if line[0] in NEED_LESS_PUSH_SPECIAL:
+    #     if line[0] == "CALL":
+    #         for i in range(4, len(line), 2):
+    #             ptr = int(line[i])
+    #             if _in_modify_range(begin_sp, ptr):
+    #                 line[i] = ptr - less_push
+    #     elif line[0] == "CALL_NAT":
+    #         r_ptr = int(line[3])
+    #         if _in_modify_range(begin_sp, r_ptr):
+    #             line[3] = r_ptr - less_push
+    #         for i in range(5, len(line), 2):
+    #             ptr = int(line[i])
+    #             if _in_modify_range(begin_sp, ptr):
+    #                 line[i] = ptr - less_push
+    # elif line[0] in NEED_LESS_PUSH:
+    #     mod_pos = NEED_LESS_PUSH[line[0]]
+    #     for pos in mod_pos:
+    #         orig_ptr = int(line[pos])
+    #         if _in_modify_range(begin_sp, orig_ptr):
+    #             line[pos] = orig_ptr - less_push
 
 
 def _modify_jump(line: Line, modifying_byte_index, length_change):

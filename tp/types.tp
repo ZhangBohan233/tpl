@@ -1,7 +1,9 @@
 fn main() int {
     var a: float = 3.2;
     var b: float = a + 4;
-    printf("%f", b);
-    printf("%b\n", b == 7.1);
-    return 0;
+    var c: int = int(a);
+    printf("%d\n", c);
+    d := 'x';
+    c = int(d);
+    return c + b;
 }

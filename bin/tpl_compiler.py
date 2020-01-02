@@ -34,7 +34,7 @@ OR = 20
 NOT = 21
 NE = 22
 
-IF_ZERO_GOTO = 30
+IF_ZERO_GOTO = 30  # IF0  SKIP  SRC_PTR
 CALL_NAT = 31
 STORE_ADDR = 32
 UNPACK_ADDR = 33
@@ -347,12 +347,6 @@ class MemoryManager:
     def implement_func(self, func_ptr: int, fn_bytes: bytes):
         self.functions[func_ptr] = fn_bytes
 
-    # def define_func(self, fn_bytes: bytes):
-    #     i = self.gp
-    #     self.global_bytes.extend(fn_bytes)
-    #     self.gp += len(fn_bytes)
-    #     return i
-
 
 class ParameterPair:
     def __init__(self, name: str, tal: en.Type):
@@ -448,6 +442,8 @@ class Compiler:
 
     def add_compile_time_functions(self, env: en.GlobalEnvironment):
         env.define_function("sizeof", CompileTimeFunction(en.Type("int"), self.function_sizeof))
+        env.define_function("int", CompileTimeFunction(en.Type("int"), self.function_int))
+        env.define_function("float", CompileTimeFunction(en.Type("float"), self.function_float))
 
     def compile_all(self, root: ast.Node) -> bytes:
         bo = ByteOutput()
@@ -1098,6 +1094,9 @@ class Compiler:
         self.memory.add_type(node.name, pos)
         env.add_struct(node.name, struct)
 
+    def compile_in_decrement(self, node: ast.InDecrementOperator, env: en.Environment, bo: ByteOutput):
+        pass
+
     def get_unpack_final_pos(self, node: ast.UnaryOperator, env: en.Environment, bo):
         if isinstance(node, ast.UnaryOperator) and node.operation == "unpack":
             return self.get_unpack_final_pos(node.value, env, bo)
@@ -1114,9 +1113,9 @@ class Compiler:
         r_ptr = self.memory.allocate(r_len)
         bo.push_stack(r_len)
 
-        return func.func(r_ptr, bo, arg_node.lines)
+        return func.func(r_ptr, env, bo, arg_node.lines)
 
-    def function_sizeof(self, r_ptr: int, bo: ByteOutput, args: list):
+    def function_sizeof(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
         if len(args) != 1:
             raise lib.CompileTimeException("Function 'sizeof' takes exactly 1 argument, {} given."
                                            .format(len(args)))
@@ -1127,6 +1126,41 @@ class Compiler:
         size = self.memory.get_type_size(arg.name)
         bo.assign_i(r_ptr, size)
         return r_ptr
+
+    def function_int(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+        if len(args) != 1:
+            raise lib.CompileTimeException("Function 'int' takes exactly 1 argument, {} given."
+                                           .format(len(args)))
+        arg = args[0]
+        arg_ptr = self.compile(arg, env, bo)
+        arg_tal = get_tal_of_evaluated_node(arg, env)
+        if arg_tal.type_name == "int":
+            bo.assign(r_ptr, arg_ptr, INT_LEN)
+            return r_ptr
+        if arg_tal.type_name == "float":
+            bo.float_to_int(r_ptr, arg_ptr)
+            return r_ptr
+        elif arg_tal.type_name == "char":
+            bo.cast_to_int(r_ptr, arg_ptr, CHAR_LEN)
+            return r_ptr
+        else:
+            raise lib.CompileTimeException("Cannot cast '{}' to int".format(arg_tal.type_name))
+
+    def function_float(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+        if len(args) != 1:
+            raise lib.CompileTimeException("Function 'float' takes exactly 1 argument, {} given."
+                                           .format(len(args)))
+        arg = args[0]
+        arg_ptr = self.compile(arg, env, bo)
+        arg_tal = get_tal_of_evaluated_node(arg, env)
+        if arg_tal.type_name == "int":
+            bo.int_to_float(r_ptr, arg_ptr)
+            return r_ptr
+        elif arg_tal.type_name == "float":
+            bo.assign(r_ptr, arg_ptr, FLOAT_LEN)
+            return r_ptr
+        else:
+            raise lib.CompileTimeException("Cannot cast '{}' to float".format(arg_tal.type_name))
 
 
 def index_node_depth(node: ast.IndexingNode):

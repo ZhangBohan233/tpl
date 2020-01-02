@@ -27,8 +27,6 @@ Int64List *create_list();
 
 void append_list(Int64List *list, int_fast64_t value);
 
-int_fast64_t get_list(Int64List *list, int index);
-
 void free_list(Int64List *list);
 
 double double_mod(double d1, double d2);
