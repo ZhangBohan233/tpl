@@ -17,8 +17,6 @@ unsigned char *read_file(char *file_name, int *length_ptr);
 
 int_fast64_t bytes_to_int(const unsigned char *bytes);
 
-unsigned char *bytes_to_str(const unsigned char *bytes, int *str_len);
-
 void int_to_bytes(unsigned char *b, int_fast64_t i);
 
 double bytes_to_double(const unsigned char *bytes);

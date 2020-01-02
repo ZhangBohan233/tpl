@@ -1,3 +1,6 @@
+import sys
+
+
 class MemoryException(Exception):
     def __init__(self, msg=""):
         Exception.__init__(self, msg)
@@ -323,11 +326,11 @@ MEMORY = Memory()
 
 def int_to_bytes(i: int) -> bytes:
     int_len = MEMORY.get_type_size("int")
-    return i.to_bytes(int_len, "big", signed=True)
+    return i.to_bytes(int_len, sys.byteorder, signed=True)
 
 
 def bytes_to_int(b: bytes) -> int:
-    return int.from_bytes(b, "big", signed=True)
+    return int.from_bytes(b, sys.byteorder, signed=True)
 
 
 if __name__ == "__main__":

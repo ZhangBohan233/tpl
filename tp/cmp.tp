@@ -1,26 +1,6 @@
-struct A {
-    var a: int;
-    var b: int;
-}
-
-struct B {
-    var a: *A;
-    var b: int;
-}
 
 fn main() int {
-    var i1: int = 231;
+    var i: int = 1;
 
-    var x: A;
-    x.a = 11;
-    x.b = 33;
-
-    var y: *A = &x;
-    y..b = 44;
-
-    //printf("%d\n", y..a);
-
-    //var c: int = x..b;
-
-    return x.b;
+    return i;
 }

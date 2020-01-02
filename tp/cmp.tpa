@@ -1,47 +1,101 @@
 //LITERAL LENGTH:
-41
+71
 //GLOBAL LENGTH:
-424
+1131
 //LITERALS:
-0 1 154 153 153 153 153 153 9 64 0 0 0 0 0 0 0 4 37 102 0 37 98 10 0 102 102 102 102 102 102 28 64 0 0 0 0 0 0 0 0 
+0 1 2 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 30 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 64 66 15 0 0 0 0 0 102 105 98 32 116 105 109 101 58 32 37 100 10 0 108 111 111 112 32 116 105 109 101 58 32 37 100 10 0 
 //FUNCTIONS COUNT:
-6
+7
 //FUNCTION POINTERS:
-1121
-1129
-1137
-1145
-1153
-1161
+1159
+1167
+1175
+1183
+1191
+1199
+1496
 //NATIVE FUNCTIONS COUNT:
 5
 
 //FUNCTIONS: 
+#0 PUSH            1
+#9 LT              8  0  1026
+#34 IF_ZERO_GOTO    26  8
+#51 RETURN          0  8
+#68 GOTO            219
+#77 PUSH            8
+#86 SUB             9  0  1034
+#111 PUSH            8
+#120 CALL            1143  8  1
+    //ARGS:
+        9  8
+#161 PUSH            8
+#170 SUB             25  0  1026
+#195 PUSH            8
+#204 CALL            1143  8  1
+    //ARGS:
+        25  8
+#245 PUSH            8
+#254 ADD             41  17  33
+#279 RETURN          41  8
+#296 STOP
+
 #0 PUSH            8
-#9 ASSIGN          0  1026  8
-#34 PUSH            8
-#43 INT_TO_FLOAT    8  1034
-#60 PUSH            8
-#69 ADD_F           16  0  8
-#94 PUSH            8
-#103 ASSIGN          24  16  8
-#128 PUSH            0
-#137 CALL_NAT        1089  0  32  2
+#9 CALL_NAT        1103  8  0  0
     //ARGS:
-        1042  3
-        24  8
-#202 PUSH            1
-#211 EQ_F            32  24  1049
-#236 PUSH            0
-#245 CALL_NAT        1089  0  33  2
+#42 PUSH            8
+#51 ASSIGN          8  0  8
+#76 PUSH            8
+#85 CALL            1143  8  1
     //ARGS:
-        1045  4
-        32  1
-#310 RETURN          1057  8
-#327 STOP
+        1042  8
+#126 PUSH            8
+#135 ASSIGN          24  16  8
+#160 PUSH            8
+#169 CALL_NAT        1103  8  32  0
+    //ARGS:
+#202 PUSH            8
+#211 ASSIGN          40  32  8
+#236 STORE_SP
+#237 PUSH            1
+#246 ASSIGN_B        48  1
+#263 PUSH            8
+#272 ASSIGN          49  1050  8
+#297 STORE_SP
+#298 PUSH            1
+#307 LT              57  49  1058
+#332 PUSH            1
+#341 AND             58  57  48
+#366 IF_ZERO_GOTO    35  58
+#383 ADD             49  49  1034
+#408 RES_SP
+#409 GOTO            -121
+#418 RES_SP
+#419 RES_SP
+#420 PUSH            8
+#429 CALL_NAT        1103  8  48  0
+    //ARGS:
+#462 PUSH            8
+#471 ASSIGN          56  48  8
+#496 PUSH            8
+#505 SUB             64  40  8
+#530 PUSH            0
+#539 CALL_NAT        1119  0  72  2
+    //ARGS:
+        1066  14
+        64  8
+#604 PUSH            8
+#613 SUB             72  56  40
+#638 PUSH            0
+#647 CALL_NAT        1119  0  80  2
+    //ARGS:
+        1080  15
+        72  8
+#712 RETURN          24  8
+#729 STOP
 
 
 //MAIN: 
 PUSH            8
-CALL            1113  8  0
+CALL            1151  8  0
     //ARGS:

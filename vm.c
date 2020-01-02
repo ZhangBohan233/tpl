@@ -738,6 +738,13 @@ void vm_run() {
     }
 }
 
+void test() {
+    int_fast64_t i = 94;
+    unsigned char *arr = malloc(12);
+    int_to_bytes(arr + 1, i);
+    printf("%lld\n", bytes_to_int(arr + 1));
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         printf("Usage: tpl.exe -[FLAG] TPC_FILE");

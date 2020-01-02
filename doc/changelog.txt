@@ -1,3 +1,11 @@
+#### Build 1019 ####
+2020/01/01
+
+* VM optimization:
+    * Better int performance
+* Int byteorder change:
+    * Follow the system default
+
 #### Build 1018 ####
 2020/01/01
 
