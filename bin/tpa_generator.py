@@ -12,10 +12,12 @@ VOID_LEN = 0
 class TPAssemblyCompiler:
     def __init__(self, codes: bytes):
 
-        self.codes = codes[INT_LEN * 2:]
+        self.codes = codes[INT_LEN * 3:]
 
-        self.literal_len = typ.bytes_to_int(codes[:INT_LEN])
-        self.global_len = typ.bytes_to_int(codes[INT_LEN: INT_LEN * 2])
+        self.stack_size, self.literal_len, self.global_len = \
+            typ.bytes_to_int(codes[:INT_LEN]), \
+            typ.bytes_to_int(codes[INT_LEN:INT_LEN * 2]), \
+            typ.bytes_to_int(codes[INT_LEN * 2:INT_LEN * 3])
         self.global_begin = self.literal_len
         self.code_begin = self.global_begin + self.global_len
         self.pc = self.global_begin
@@ -25,7 +27,9 @@ class TPAssemblyCompiler:
     def compile(self, out_stream):
         length = len(self.codes)
 
-        out_stream.write("//LITERAL LENGTH:\n")
+        out_stream.write("//STACK SIZE\n")
+        out_stream.write(str(self.stack_size))
+        out_stream.write("\n//LITERAL LENGTH:\n")
         out_stream.write(str(self.literal_len))
         out_stream.write("\n//GLOBAL LENGTH:\n")
         out_stream.write(str(self.global_len))
@@ -69,7 +73,7 @@ class TPAssemblyCompiler:
             out_stream.write("STOP\n\n")
             self.func_begin_pc = self.pc
         elif instruction == cpl.ASSIGN:
-            out_stream.write("ASSIGN          ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("ASSIGN          ${}  ${}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.CALL:
             i1, i2, i3 = self.read_3_ints()
             out_stream.write("CALL            ${}  {}  {}\n".format(i1, i2, i3))
@@ -78,9 +82,9 @@ class TPAssemblyCompiler:
                 arg_ptr, arg_len = self.read_2_ints()
                 out_stream.write("@        ${}  {}\n".format(arg_ptr, arg_len))
         elif instruction == cpl.RETURN:
-            out_stream.write("RETURN          ${}  ${}\n".format(*self.read_2_ints()))
+            out_stream.write("RETURN          ${}  {}\n".format(*self.read_2_ints()))
         elif instruction == cpl.GOTO:
-            out_stream.write("GOTO            ${}\n".format(self.read_1_int()))
+            out_stream.write("GOTO            {}\n".format(self.read_1_int()))
         elif instruction == cpl.PUSH:
             out_stream.write("PUSH            {}\n".format(self.read_1_int()))
         elif instruction == cpl.ASSIGN_I:
@@ -113,6 +117,10 @@ class TPAssemblyCompiler:
             out_stream.write("NOT             ${}  ${}\n".format(*self.read_2_ints()))
         elif instruction == cpl.NE:
             out_stream.write("NE              ${}  ${}  ${}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.NEG:
+            out_stream.write("NEG             ${}  ${}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.NEG_F:
+            out_stream.write("NEG_F           ${}  ${}\n".format(*self.read_2_ints()))
         elif instruction == cpl.IF_ZERO_GOTO:
             out_stream.write("IF_ZERO_GOTO    {}  ${}\n".format(*self.read_2_ints()))
         elif instruction == cpl.CALL_NAT:
@@ -140,6 +148,12 @@ class TPAssemblyCompiler:
             out_stream.write("INT_TO_FLOAT    ${}  ${}\n".format(*self.read_2_ints()))
         elif instruction == cpl.FLOAT_TO_INT:
             out_stream.write("FLOAT_TO_INT    ${}  ${}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.SUB_I:
+            out_stream.write("SUB_I           ${}  {}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.ADD_FI:
+            out_stream.write("ADD_FI          ${}  {}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.SUB_FI:
+            out_stream.write("SUB_FI          ${}  {}\n".format(*self.read_2_ints()))
         elif instruction == cpl.ADD_F:
             out_stream.write("ADD_F           ${}  ${}  ${}\n".format(*self.read_3_ints()))
         elif instruction == cpl.SUB_F:

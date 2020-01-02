@@ -22,14 +22,14 @@ class Parser:
         """
         parser = ast.AbstractSyntaxTree()
         i = 0
-        func_count = 0
+        # func_count = 0
         par_count = 0  # count of parenthesis
         square_count = 0  # count of square bracket
         cond_nest_list = []
         call_nest_list = []
         param_nest_list = []
         square_nest_list = []
-        is_abstract = False
+        # is_abstract = False
         is_extending = False
         is_conditional = False
         is_type_param = False

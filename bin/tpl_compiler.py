@@ -33,6 +33,7 @@ AND = 19
 OR = 20
 NOT = 21
 NE = 22
+NEG = 23
 
 IF_ZERO_GOTO = 30  # IF0  SKIP  SRC_PTR
 CALL_NAT = 31
@@ -45,6 +46,9 @@ TO_REL = 37      # | transform absolute addr to
 ADD_I = 38       # | add with real value
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
+SUB_I = 41
+ADD_FI = 42
+SUB_FI = 43
 
 ADD_F = 50
 SUB_F = 51
@@ -55,6 +59,7 @@ EQ_F = 55
 GT_F = 56
 LT_F = 57
 NE_F = 58
+NEG_F = 59
 
 NATIVE_FUNCTION_COUNT = 5
 
@@ -217,8 +222,8 @@ class ByteOutput:
         self.write_one(TO_REL)
         self.write_int(addr_addr)
 
-    def add_i(self, operand_addr, adder_value: int):
-        self.write_one(ADD_I)
+    def op_i(self, op_code, operand_addr, adder_value: int):
+        self.write_one(op_code)
         self.write_int(operand_addr)
         self.write_int(adder_value)
 
@@ -420,7 +425,8 @@ class Compiler:
             ast.NULL_STMT: self.compile_null,
             ast.STRUCT_NODE: self.compile_struct,
             ast.DOT: self.compile_dot,
-            ast.QUICK_ASSIGNMENT: self.compile_quick_assignment
+            ast.QUICK_ASSIGNMENT: self.compile_quick_assignment,
+            ast.IN_DECREMENT_OPERATOR: self.compile_in_decrement
         }
 
     def add_native_functions(self, env: en.GlobalEnvironment):
@@ -463,6 +469,7 @@ class Compiler:
 
         # print(self.memory.global_bytes)
         lit_and_global = ByteOutput()
+        lit_and_global.write_int(STACK_SIZE)
         lit_and_global.write_int(len(self.literal_bytes))
         lit_and_global.write_int(len(self.memory.global_bytes))
         lit_and_global.codes.extend(self.literal_bytes)
@@ -537,8 +544,13 @@ class Compiler:
     def compile_quick_assignment(self, node: ast.QuickAssignmentNode, env: en.Environment, bo: ByteOutput):
         name: str = node.left.name
         tal = get_tal_of_evaluated_node(node.right, env)
+        length = tal.total_len(self.memory)
+        r_ptr = self.memory.allocate(length)
+        bo.push_stack(length)
         r = self.compile(node.right, env, bo)  # TODO: optimize
-        env.define_var(name, tal, r)
+        env.define_var(name, tal, r_ptr)
+        bo.assign(r_ptr, r, length)
+        return r_ptr
 
     def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
         r = self.compile(node.right, env, bo)
@@ -681,7 +693,7 @@ class Compiler:
             real_addr_ptr = self.memory.allocate(PTR_LEN)
             bo.push_stack(PTR_LEN)
             bo.assign(real_addr_ptr, struct_ptr, attr_len)
-            bo.add_i(real_addr_ptr, attr_pos)
+            bo.op_i(ADD_I, real_addr_ptr, attr_pos)
             return real_addr_ptr, attr_len
 
     def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
@@ -772,6 +784,29 @@ class Compiler:
             bo.push_stack(BOOLEAN_LEN)
             bo.add_unary_op_int(NOT, res_ptr, vp)
             return res_ptr
+        elif node.operation == "neg":
+            v_tal = get_tal_of_evaluated_node(node.value, env)
+            vp = self.compile(node.value, env, bo)
+            if v_tal.type_name == "int":
+                res_ptr = self.memory.allocate(INT_LEN)
+                bo.push_stack(INT_LEN)
+                bo.add_unary_op_int(NEG, res_ptr, vp)
+                return res_ptr
+            elif v_tal.type_name == "char":  # TODO: May contain bugs
+                res_ptr = self.memory.allocate(CHAR_LEN)
+                bo.push_stack(CHAR_LEN)
+                trans_ptr = self.memory.allocate(INT_LEN)
+                bo.push_stack(INT_LEN)
+                bo.cast_to_int(trans_ptr, vp, CHAR_LEN)
+                bo.add_unary_op_int(NEG, res_ptr, trans_ptr)
+                return res_ptr
+            elif v_tal.type_name == "float":
+                res_ptr = self.memory.allocate(FLOAT_LEN)
+                bo.push_stack(FLOAT_LEN)
+                bo.add_unary_op_int(NEG_F, res_ptr, vp)
+                return res_ptr
+            else:
+                raise lib.CompileTimeException("Cannot take negation of type '{}'".format(v_tal.type_name))
         else:  # normal unary operators
             raise lib.CompileTimeException("Not implemented")
 
@@ -1095,7 +1130,32 @@ class Compiler:
         env.add_struct(node.name, struct)
 
     def compile_in_decrement(self, node: ast.InDecrementOperator, env: en.Environment, bo: ByteOutput):
-        pass
+        ptr = self.compile(node.value, env, bo)
+        tal = get_tal_of_evaluated_node(node.value, env)
+        if node.is_post:
+            if node.operation == "++":
+                if tal.type_name == "int":
+                    r_ptr = self.memory.allocate(INT_LEN)
+                    bo.push_stack(INT_LEN)
+                    bo.assign(r_ptr, ptr, INT_LEN)
+                    bo.op_i(ADD_I, ptr, 1)
+                    return r_ptr
+            elif node.operation == "--":
+                if tal.type_name == "int":
+                    r_ptr = self.memory.allocate(INT_LEN)
+                    bo.push_stack(INT_LEN)
+                    bo.assign(r_ptr, ptr, INT_LEN)
+                    bo.op_i(SUB_I, ptr, 1)
+                    return r_ptr
+        else:
+            if node.operation == "++":
+                if tal.type_name == "int":
+                    bo.op_i(ADD_I, ptr, 1)
+                    return ptr
+            elif node.operation == "--":
+                if tal.type_name == "int":
+                    bo.op_i(SUB_I, ptr, 1)
+                    return ptr
 
     def get_unpack_final_pos(self, node: ast.UnaryOperator, env: en.Environment, bo):
         if isinstance(node, ast.UnaryOperator) and node.operation == "unpack":
@@ -1282,6 +1342,11 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
             return struct.get_attr_tal(node.right.name)
         else:
             raise lib.TypeException()
+    elif node.node_type == ast.IN_DECREMENT_OPERATOR:
+        node: ast.InDecrementOperator
+        return get_tal_of_evaluated_node(node.value, env)
+    else:
+        raise lib.TypeException("Cannot get type and array length")
 
 
 def pointer_depth(type_name: str) -> int:

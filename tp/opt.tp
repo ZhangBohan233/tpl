@@ -3,14 +3,15 @@
 //}
 
 
-
 fn main() int {
     var g: int;
     var a: int;
     g = 0;
     while g < 10 {
-        a = 3 + 2;
-        g += 1;
+        a = 3 + 2 * 4;
+        b := 3.5 + 5;
+        //printf("%f ", b);
+        g++;
     }
-    return a;
+    return -a;
 }

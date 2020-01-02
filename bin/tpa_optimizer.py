@@ -55,6 +55,7 @@ class TpaParser:
                     else:
                         self.tokens.append(line_obj)
 
+        self.stack_size = 0
         self.lit_len = 0
         self.global_len = 0
         self.func_count = 0
@@ -63,25 +64,27 @@ class TpaParser:
         self.generate_lengths()
 
     def generate_lengths(self):
-        self.lit_len = int(self.tokens[0][0])
-        self.global_len = int(self.tokens[1][0])
-        self.func_count = int(self.tokens[3][0])
-        self.nat_func_count = int(self.tokens[self.func_count + 4][0])
-        self.ins_begins = self.func_count + 5
+        self.stack_size = int(self.tokens[0][0])
+        self.lit_len = int(self.tokens[1][0])
+        self.global_len = int(self.tokens[2][0])
+        self.func_count = int(self.tokens[4][0])
+        self.nat_func_count = int(self.tokens[self.func_count + 5][0])
+        self.ins_begins = self.func_count + 6
 
     def to_byte_code(self) -> bytes:
         out = bytearray()
+        out.extend(typ.int_to_bytes(self.stack_size))
         out.extend(typ.int_to_bytes(self.lit_len))
         out.extend(typ.int_to_bytes(self.global_len))
 
-        literal = self.tokens[2]
+        literal = self.tokens[3]
         for ch in literal:  # write literal
             out.append(int(ch))
 
         out.extend(typ.int_to_bytes(self.func_count))
 
         for i in range(self.func_count):
-            fp = int(self.tokens[i + 4][0])  # function
+            fp = int(self.tokens[i + 5][0])  # function
             out.extend(typ.int_to_bytes(fp))
 
         for i in range(self.nat_func_count):
@@ -89,7 +92,7 @@ class TpaParser:
 
         func_begin_pc = len(out)
 
-        for line in self.tokens[self.func_count + 5:]:  # instructions
+        for line in self.tokens[self.ins_begins:]:  # instructions
             if line.byte_index != -1:
                 if line.byte_index != len(out) - func_begin_pc:
                     print("error: recorded byte index: {}, actual byte index: {}"
@@ -102,10 +105,6 @@ class TpaParser:
                 out.extend(typ.int_to_bytes(int(num_str)))
             if line[0] == "STOP":
                 func_begin_pc = len(out)
-            # if line[0] == "ABSENT_8":
-            #     out.extend(bytes(7))
-            # elif line[0] == "ABSENT_24":
-            #     out.extend(bytes(23))
 
         return bytes(out)
 
@@ -208,7 +207,7 @@ class Optimizer:
         self.parser = tpa_psr
 
     def change_global_len(self, change_value: int):
-        self.parser.tokens[1][0] = int(self.parser.tokens[1][0]) + change_value
+        self.parser.tokens[2][0] = int(self.parser.tokens[2][0]) + change_value
         self.parser.generate_lengths()
 
     def optimize(self, level: int):
@@ -309,4 +308,7 @@ class Optimizer:
         pass
     
     def function_inline(self):
+        pass
+
+    def loop_unrolling(self):
         pass

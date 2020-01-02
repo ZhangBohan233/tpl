@@ -36,11 +36,17 @@ reg4 = bytes_to_int(MEMORY + PC + INT_LEN_3);\
 PC += INT_LEN_4;\
 }
 
-#define read_3_true_ptr {\
-read_3_ints;\
-reg1 = true_ptr(reg1);\
-reg2 = true_ptr(reg2);\
-reg3 = true_ptr(reg3);\
+#define read_2_true_ptr {    \
+read_2_ints;                 \
+reg1 = true_ptr(reg1);       \
+reg2 = true_ptr(reg2);       \
+}
+
+#define read_3_true_ptr {    \
+read_3_ints;                 \
+reg1 = true_ptr(reg1);       \
+reg2 = true_ptr(reg2);       \
+reg3 = true_ptr(reg3);       \
 }
 
 const int INT_LEN = 8;
@@ -81,6 +87,7 @@ int LSP = -1;
 // 0: No error
 // 1: Memory address error
 // 2: Native function error
+// 3: VM option error
 int ERROR_CODE = 0;
 
 void print_memory() {
@@ -123,17 +130,25 @@ void print_call_stack() {
 }
 
 void vm_load(const unsigned char *codes, int read) {
-    int_fast64_t literal_size = bytes_to_int(codes);
-    int_fast64_t functions_size = bytes_to_int(codes + INT_LEN);
+    int_fast64_t stack_size = bytes_to_int(codes);
+
+    if (stack_size != LITERAL_START) {
+        fprintf(stderr, "Unmatched stack size\n");
+        ERROR_CODE = 3;
+        return;
+    }
+
+    int_fast64_t literal_size = bytes_to_int(codes + INT_LEN);
+    int_fast64_t functions_size = bytes_to_int(codes + INT_LEN_2);
 
     FUNCTIONS_START += literal_size;
     CODE_START = FUNCTIONS_START + functions_size;
     PC = CODE_START;
 
-    int copy_len = read - INT_LEN * 2;
+    int copy_len = read - INT_LEN * 3;
     HEAP_START = LITERAL_START + copy_len;
 
-    memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 2, copy_len);
+    memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 3, copy_len);
 
     AVAILABLE = build_heap(HEAP_START, MEMORY_SIZE, &AVA_SIZE);
 //    print_memory();
@@ -143,9 +158,9 @@ void vm_shutdown() {
     free(AVAILABLE);
 }
 
-void mem_copy(int_fast64_t from, int_fast64_t to, int_fast64_t len) {
-    memcpy(MEMORY + to, MEMORY + from, len);
-}
+//void mem_copy(int_fast64_t from, int_fast64_t to, int_fast64_t len) {
+//    memcpy(MEMORY + to, MEMORY + from, len);
+//}
 
 void exit_func() {
     SP = CALL_STACK[CSP--];
@@ -324,7 +339,8 @@ void native_mem_copy(int_fast64_t argc, const int_fast64_t *argv) {
     int_fast64_t src = true_ptr(bytes_to_int(MEMORY + src_addr));
     int_fast64_t length = bytes_to_int(MEMORY + length_ptr);
 //    printf("%lld %lld %lld\n", dest, src, length);
-    mem_copy(src, dest, length);
+//    mem_copy(src, dest, length);
+    memcpy(MEMORY + dest, MEMORY + src, length);
 }
 
 void call_native(int_fast64_t func, int_fast64_t ret_ptr, int_fast64_t ret_len, int_fast64_t arg_count,
@@ -379,10 +395,10 @@ void vm_run() {
                 exit_func();
                 break;
             case 3:  // ASSIGN
-            read_3_ints  // tar, src, len
+            read_3_ints  // dest, src, len
                 reg1 = true_ptr(reg1);  // true tar
                 reg2 = true_ptr(reg2);  // true src
-                mem_copy(reg2, reg1, reg3);
+                memcpy(MEMORY + reg1, MEMORY + reg2, reg3);
                 break;
             case 4:  // CALL
             read_3_ints  // addr of func_ptr, r_len, arg_count
@@ -398,7 +414,8 @@ void vm_run() {
                     reg7 = bytes_to_int(MEMORY + reg4);  // arg_len
                     reg4 += INT_LEN;
                     reg6 = true_ptr(reg6);  // true arg ptr
-                    mem_copy(reg6, SP, reg7);
+//                    mem_copy(reg6, SP, reg7);
+                    memcpy(MEMORY + SP, MEMORY + reg6, reg7);
                     SP += reg7;
 //                    printf("%lld\n", reg6);
                 }
@@ -415,7 +432,8 @@ void vm_run() {
                 reg3 = true_ptr(reg1);  // true value ptr
 
                 reg4 = CALL_STACK[CSP] - reg2;  // where to put the return value
-                mem_copy(reg3, reg4, reg2);
+                memcpy(MEMORY + reg4, MEMORY + reg3, reg2);
+//                mem_copy(reg3, reg4, reg2);
 
                 exit_func();
                 break;
@@ -451,11 +469,8 @@ void vm_run() {
             read_3_ints  // res ptr, src ptr, src len
                 reg1 = true_ptr(reg1);
                 reg2 = true_ptr(reg2);
-                // TODO: float cast
                 if (reg3 <= 8) {
-                    mem_copy(reg2, reg1, reg3);
-//                    reg4 = bytes_to_int(MEMORY + reg2);
-//
+                    memcpy(MEMORY + reg1, MEMORY + reg2, reg3);
                 } // TODO: else
                 break;
             case 12:  // SUB INT
@@ -542,6 +557,11 @@ void vm_run() {
                 reg11 = reg2 != 0 ? 1 : 0;
                 MEMORY[reg1] = reg11;
                 break;
+            case 23:  // NEG
+            read_2_true_ptr
+                reg3 = -bytes_to_int(MEMORY + reg2);
+                int_to_bytes(MEMORY + reg1, reg3);
+                break;
             case 30:  // IF ZERO GOTO
             read_2_ints  // skip len, cond ptr
                 reg2 = true_ptr(reg2);  // true cond ptr
@@ -588,7 +608,8 @@ void vm_run() {
 
                 reg4 = bytes_to_int(MEMORY + reg2);  // address stored in pointer
 //                printf("unpack %lld, value %lld\n", reg2, reg4);
-                mem_copy(reg4, reg1, reg3);
+                memcpy(MEMORY + reg1, MEMORY + reg4, reg3);
+//                mem_copy(reg4, reg1, reg3);
                 break;
             case 34:  // PTR ASSIGN
             read_3_ints  // address of ptr, src, len
@@ -597,7 +618,8 @@ void vm_run() {
                 reg4 = bytes_to_int(MEMORY + reg1);  // address of value
 //                reg4 = true_ptr(reg4);
 //                printf("ptr assign: ptr at %lld, src %lld, len %lld\n", reg1, reg2, reg3);
-                mem_copy(reg2, reg4, reg3);
+//                mem_copy(reg2, reg4, reg3);
+                memcpy(MEMORY + reg4, MEMORY + reg2, reg3);
                 break;
             case 35:  // STORE SP
                 LOOP_STACK[++LSP] = SP;
@@ -622,30 +644,39 @@ void vm_run() {
                 int_to_bytes(MEMORY + reg1, reg3);
 //                printf("addi, addr %lld\n", reg1);
                 break;
-//            case 40:  // ABSENT_1
-//                break;
-//            case 41:  // ABSENT_8
-//                PC += 7;
-//                break;
-//            case 42:  // ABSENT_24
-//                PC += 23;
-//                break;
             case 39:  // INT_TO_FLOAT
-            read_2_ints  // des, src
-                reg1 = true_ptr(reg1);
-                reg2 = true_ptr(reg2);
+            read_2_true_ptr  // des, src
                 reg3 = bytes_to_int(MEMORY + reg2);  // int value
                 reg13 = (double) reg3;
                 double_to_bytes(MEMORY + reg1, reg13);
                 break;
             case 40:  // FLOAT_TO_INT
-            read_2_ints  // des, src
-                reg1 = true_ptr(reg1);
-                reg2 = true_ptr(reg2);
+            read_2_true_ptr  // des, src
                 reg13 = bytes_to_double(MEMORY + reg2);
                 reg3 = (int_fast64_t) reg13;
 //                printf("%lld %f\n", reg3, reg13);
                 int_to_bytes(MEMORY + reg1, reg3);
+                break;
+            case 41:  // SUB_I
+            read_2_ints
+                reg1 = true_ptr(reg1);
+                reg3 = bytes_to_int(MEMORY + reg1);
+                reg3 = reg3 - reg2;
+                int_to_bytes(MEMORY + reg1, reg3);
+                break;
+            case 42:  // ADD_FI
+            read_2_ints
+                reg1 = true_ptr(reg1);
+                reg13 = bytes_to_double(MEMORY + reg1);
+                reg13 = reg13 + reg2;
+                double_to_bytes(MEMORY + reg1, reg13);
+                break;
+            case 43:  // SUB_FI
+            read_2_ints
+                reg1 = true_ptr(reg1);
+                reg13 = bytes_to_double(MEMORY + reg1);
+                reg13 = reg13 - reg2;
+                double_to_bytes(MEMORY + reg1, reg13);
                 break;
             case 50:  // ADD_F
             read_3_true_ptr // des, left, right
@@ -717,6 +748,11 @@ void vm_run() {
 
                 reg11 = reg13 != 0 ? 1 : 0;
                 MEMORY[reg1] = reg11;
+                break;
+            case 59:  // NEG_F
+            read_2_true_ptr
+                reg13 = -bytes_to_double(MEMORY + reg2);
+                double_to_bytes(MEMORY + reg1, reg13);
                 break;
             default:
                 fprintf(stderr, "Unknown instruction %d\n", instruction);

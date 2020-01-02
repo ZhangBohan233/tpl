@@ -1,3 +1,41 @@
+fn abs(n: int) int {
+    if n < 0 {
+        return -n;
+    } else {
+        return n;
+    }
+}
+
+fn fact(n: int) int {
+    r := 1;
+    for i := 1; i <= n; ++i {
+        r = r * i;
+    }
+    return r;
+}
+
+fn gcd(a: int, b: int) int {
+    var x: int;
+    var y: int;
+    if a < b {
+        x = b;
+        y = a;
+    } else {
+        x = a;
+        y = b;
+    }
+    if y == 0 {
+        return x;
+    }
+    var r: int = x % y;
+    while r != 0 {
+        x = y;
+        y = r;
+        r = x % y;
+    }
+    return y;
+}
+
 fn fib(n: int) int {
     if n < 2 {
         return n;

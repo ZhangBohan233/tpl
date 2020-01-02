@@ -1,8 +1,22 @@
+#### Build 1021 ####
+2020/01/02
+
+* Added support of int++ and --
+* Added support of negation '-'
+* Bug fixes:
+    * Fixed some bugs in TPA generator
+    * Fixed bug of quick assignment
+* Abstract Syntax Tree based optimizer:
+    * Constants pre-calculation
+* Added more functions in 'math.tp'
+* Known bug:
+    * Optimize causes variable shift
+
 #### Build 1020 ####
 2020/01/02
 
 * Type casting functions 'int' and 'float'
-* Tpa now use '$' to note pointers, '@' to note
+* TPA now use '$' to note pointers, '@' to note
 * Fixed that compile time optimizing causes unexpected result while casting between int and float
 
 #### Build 1019 ####

@@ -37,6 +37,9 @@ if __name__ == '__main__':
 
     t2 = time.time()
 
+    for i in range(1000000):
+        pass
+
     t3 = time.time()
 
-    print((t2 - t1) * 1000, t3 - t2)
+    print((t2 - t1) * 1000, (t3 - t2) * 1000)

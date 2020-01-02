@@ -3,7 +3,7 @@ import time
 import bin.tpl_compiler as cmp
 import bin.spl_parser as psr
 import bin.spl_lexer as lex
-import bin.tpl_preprocessor as pre
+import bin.tpl_ast_optimizer as pre
 import bin.tpa_generator as decompiler
 import bin.tpa_optimizer as optimizer
 import script
@@ -63,8 +63,8 @@ if __name__ == '__main__':
         parser = psr.Parser(tokens)
         root = parser.parse()
 
-        preprocessor = pre.Preprocessor()
-        preprocessor.preprocess(root)
+        tree_optimizer = pre.AstOptimizer(root, parser, args["optimize"])
+        tree_optimizer.optimize()
 
         if args["ast"]:
             print(root)

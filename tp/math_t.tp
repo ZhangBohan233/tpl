@@ -1,0 +1,9 @@
+include "math"
+
+
+fn main() int {
+    a := fact(5);
+    b := gcd(398, 298);
+    printf("%d\n", b);
+    return a;
+}
