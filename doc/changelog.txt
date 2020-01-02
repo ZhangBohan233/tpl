@@ -1,3 +1,10 @@
+#### Build 1018 ####
+2020/01/01
+
+* Aligned all instructions with length 8x + 1 bytes
+* Added support of all float operations
+* Enabled compile time optimizer
+
 #### Build 1017 ####
 2019/12/31
 

@@ -21,6 +21,10 @@ unsigned char *bytes_to_str(const unsigned char *bytes, int *str_len);
 
 void int_to_bytes(unsigned char *b, int_fast64_t i);
 
+double bytes_to_double(const unsigned char *bytes);
+
+void double_to_bytes(unsigned char *b, double d);
+
 Int64List *create_list();
 
 void append_list(Int64List *list, int_fast64_t value);
@@ -28,5 +32,7 @@ void append_list(Int64List *list, int_fast64_t value);
 int_fast64_t get_list(Int64List *list, int index);
 
 void free_list(Int64List *list);
+
+double double_mod(double d1, double d2);
 
 #endif //TPL3_LIB_H

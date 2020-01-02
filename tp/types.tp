@@ -1,0 +1,7 @@
+fn main() int {
+    var a: float = 3.2;
+    var b: float = a + 4;
+    printf("%f", b);
+    printf("%b\n", b == 7.1);
+    return 0;
+}

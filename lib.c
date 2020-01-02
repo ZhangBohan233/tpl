@@ -66,6 +66,24 @@ void int_to_bytes(unsigned char *b, int_fast64_t i) {
     *(b + 7) = i;
 }
 
+double bytes_to_double(const unsigned char *bytes) {
+    union {
+        double d;
+        unsigned char b[8];
+    } dou;
+    memcpy(dou.b, bytes, 8);
+    return dou.d;
+}
+
+void double_to_bytes(unsigned char *bytes, double d) {
+    union {
+        double d;
+        unsigned char b[8];
+    } dou;
+    dou.d = d;
+    memcpy(bytes, dou.b, 8);
+}
+
 Int64List *create_list() {
     Int64List *list = malloc(sizeof(Int64List));
     list->capacity = 8;
@@ -96,4 +114,11 @@ int_fast64_t get_list(Int64List *list, int index) {
 void free_list(Int64List *list) {
     free(list->array);
     free(list);
+}
+
+double double_mod(double d1, double d2) {
+    while (d1 >= d2) {
+        d1 -= d2;
+    }
+    return d1;
 }

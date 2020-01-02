@@ -21,7 +21,7 @@ PUSH = 7  # PUSH
 ASSIGN_I = 8  # A      PTR       REAL VALUE         | store the real value in PTR
 ASSIGN_B = 9
 ADD = 10  # ADD_I    RESULT_P  LEFT_P   RIGHT_P   | add the ints pointed by pointers, store the result to RESULT_P
-CAST_INT = 11  # CAST_INT  RESULT_P  SRC_P              | cast to int
+CAST_INT = 11  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 SUB = 12
 MUL = 13
 DIV = 14
@@ -33,6 +33,7 @@ AND = 19
 OR = 20
 NOT = 21
 NE = 22
+
 IF_ZERO_GOTO = 30
 CALL_NAT = 31
 STORE_ADDR = 32
@@ -42,9 +43,18 @@ STORE_SP = 35
 RES_SP = 36
 TO_REL = 37      # | transform absolute addr to
 ADD_I = 38       # | add with real value
-ABSENT_1 = 40
-ABSENT_8 = 41
-ABSENT_24 = 42
+INT_TO_FLOAT = 39
+FLOAT_TO_INT = 40
+
+ADD_F = 50
+SUB_F = 51
+MUL_F = 52
+DIV_F = 53
+MOD_F = 54
+EQ_F = 55
+GT_F = 56
+LT_F = 57
+NE_F = 58
 
 NATIVE_FUNCTION_COUNT = 5
 
@@ -87,6 +97,36 @@ OTHER_BOOL_RESULT_UNARY = {
     "!"
 }
 
+FLOAT_RESULT_TABLE_FLOAT = {
+    "+": ADD_F,
+    "-": SUB_F,
+    "*": MUL_F,
+    "/": DIV_F,
+    "%": MOD_F
+}
+
+EXTENDED_FLOAT_RESULT_TABLE_FLOAT = {
+    **FLOAT_RESULT_TABLE_FLOAT,
+    "+=": ADD_F,
+    "-=": SUB_F,
+    "*=": MUL_F,
+    "/=": DIV_F,
+    "%=": MOD_F
+}
+
+BOOL_RESULT_TABLE_FLOAT = {
+    ">": GT_F,
+    "==": EQ_F,
+    "!=": NE_F,
+    "<": LT_F
+}
+
+EXTENDED_BOOL_RESULT_TABLE_FLOAT = {
+    **BOOL_RESULT_TABLE_FLOAT,
+    ">=": (GT_F, EQ_F),
+    "<=": (LT_F, EQ_F),
+}
+
 
 class ByteOutput:
     def __init__(self):
@@ -122,7 +162,17 @@ class ByteOutput:
             raise lib.CompileTimeException("Boolean can only be 0 or 1")
         self.write_one(ASSIGN_B)
         self.write_int(des)
-        self.write_one(real_value)
+        self.write_int(real_value)  # extended to 8 bytes for alignment
+
+    def int_to_float(self, des: int, src: int):
+        self.write_one(INT_TO_FLOAT)
+        self.write_int(des)
+        self.write_int(src)
+
+    def float_to_int(self, des: int, src: int):
+        self.write_one(FLOAT_TO_INT)
+        self.write_int(des)
+        self.write_int(src)
 
     def store_addr_to_des(self, des: int, rel_value: int):
         self.write_one(STORE_ADDR)
@@ -147,7 +197,7 @@ class ByteOutput:
         self.write_int(src)
         self.write_int(src_len)
 
-    def add_binary_op_int(self, op: int, res: int, left: int, right: int):
+    def add_binary_op(self, op: int, res: int, left: int, right: int):
         self.write_one(op)
         self.write_int(res)
         self.write_int(left)
@@ -602,9 +652,9 @@ class Compiler:
         bo.assign_i(unit_len_ptr, unit_len)
         indexing_ptr = self.memory.allocate(INT_LEN)
         bo.push_stack(INT_LEN)
-        bo.add_binary_op_int(MUL, indexing_ptr, index_ptr, unit_len_ptr)
+        bo.add_binary_op(MUL, indexing_ptr, index_ptr, unit_len_ptr)
         array_ptr = self.compile(node.call_obj, env, bo)
-        bo.add_binary_op_int(ADD, indexing_ptr, array_ptr, indexing_ptr)
+        bo.add_binary_op(ADD, indexing_ptr, array_ptr, indexing_ptr)
 
         return indexing_ptr, unit_len
 
@@ -736,7 +786,12 @@ class Compiler:
         if l_tal.type_name == "int" or l_tal.type_name[0] == "*" or en.is_array(l_tal):
             lp = self.compile(node.left, env, bo)
             rp = self.compile(node.right, env, bo)
-            if r_tal.type_name != "int" and r_tal.type_name[0] != "*":
+            if r_tal.type_name == "float":
+                rip = self.memory.allocate(FLOAT_LEN)
+                bo.push_stack(FLOAT_LEN)
+                bo.float_to_int(rip, rp)
+                rp = rip
+            elif r_tal.type_name != "int" and r_tal.type_name[0] != "*":
                 rip = self.memory.allocate(INT_LEN)
                 bo.push_stack(INT_LEN)
                 bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
@@ -755,7 +810,7 @@ class Compiler:
                 bo.push_stack(BOOLEAN_LEN)
 
                 op_code = BOOL_RESULT_TABLE_BOOL[node.operation]
-                bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                bo.add_binary_op(op_code, res_pos, lp, rp)
                 return res_pos
 
         elif l_tal.type_name == "char":
@@ -766,7 +821,11 @@ class Compiler:
             bo.push_stack(INT_LEN)
             bo.cast_to_int(lip, lp, CHAR_LEN)
 
-            if r_tal.type_name != "int":
+            if r_tal.type_name == "float":
+                rip = self.memory.allocate(FLOAT_LEN)
+                bo.push_stack(FLOAT_LEN)
+                bo.float_to_int(rip, rp)
+            elif r_tal.type_name != "int":
                 rip = self.memory.allocate(INT_LEN)
                 bo.push_stack(INT_LEN)
                 bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
@@ -775,7 +834,57 @@ class Compiler:
 
             return self.binary_op_int(node.operation, lip, rip, bo)
 
+        elif l_tal.type_name == "float":
+            lp = self.compile(node.left, env, bo)
+            rp = self.compile(node.right, env, bo)
+
+            if r_tal.type_name != "float":
+                if r_tal.type_name == "int":
+                    rip = rp
+                else:
+                    rip = self.memory.allocate(INT_LEN)
+                    bo.push_stack(INT_LEN)
+                    bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
+                rfp = self.memory.allocate(FLOAT_LEN)
+                bo.push_stack(FLOAT_LEN)
+                bo.int_to_float(rfp, rip)
+                rp = rfp
+
+            return self.binary_op_float(node.operation, lp, rp, bo)
+
         raise lib.CompileTimeException("Unsupported binary operation '{}'".format(node.operation))
+
+    def binary_op_float(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
+        if op in EXTENDED_FLOAT_RESULT_TABLE_FLOAT:
+            if op in FLOAT_RESULT_TABLE_FLOAT:
+                res_pos = self.memory.allocate(FLOAT_LEN)
+                bo.push_stack(FLOAT_LEN)
+
+                op_code = FLOAT_RESULT_TABLE_FLOAT[op]
+                bo.add_binary_op(op_code, res_pos, lp, rp)
+                return res_pos
+            else:
+                op_code = EXTENDED_FLOAT_RESULT_TABLE_FLOAT[op]
+                bo.add_binary_op(op_code, lp, lp, rp)
+                return lp
+        elif op in EXTENDED_BOOL_RESULT_TABLE_FLOAT:
+            res_pos = self.memory.allocate(BOOLEAN_LEN)
+            bo.push_stack(BOOLEAN_LEN)
+
+            if op in BOOL_RESULT_TABLE_FLOAT:
+                op_code = BOOL_RESULT_TABLE_FLOAT[op]
+                bo.add_binary_op(op_code, res_pos, lp, rp)
+                return res_pos
+            else:
+                op_tup = EXTENDED_BOOL_RESULT_TABLE_FLOAT[op]
+                l_res = self.memory.allocate(BOOLEAN_LEN)
+                bo.push_stack(BOOLEAN_LEN)
+                r_res = self.memory.allocate(BOOLEAN_LEN)
+                bo.push_stack(BOOLEAN_LEN)
+                bo.add_binary_op(op_tup[0], l_res, lp, rp)
+                bo.add_binary_op(op_tup[1], r_res, lp, rp)
+                bo.add_binary_op(OR, res_pos, l_res, r_res)
+                return res_pos
 
     def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
         if op in EXTENDED_INT_RESULT_TABLE_INT:
@@ -784,11 +893,11 @@ class Compiler:
                 bo.push_stack(INT_LEN)
 
                 op_code = INT_RESULT_TABLE_INT[op]
-                bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                bo.add_binary_op(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_code = EXTENDED_INT_RESULT_TABLE_INT[op]
-                bo.add_binary_op_int(op_code, lp, lp, rp)
+                bo.add_binary_op(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_BOOL_RESULT_TABLE_INT:
             res_pos = self.memory.allocate(BOOLEAN_LEN)
@@ -796,7 +905,7 @@ class Compiler:
 
             if op in BOOL_RESULT_TABLE_INT:
                 op_code = BOOL_RESULT_TABLE_INT[op]
-                bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                bo.add_binary_op(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_tup = EXTENDED_BOOL_RESULT_TABLE_INT[op]
@@ -804,9 +913,9 @@ class Compiler:
                 bo.push_stack(BOOLEAN_LEN)
                 r_res = self.memory.allocate(BOOLEAN_LEN)
                 bo.push_stack(BOOLEAN_LEN)
-                bo.add_binary_op_int(op_tup[0], l_res, lp, rp)
-                bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
-                bo.add_binary_op_int(OR, res_pos, l_res, r_res)
+                bo.add_binary_op(op_tup[0], l_res, lp, rp)
+                bo.add_binary_op(op_tup[1], r_res, lp, rp)
+                bo.add_binary_op(OR, res_pos, l_res, r_res)
                 return res_pos
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
@@ -864,7 +973,7 @@ class Compiler:
 
         real_cond_ptr = self.memory.allocate(BOOLEAN_LEN)
         bo.push_stack(BOOLEAN_LEN)
-        bo.add_binary_op_int(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
@@ -894,7 +1003,7 @@ class Compiler:
         if len(node.condition.lines) != 1:
             raise lib.CompileTimeException("While loop title must have 1 part.")
 
-        self.memory.store_sp()
+        self.memory.store_sp()  # 进loop之前
         bo.write_one(STORE_SP)
 
         loop_indicator = self.memory.allocate(BOOLEAN_LEN)
@@ -902,7 +1011,7 @@ class Compiler:
         bo.assign_byte(loop_indicator, 1)
 
         init_len = len(bo)
-        self.memory.store_sp()
+        self.memory.store_sp()  # 循环开始
         bo.write_one(STORE_SP)
 
         title_env = en.LoopEnvironment(env)
@@ -912,13 +1021,14 @@ class Compiler:
 
         real_cond_ptr = self.memory.allocate(BOOLEAN_LEN)
         bo.push_stack(BOOLEAN_LEN)
-        bo.add_binary_op_int(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
         body_bo = LoopByteOutput(loop_indicator, cond_len, None)
 
         self.compile(node.body, body_env, body_bo)
+        # self.memory.restore_sp()
         body_bo.write_one(RES_SP)
         body_len = len(body_bo) + INT_LEN + 1  # body length + GOTO length
 

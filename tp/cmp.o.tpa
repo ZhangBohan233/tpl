@@ -1,56 +1,45 @@
 //LITERAL LENGTH:
-26
+41
 //GLOBAL LENGTH:
-519
+390
 //LITERALS:
-0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 6 
+0 1 154 153 153 153 153 153 9 64 0 0 0 0 0 0 0 4 37 102 0 37 98 10 0 102 102 102 102 102 102 28 64 0 0 0 0 0 0 0 0 
 //FUNCTIONS COUNT:
-7
+6
 //FUNCTION POINTERS:
-1114
-1122
-1130
-1138
-1146
-1154
-1451
+1121
+1129
+1137
+1145
+1153
+1161
 //NATIVE FUNCTIONS COUNT:
 5
 
 //FUNCTIONS: 
-#130 #0 PUSH            1
-#139 #9 PUSH            1
-#148 #18 PUSH            1
-#157 #27 LT              17  0  1026
-#182 #52 EQ              18  0  1026
-#207 #77 OR              16  17  18
-#232 #102 IF_ZERO_GOTO    26  16
-#249 #119 RETURN          8  8
-#266 #136 GOTO            151
-#275 #145 PUSH            8
-#284 #154 SUB             19  0  1034
-#309 #179 PUSH            8
-#318 #188 MUL             27  8  0
-#343 #213 PUSH            8
-#352 #222 CALL            1098  8  2
+#0 PUSH            8
+#9 ASSIGN          0  1026  8
+#34 PUSH            8
+#43 INT_TO_FLOAT    8  1034
+#60 PUSH            8
+#69 ADD_F           16  0  8
+#94 PUSH            0
+#103 CALL_NAT        1089  0  24  2
     //ARGS:
-        19  8
-        27  8
-#409 #279 RETURN          35  8
-#426 #296 STOP
-
-#427 #0 PUSH            8
-#436 #9 CALL            1098  8  2
+        1042  3
+        16  8
+#168 PUSH            1
+#177 EQ_F            24  16  1049
+#202 PUSH            0
+#211 CALL_NAT        1089  0  25  2
     //ARGS:
-        1042  8
-        1034  8
-#493 #66 PUSH            8
-#502 #75 ASSIGN          8  0  8
-#527 #100 RETURN          8  8
-#544 #117 STOP
+        1045  4
+        24  1
+#276 RETURN          1057  8
+#293 STOP
 
 
 //MAIN: 
-#545 PUSH            8
-#554 CALL            1106  8  0
+PUSH            8
+CALL            1113  8  0
     //ARGS:

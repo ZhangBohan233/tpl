@@ -80,6 +80,8 @@ if __name__ == '__main__':
             dec.compile(wf)
 
         if args["optimize"] > 0:
+            # print("Optimization currently unavailable")
+            # exit(1)
             with open(tpa_name, "r") as tpa_f:
                 tpa_text = tpa_f.read()
                 opt_par = optimizer.TpaParser(tpa_text)

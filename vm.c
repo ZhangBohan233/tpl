@@ -184,6 +184,17 @@ void native_printf(int_fast64_t argc, const int_fast64_t *argv) {
                 int_fast64_t ptr = argv[a_index++];
                 unsigned char value = MEMORY[ptr];
                 printf("%c", value);
+            } else if (ch == 'f') {  // float
+                f = 0;
+                int_fast64_t ptr = argv[a_index++];
+                double value = bytes_to_double(MEMORY + ptr);
+                printf("%f", value);
+            } else if (ch == 'b') {  // boolean
+                f = 0;
+                int_fast64_t ptr = argv[a_index++];
+                unsigned char value = MEMORY[ptr];
+                if (value == 0) printf("false");
+                else printf("true");
             } else if (ch == 's') {  // string
                 f = 0;
                 int_fast64_t ptr = argv[a_index++];
@@ -356,6 +367,9 @@ void vm_run() {
     unsigned char reg11;
     unsigned char reg12;
 
+    double reg13;
+    double reg14;
+
     register unsigned char instruction;
 
     while (PC < HEAP_START) {
@@ -422,10 +436,9 @@ void vm_run() {
 //                printf("%lld %lld\n", reg1, reg2);
                 break;
             case 9:  // ASSIGN_B
-                reg1 = true_ptr(bytes_to_int(MEMORY + PC));
-                PC += INT_LEN;
-                reg11 = MEMORY[PC++];
-                MEMORY[reg1] = reg11;
+            read_2_ints
+                reg1 = true_ptr(reg1);
+                MEMORY[reg1] = (unsigned char) reg2;
                 break;
             case 10:  // ADD INT
             read_3_true_ptr  // res ptr, left ptr, right ptr
@@ -609,13 +622,100 @@ void vm_run() {
                 int_to_bytes(MEMORY + reg1, reg3);
 //                printf("addi, addr %lld\n", reg1);
                 break;
-            case 40:  // ABSENT_1
+//            case 40:  // ABSENT_1
+//                break;
+//            case 41:  // ABSENT_8
+//                PC += 7;
+//                break;
+//            case 42:  // ABSENT_24
+//                PC += 23;
+//                break;
+            case 39:  // INT_TO_FLOAT
+            read_2_ints  // des, src
+                reg1 = true_ptr(reg1);
+                reg2 = true_ptr(reg2);
+                reg3 = bytes_to_int(MEMORY + reg2);  // int value
+                reg13 = (double) reg3;
+                double_to_bytes(MEMORY + reg1, reg13);
                 break;
-            case 41:  // ABSENT_8
-                PC += 7;
+            case 40:  // FLOAT_TO_INT
+            read_2_ints  // des, src
+                reg1 = true_ptr(reg1);
+                reg2 = true_ptr(reg2);
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg3 = (int_fast64_t) reg13;
+                int_to_bytes(MEMORY + reg1, reg3);
                 break;
-            case 42:  // ABSENT_24
-                PC += 23;
+            case 50:  // ADD_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = reg13 + reg14;
+                double_to_bytes(MEMORY + reg1, reg13);
+                break;
+            case 51:  // SUB_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = reg13 - reg14;
+                double_to_bytes(MEMORY + reg1, reg13);
+                break;
+            case 52:  // MUL_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = reg13 * reg14;
+                double_to_bytes(MEMORY + reg1, reg13);
+                break;
+            case 53:  // DIV_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = reg13 / reg14;
+                double_to_bytes(MEMORY + reg1, reg13);
+                break;
+            case 54:  // MOD_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = double_mod(reg13, reg14);
+                double_to_bytes(MEMORY + reg1, reg13);
+                break;
+            case 55:  // EQ_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = reg13 - reg14;
+
+                reg11 = reg13 == 0 ? 1 : 0;
+                MEMORY[reg1] = reg11;
+                break;
+            case 56:  // GT_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = reg13 - reg14;
+
+                reg11 = reg13 > 0 ? 1 : 0;
+                MEMORY[reg1] = reg11;
+                break;
+            case 57:  // LT_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = reg13 - reg14;
+
+                reg11 = reg13 < 0 ? 1 : 0;
+                MEMORY[reg1] = reg11;
+                break;
+            case 58:  // NE_F
+            read_3_true_ptr // des, left, right
+                reg13 = bytes_to_double(MEMORY + reg2);
+                reg14 = bytes_to_double(MEMORY + reg3);
+                reg13 = reg13 - reg14;
+
+                reg11 = reg13 != 0 ? 1 : 0;
+                MEMORY[reg1] = reg11;
                 break;
             default:
                 fprintf(stderr, "Unknown instruction %d\n", instruction);

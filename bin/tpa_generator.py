@@ -53,13 +53,13 @@ class TPAssemblyCompiler:
         out_stream.write("\n//FUNCTIONS: \n")
         self.func_begin_pc = self.pc
         while self.pc < self.code_begin:  # function codes
-            out_stream.write("#{} #{} ".format(self.pc, self.pc - self.func_begin_pc))
+            out_stream.write("#{} ".format(self.pc - self.func_begin_pc))
             self.one_loop(out_stream)
 
         out_stream.write("\n//MAIN: \n")
 
         while self.pc < length:  # main codes
-            out_stream.write("#{} ".format(self.pc))
+            # out_stream.write("#{} ".format(self.pc))
             self.one_loop(out_stream)
 
     def one_loop(self, out_stream):
@@ -86,10 +86,7 @@ class TPAssemblyCompiler:
         elif instruction == cpl.ASSIGN_I:
             out_stream.write("ASSIGN_I        {}  {}\n".format(*self.read_2_ints()))
         elif instruction == cpl.ASSIGN_B:
-            i1 = self.read_1_int()
-            b1 = self.codes[self.pc]
-            self.pc += 1
-            out_stream.write("ASSIGN_B        {}  {}\n".format(i1, b1))
+            out_stream.write("ASSIGN_B        {}  {}\n".format(*self.read_2_ints()))
         elif instruction == cpl.ADD:
             out_stream.write("ADD             {}  {}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.CAST_INT:
@@ -139,14 +136,36 @@ class TPAssemblyCompiler:
             out_stream.write("TO_REL          {}\n".format(self.read_1_int()))
         elif instruction == cpl.ADD_I:
             out_stream.write("ADD_I           {}  {}\n".format(*self.read_2_ints()))
-        elif instruction == cpl.ABSENT_1:
-            out_stream.write("ABSENT_1\n")
-        elif instruction == cpl.ABSENT_8:
-            out_stream.write("ABSENT_8\n")
-            self.pc += 7
-        elif instruction == cpl.ABSENT_24:
-            out_stream.write("ABSENT_24\n")
-            self.pc += 23
+        # elif instruction == cpl.ABSENT_1:
+        #     out_stream.write("ABSENT_1\n")
+        # elif instruction == cpl.ABSENT_8:
+        #     out_stream.write("ABSENT_8\n")
+        #     self.pc += 7
+        # elif instruction == cpl.ABSENT_24:
+        #     out_stream.write("ABSENT_24\n")
+        #     self.pc += 23
+        elif instruction == cpl.INT_TO_FLOAT:
+            out_stream.write("INT_TO_FLOAT    {}  {}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.FLOAT_TO_INT:
+            out_stream.write("FLOAT_TO_INT    {}  {}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.ADD_F:
+            out_stream.write("ADD_F           {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.SUB_F:
+            out_stream.write("SUB_F           {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.MUL_F:
+            out_stream.write("MUL_F           {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.DIV_F:
+            out_stream.write("DIV_F           {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.MOD_F:
+            out_stream.write("MOD_F           {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.EQ_F:
+            out_stream.write("EQ_F            {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.GT_F:
+            out_stream.write("GT_F            {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.LT_F:
+            out_stream.write("LT_F            {}  {}  {}\n".format(*self.read_3_ints()))
+        elif instruction == cpl.NE_F:
+            out_stream.write("NE_F            {}  {}  {}\n".format(*self.read_3_ints()))
         else:
             print("Unknown instruction: {}".format(instruction))
             raise Exception

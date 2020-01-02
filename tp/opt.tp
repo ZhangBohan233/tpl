@@ -2,19 +2,15 @@
 //    return x + y;
 //}
 
-fn fact(n: int, r: int) int {
-    //printf("%d, %d\n", n, r);
-    if n <= 0 {
-        return r;
-    } else {
-        return fact(n - 1, r * n);
-    }
-}
+
 
 fn main() int {
-    //var a: int = 5 + 4;
-    //var b: int = add(a, 7);
-    //printf("%d\n", b);
-    var c: int = fact(6, 1);
-    return c;
+    var g: int;
+    var a: int;
+    g = 0;
+    while g < 10 {
+        a = 3 + 2;
+        g += 1;
+    }
+    return a;
 }
