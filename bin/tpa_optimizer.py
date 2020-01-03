@@ -10,6 +10,7 @@ class Line:
     def __init__(self, *args):
         self.tokens = list(args)
         self.pointers = set()
+        self.registers = set()
         self.byte_index = -1
 
     def __getitem__(self, item):
@@ -43,7 +44,10 @@ class TpaParser:
                             line_obj.byte_index = int(tk[1:])
                         elif tk[0] == "$":
                             line_obj.pointers.add(len(line_obj))
-                            line_obj.tokens.append(tk[1:])
+                            line_obj.tokens.append(int(tk[1:]))
+                        elif tk[0] == "%":
+                            line_obj.registers.add(len(line_obj))
+                            line_obj.tokens.append(int(tk[1:]))
                         else:
                             line_obj.tokens.append(tk)
                 if len(line_obj) > 0:
@@ -51,6 +55,8 @@ class TpaParser:
                         last_line: Line = self.tokens[-1]
                         for p in line_obj.pointers:
                             last_line.pointers.add(p + len(last_line) - 1)
+                        for r in line_obj.registers:
+                            last_line.registers.add(r + len(last_line) - 1)
                         last_line.tokens.extend(line_obj.tokens[1:])
                     else:
                         self.tokens.append(line_obj)
@@ -101,8 +107,14 @@ class TpaParser:
             instruction = "cmp." + line[0]
             a = eval(instruction)
             out.append(a)
-            for num_str in line[1:]:
-                out.extend(typ.int_to_bytes(int(num_str)))
+            for i in range(1, len(line)):
+                num_str = line[i]
+                if i in line.registers:
+                    out.append(int(num_str))
+                else:
+                    out.extend(typ.int_to_bytes(int(num_str)))
+            # for num_str in line[1:]:
+            #     out.extend(typ.int_to_bytes(int(num_str)))
             if line[0] == "STOP":
                 func_begin_pc = len(out)
 
@@ -220,47 +232,22 @@ class Optimizer:
         i = self.parser.ins_begins
         while i < tk_count:
             line = self.parser.tokens[i]
-            if i < tk_count - 4:  # check duplicate assignment: push, op, push assign
-                if line[0] == "PUSH" and self.parser.tokens[i + 1][0] in BINARY_OP_INS and \
-                        self.parser.tokens[i + 2][0] == "PUSH" and self.parser.tokens[i + 3][0] == "ASSIGN":
-                    push1 = line
-                    op = self.parser.tokens[i + 1]
-                    push2 = self.parser.tokens[i + 2]
-                    assign = self.parser.tokens[i + 3]
-                    if push1[1] == push2[1] and op[1] == assign[2]:
-                        # op[1] = int(op[1]) - cmp.PTR_LEN
-
-                        new_lst.append(push1)
-                        new_lst.append(op)
-                        # new_lst.append(push2)
-                        # new_lst.append(Line("ABSENT_1"))
-                        # new_lst.append(Line("ABSENT_24"))
-                        i += 4
-                        self.check_less_push(i, int(op[1]), int(push2[1]))
-                        self.change_global_len(-34)
-                        self.check_jumps_before_mod(i, push1.byte_index, -34)
-                        self.check_jumps_after_mod(i, push1.byte_index, -34)
-                        self.modify_byte_indices(i, -34)
-                        continue
 
             if i < tk_count - 3:  # check duplicate assignment: push, op, assign
-                if line[0] == "PUSH" and self.parser.tokens[i + 1][0] in BINARY_OP_INS \
+                if line[0] == "STORE" and self.parser.tokens[i + 1][0] == "PUSH" \
                         and self.parser.tokens[i + 2][0] == "ASSIGN":
-                    push1 = line
-                    op = self.parser.tokens[i + 1]
+                    store = line
+                    push = self.parser.tokens[i + 1]
                     assign = self.parser.tokens[i + 2]
-                    if op[1] == assign[2]:
-                        op[1] = assign[1]
-                        op.byte_index -= 9  # one less push
-                        new_lst.append(op)
-                        # new_lst.append(push2)
-                        # new_lst.append(Line("ABSENT_1"))
-                        # new_lst.append(Line("ABSENT_24"))
+                    if store[3] == assign[2]:
+                        # op[1] = assign[1]
+                        # op.byte_index -= 9  # one less push
+                        new_lst.append(store)
                         i += 3
-                        self.check_less_push(i, int(op[1]), int(push1[1]))
+                        self.check_less_push(i, int(store[3]), int(push[1]))
                         self.change_global_len(-34)
-                        self.check_jumps_before_mod(i, push1.byte_index, -34)
-                        self.check_jumps_after_mod(i, push1.byte_index, -34)
+                        self.check_jumps_before_mod(i, push.byte_index, -34)
+                        self.check_jumps_after_mod(i, push.byte_index, -34)
                         self.modify_byte_indices(i, -34)
                         continue
 
@@ -269,6 +256,62 @@ class Optimizer:
 
         self.parser.tokens = new_lst
         # print(self.parser.tokens)
+
+    # def merge_variables(self):
+    #     new_lst = self.parser.tokens[:self.parser.ins_begins]
+    #     tk_count = len(self.parser.tokens)
+    #     i = self.parser.ins_begins
+    #     while i < tk_count:
+    #         line = self.parser.tokens[i]
+    #         if i < tk_count - 4:  # check duplicate assignment: push, op, push assign
+    #             if line[0] == "PUSH" and self.parser.tokens[i + 1][0] in BINARY_OP_INS and \
+    #                     self.parser.tokens[i + 2][0] == "PUSH" and self.parser.tokens[i + 3][0] == "ASSIGN":
+    #                 push1 = line
+    #                 op = self.parser.tokens[i + 1]
+    #                 push2 = self.parser.tokens[i + 2]
+    #                 assign = self.parser.tokens[i + 3]
+    #                 if push1[1] == push2[1] and op[1] == assign[2]:
+    #                     # op[1] = int(op[1]) - cmp.PTR_LEN
+    #
+    #                     new_lst.append(push1)
+    #                     new_lst.append(op)
+    #                     # new_lst.append(push2)
+    #                     # new_lst.append(Line("ABSENT_1"))
+    #                     # new_lst.append(Line("ABSENT_24"))
+    #                     i += 4
+    #                     self.check_less_push(i, int(op[1]), int(push2[1]))
+    #                     self.change_global_len(-34)
+    #                     self.check_jumps_before_mod(i, push1.byte_index, -34)
+    #                     self.check_jumps_after_mod(i, push1.byte_index, -34)
+    #                     self.modify_byte_indices(i, -34)
+    #                     continue
+    #
+    #         if i < tk_count - 3:  # check duplicate assignment: push, op, assign
+    #             if line[0] == "PUSH" and self.parser.tokens[i + 1][0] in BINARY_OP_INS \
+    #                     and self.parser.tokens[i + 2][0] == "ASSIGN":
+    #                 push1 = line
+    #                 op = self.parser.tokens[i + 1]
+    #                 assign = self.parser.tokens[i + 2]
+    #                 if op[1] == assign[2]:
+    #                     op[1] = assign[1]
+    #                     op.byte_index -= 9  # one less push
+    #                     new_lst.append(op)
+    #                     # new_lst.append(push2)
+    #                     # new_lst.append(Line("ABSENT_1"))
+    #                     # new_lst.append(Line("ABSENT_24"))
+    #                     i += 3
+    #                     self.check_less_push(i, int(op[1]), int(push1[1]))
+    #                     self.change_global_len(-34)
+    #                     self.check_jumps_before_mod(i, push1.byte_index, -34)
+    #                     self.check_jumps_after_mod(i, push1.byte_index, -34)
+    #                     self.modify_byte_indices(i, -34)
+    #                     continue
+    #
+    #         new_lst.append(line)
+    #         i += 1
+    #
+    #     self.parser.tokens = new_lst
+    #     # print(self.parser.tokens)
 
     def check_less_push(self, index, modified_sp, less_push):
         while index < len(self.parser.tokens):

@@ -8,7 +8,7 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
 
-        self.literal_bytes = bytearray((0, 1))
+        self.literal_bytes = bytearray()
         self.string_lengths = {}  # ptr: length
         self.literals = {}  # lit: position
         self.bool_literals = {}
@@ -63,8 +63,8 @@ class Parser:
                     elif sym == "continue":
                         parser.add_continue(line)
                     elif sym == "true" or sym == "false":
-                        lit_node = self.make_literal_node(line, True if sym == "true" else False, False)
-                        parser.add_bool(line, lit_node)
+                        lit_node = self.make_literal_node(line, 1 if sym == "true" else 0, False)
+                        parser.add_number(line, lit_node)
                     elif sym == "null":
                         parser.add_null(line)
                     elif sym == "const":
@@ -230,14 +230,6 @@ class Parser:
                         parser.add_operator(line, sym, True)
                     elif stl.is_dots(sym):
                         parser.add_dot(line, len(sym))
-                    # elif sym == "import":
-                    #     i += 2
-                    #     name_token: stl.IdToken = self.tokens[i - 1]
-                    #     path_token: stl.IdToken = self.tokens[i]
-                    #     # print(name_token)
-                    #     import_name = name_token.symbol
-                    #     parser.add_import(line, import_name, path_token.symbol)
-                    #     import_braces.append(brace_count)
                     elif token.is_eol():
                         if is_type_param:  # defining function header
                             parser.build_type_param()
@@ -322,10 +314,10 @@ class Parser:
         :param make_string: True if make string, False if make char
         """
         # print(lit, type(lit))
-        if isinstance(lit, bool):  # in python, bool is int but int is not bool
-            b = typ.boolean_to_bytes(lit)
-            lit_type = 2
-        elif isinstance(lit, int):
+        # if isinstance(lit, bool):  # in python, bool is int but int is not bool
+        #     b = typ.boolean_to_bytes(lit)
+        #     lit_type = 2
+        if isinstance(lit, int):
             b = typ.int_to_bytes(lit)
             lit_type = 0
         elif isinstance(lit, float):

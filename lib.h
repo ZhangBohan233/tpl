@@ -19,9 +19,9 @@ int_fast64_t bytes_to_int(const unsigned char *bytes);
 
 void int_to_bytes(unsigned char *b, int_fast64_t i);
 
-int_fast64_t bytes_to_uint7(const unsigned char *bytes);
-
-void uint7_to_bytes(unsigned char *b, int_fast64_t i);
+//int_fast64_t bytes_to_uint7(const unsigned char *bytes);
+//
+//void uint7_to_bytes(unsigned char *b, int_fast64_t i);
 
 double bytes_to_double(const unsigned char *bytes);
 

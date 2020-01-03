@@ -60,23 +60,23 @@ void int_to_bytes(unsigned char *b, int_fast64_t i) {
     memcpy(b, i64.arr, 8);
 }
 
-int_fast64_t bytes_to_uint7(const unsigned char *bytes) {
-    union {
-        int_fast64_t value;
-        unsigned char arr[7];
-    } ui56;
-    memcpy(ui56.arr, bytes, 7);
-    return ui56.value;
-}
-
-void uint7_to_bytes(unsigned char *b, int_fast64_t i) {
-    union {
-        int_fast64_t value;
-        unsigned char arr[7];
-    } ui56;
-    ui56.value = i;
-    memcpy(b, ui56.arr, 7);
-}
+//int_fast64_t bytes_to_uint7(const unsigned char *bytes) {
+//    union {
+//        int_fast64_t value;
+//        unsigned char arr[7];
+//    } ui56;
+//    memcpy(ui56.arr, bytes, 7);
+//    return ui56.value;
+//}
+//
+//void uint7_to_bytes(unsigned char *b, int_fast64_t i) {
+//    union {
+//        int_fast64_t value;
+//        unsigned char arr[7];
+//    } ui56;
+//    ui56.value = i;
+//    memcpy(b, ui56.arr, 7);
+//}
 
 double bytes_to_double(const unsigned char *bytes) {
     union {

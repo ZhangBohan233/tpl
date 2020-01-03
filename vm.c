@@ -63,7 +63,7 @@ const int INT_LEN = 8;
 const int PTR_LEN = 8;
 const int FLOAT_LEN = 8;
 const int CHAR_LEN = 1;
-const int BOOLEAN_LEN = 1;
+//const int BOOLEAN_LEN = 1;
 const int VOID_LEN = 0;
 
 const int INT_LEN_2 = 16;
@@ -79,10 +79,10 @@ int_fast64_t HEAP_START = 1024;
 const int_fast64_t MEMORY_SIZE = 4096;
 unsigned char MEMORY[4096];
 
-int_fast64_t SP = 1;
-int_fast64_t PC = 1024;
+uint_fast64_t SP = 1;
+uint_fast64_t PC = 1024;
 
-int CALL_STACK[1000];  // recursion limit
+uint_fast64_t CALL_STACK[1000];  // recursion limit
 int CSP = -1;
 
 int PC_STACK[1000];
@@ -134,7 +134,7 @@ void print_memory() {
 void print_call_stack() {
     printf("Call stack: ");
     for (int i = 0; i <= CSP; i++) {
-        printf("%d, ", CALL_STACK[CSP]);
+        printf("%lld, ", CALL_STACK[CSP]);
     }
     printf("\n");
 }
@@ -177,56 +177,43 @@ void exit_func() {
     PC = PC_STACK[PSP--];
 }
 
-void native_printf(int_fast64_t argc, const int_fast64_t *argv) {
-    if (argc <= 0) {
+void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
+    if (arg_len <= 0) {
         printf("'printf' takes at least 1 argument");
         ERROR_CODE = 1;
         return;
     }
-    int_fast64_t fmt_end = argv[0];
-    while (MEMORY[fmt_end] != 0) fmt_end++;
-    int fmt_len = (int) (fmt_end - argv[0]);
-    char *fmt = malloc(fmt_len + 1);
-    memcpy(fmt, MEMORY + argv[0], fmt_len);
-    fmt[fmt_len] = '\0';
+//    for (int j = 0; j < arg_len; j++) printf("%d ", arg_array[j]);
+//    printf("\n");
+    int fmt_end = 0;
+    while (arg_array[fmt_end] != 0) fmt_end++;
 
     int i = 0;
+    int arg_ptr = fmt_end + 1;
     int f = 0;
-    int a_index = 1;
-
-    while (i < fmt_len) {
-        char ch = fmt[i];
+    while (i < fmt_end) {
+        unsigned char ch = arg_array[i];
         if (ch == '%') {
             f = 1;
         } else if (f) {
             if (ch == 'd') {  // int
                 f = 0;
-                int_fast64_t ptr = argv[a_index++];
-                int_fast64_t value = bytes_to_int(MEMORY + ptr);
+                int_fast64_t value = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += INT_LEN;
                 printf("%lld", value);
             } else if (ch == 'c') {  // char
                 f = 0;
-                int_fast64_t ptr = argv[a_index++];
-                unsigned char value = MEMORY[ptr];
+//                int_fast64_t ptr = argv[a_index++];
+                unsigned char value = arg_array[arg_ptr++];
                 printf("%c", value);
             } else if (ch == 'f') {  // float
                 f = 0;
-                int_fast64_t ptr = argv[a_index++];
-                double value = bytes_to_double(MEMORY + ptr);
-                printf("%f", value);
-            } else if (ch == 'b') {  // boolean
-                f = 0;
-                int_fast64_t ptr = argv[a_index++];
-                unsigned char value = MEMORY[ptr];
-                if (value == 0) printf("false");
-                else printf("true");
+//                int_fast64_t ptr = argv[a_index++];
+//                double value = bytes_to_double(MEMORY + ptr);
+//                printf("%f", value);
             } else if (ch == 's') {  // string
                 f = 0;
-                int_fast64_t ptr = argv[a_index++];
-                int_fast64_t value_addr = true_ptr(bytes_to_int(MEMORY + ptr));
-//                printf("%lld\n", value_addr);
-
-                for (int_fast64_t end = value_addr; MEMORY[end] != 0; end++) printf("%c", MEMORY[end]);
+                for (; arg_array[arg_ptr] != 0; arg_ptr++) printf("%c", arg_array[arg_ptr]);
             } else {
                 fprintf(stderr, "Unknown flag: '%c'\n", ch);
                 f = 0;
@@ -236,8 +223,6 @@ void native_printf(int_fast64_t argc, const int_fast64_t *argv) {
         }
         i++;
     }
-
-    free(fmt);
 }
 
 int_fast64_t find_ava(int length) {
@@ -302,8 +287,8 @@ void native_malloc(int_fast64_t argc, int_fast64_t ret_len, int_fast64_t ret_ptr
     int_to_bytes(MEMORY + ret_ptr, location + INT_LEN);
 }
 
-void native_clock(int_fast64_t arg_count, int_fast64_t ret_len, int_fast64_t ret_ptr) {
-    if (arg_count != 0 || ret_len != INT_LEN) {
+void native_clock(int_fast64_t arg_len, int_fast64_t ret_ptr) {
+    if (arg_len != 0) {
         printf("Unmatched arg length or return length");
         ERROR_CODE = 2;
         return;
@@ -353,23 +338,24 @@ void native_mem_copy(int_fast64_t argc, const int_fast64_t *argv) {
     memcpy(MEMORY + dest, MEMORY + src, length);
 }
 
-void call_native(int_fast64_t func, int_fast64_t ret_ptr, int_fast64_t ret_len, int_fast64_t arg_count,
-                 int_fast64_t *arg_array) {
+void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_len, unsigned char *args) {
+    int ret_len;
     switch (func) {
         case 1:  // clock
-            native_clock(arg_count, ret_len, ret_ptr);
+            ret_len = INT_LEN;
+            native_clock(arg_len, ret_ptr_end - ret_len);
             break;
         case 2:  // malloc
-            native_malloc(arg_count, ret_len, ret_ptr, arg_array);
+//            native_malloc(arg_count, ret_len, ret_ptr, arg_array);
             break;
         case 3:  // printf
-            native_printf(arg_count, arg_array);
+            native_printf(arg_len, args);
             break;
         case 4:  // mem_copy
-            native_mem_copy(arg_count, arg_array);
+//            native_mem_copy(arg_count, arg_array);
             break;
         case 5:  // free
-            native_free(arg_count, arg_array);
+//            native_free(arg_count, arg_array);
             break;
         default:
             printf("Unknown native function %lld", func);
@@ -390,6 +376,9 @@ void vm_run() {
     int_fast64_t regs_int64[8];
     unsigned int reg_p1;
     unsigned int reg_p2;
+    unsigned int reg_p3;
+
+    int_fast64_t ret;
 
     int reg9;
     int reg10;
@@ -409,91 +398,114 @@ void vm_run() {
                 exit_func();
                 break;
             case 3:  // ASSIGN
-            read_3_ints  // dest, src, len
-                reg1 = true_ptr(reg1);  // true tar
-                reg2 = true_ptr(reg2);  // true src
-                memcpy(MEMORY + reg1, MEMORY + reg2, reg3);
+                reg_p1 = MEMORY[PC++];  // dest
+                reg_p2 = MEMORY[PC++];  // src
+                reg_p3 = MEMORY[PC++];  // len
+                memcpy(MEMORY + true_ptr(regs_int64[reg_p1]),
+                       MEMORY + true_ptr(regs_int64[reg_p2]),
+                       regs_int64[reg_p3]);
                 break;
+//            read_3_ints  // dest, src, len
+//                reg1 = true_ptr(reg1);  // true tar
+//                reg2 = true_ptr(reg2);  // true src
+//                memcpy(MEMORY + reg1, MEMORY + reg2, reg3);
+//                break;
             case 4:  // CALL
-            read_3_ints  // addr of func_ptr, r_len, arg_count
-                reg4 = PC;  // pc backup
-                PC += reg3 * (INT_LEN + PTR_LEN);
-                reg5 = SP;  // sp backup
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
 
-                reg1 = bytes_to_int(MEMORY + reg1);  // true func ptr
-
-                for (reg9 = 0; reg9 < reg3; reg9++) {
-                    reg6 = bytes_to_int(MEMORY + reg4);  // arg_ptr
-                    reg4 += PTR_LEN;
-                    reg7 = bytes_to_int(MEMORY + reg4);  // arg_len
-                    reg4 += INT_LEN;
-                    reg6 = true_ptr(reg6);  // true arg ptr
-                    memcpy(MEMORY + SP, MEMORY + reg6, reg7);
-                    SP += reg7;
-                }
+                regs_int64[reg_p1] = bytes_to_int(MEMORY + regs_int64[reg_p1]);  // true ftn ptr
 
                 PC_STACK[++PSP] = PC;
-                CALL_STACK[++CSP] = reg5;
+                CALL_STACK[++CSP] = SP - regs_int64[reg_p2];
 
-                PC = reg1;
+                PC = regs_int64[reg_p1];
                 break;
-            case 5:  // RETURN
-            read_2_ints  // value ptr, rtype len
-                reg3 = true_ptr(reg1);  // true value ptr
+            case 31:  // CALL_NAT
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
 
-                reg4 = CALL_STACK[CSP] - reg2;  // where to put the return value
-                memcpy(MEMORY + reg4, MEMORY + reg3, reg2);
+                regs_int64[reg_p1] = bytes_to_int(MEMORY + regs_int64[reg_p1]);  // true ftn ptr
+                regs_int64[reg_p1] = bytes_to_int(MEMORY + regs_int64[reg_p1]);  // ftn content
+
+//                PC_STACK[++PSP] = PC;
+//                CALL_STACK[++CSP] = SP - regs_int64[reg_p2];
+//                ret = CALL_STACK[CSP] - regs_int64[reg_p2];
+
+                call_native(regs_int64[reg_p1],
+                            SP - regs_int64[reg_p2],
+                            regs_int64[reg_p2],
+                            MEMORY + SP - regs_int64[reg_p2]);
+
+                SP -= regs_int64[reg_p2];
+                break;
+//            read_3_ints  // addr of func_ptr, r_len, arg_count
+//                reg4 = PC;  // pc backup
+//                PC += reg3 * (INT_LEN + PTR_LEN);
+//                reg5 = SP;  // sp backup
+//
+//                reg1 = bytes_to_int(MEMORY + reg1);  // true func ptr
+//
+//                for (reg9 = 0; reg9 < reg3; reg9++) {
+//                    reg6 = bytes_to_int(MEMORY + reg4);  // arg_ptr
+//                    reg4 += PTR_LEN;
+//                    reg7 = bytes_to_int(MEMORY + reg4);  // arg_len
+//                    reg4 += INT_LEN;
+//                    reg6 = true_ptr(reg6);  // true arg ptr
+//                    memcpy(MEMORY + SP, MEMORY + reg6, reg7);
+//                    SP += reg7;
+//                }
+//
+//                PC_STACK[++PSP] = PC;
+//                CALL_STACK[++CSP] = reg5;
+//
+//                PC = reg1;
+//                break;
+            case 5:  // RETURN
+//            read_2_ints  // value ptr, rtype len
+//                reg3 = true_ptr(reg1);  // true value ptr
+//
+//                reg4 = CALL_STACK[CSP] - reg2;  // where to put the return value
+//                memcpy(MEMORY + reg4, MEMORY + reg3, reg2);
+                reg_p1 = MEMORY[PC++];  // reg of value ptr
+                reg_p2 = MEMORY[PC++];  // reg of length
+                ret = CALL_STACK[CSP] - regs_int64[reg_p2];
+                memcpy(MEMORY + ret, MEMORY + true_ptr(regs_int64[reg_p1]), regs_int64[reg_p2]);
 
                 exit_func();
                 break;
             case 6:  // GOTO
-                reg1 = bytes_to_int(MEMORY + PC);
-                PC += INT_LEN;
-                PC += reg1;
+                reg_p1 = MEMORY[PC++];
+                PC += regs_int64[reg_p1];
                 break;
             case 7:  // PUSH STACK
-                reg1 = bytes_to_int(MEMORY + PC);
-                PC += INT_LEN;
-                SP += reg1;
+                reg_p1 = MEMORY[PC++];
+                SP += regs_int64[reg_p1];
                 break;
             case 8:  // LOAD
-                reg_p1 = MEMORY[PC++];
-                read_one_uint7_true_ptr(reg1)
-                memcpy(regs_int64 + reg_p1, MEMORY + reg1, 8);
+                reg_p1 = MEMORY[PC++];  // reg index of value addr
+                reg_p2 = MEMORY[PC++];  // reg index of loading reg
+                regs_int64[reg_p1] = true_ptr(bytes_to_int(MEMORY + PC));
+                PC += 8;
+                memcpy(regs_int64 + reg_p2, MEMORY + regs_int64[reg_p1], 8);
                 break;
             case 9:  // STORE
-                reg_p1 = MEMORY[PC++];
-                read_one_uint7_true_ptr(reg1)
-                memcpy(MEMORY + reg1, regs_int64 + reg_p1, 8);
+                reg_p1 = MEMORY[PC++];  // reg index of value addr
+                reg_p2 = MEMORY[PC++];  // reg index of loading reg
+                regs_int64[reg_p1] = true_ptr(bytes_to_int(MEMORY + PC));
+                PC += 8;
+                memcpy(MEMORY + regs_int64[reg_p1], regs_int64 + reg_p2, 8);
                 break;
             case 10:  // LOAD_I
-//                reg_p1 = MEMORY[PC++];
-//                PC += 7;
-//                regs_int64[reg_p1] = bytes_to_int(MEMORY + )
+                reg_p1 = MEMORY[PC++];
+                regs_int64[reg_p1] = bytes_to_int(MEMORY + PC);
+                PC += 8;
                 break;
-//            case 8:  // ASSIGN_I
-//            read_2_ints
-//                reg1 = true_ptr(reg1);
-//                int_to_bytes(MEMORY + reg1, reg2);
-////                printf("%lld %lld\n", reg1, reg2);
-//                break;
-//            case 9:  // ASSIGN_B
-//            read_2_ints
-//                reg1 = true_ptr(reg1);
-//                MEMORY[reg1] = (unsigned char) reg2;
-//                break;
             case 11:  // ADD INT
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-                PC += 6;  // alignment
                 regs_int64[reg_p1] = regs_int64[reg_p1] + regs_int64[reg_p2];
                 break;
-//            read_3_true_ptr  // res ptr, left ptr, right ptr
-//                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-//                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-//                reg2 = reg2 + reg3;  // result
-//                int_to_bytes(MEMORY + reg1, reg2);
-//                break;
             case 24:  // CAST INT
             read_3_ints  // res ptr, src ptr, src len
                 reg1 = true_ptr(reg1);
@@ -505,121 +517,100 @@ void vm_run() {
             case 12:  // SUB INT
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-                PC += 6;  // alignment
                 regs_int64[reg_p1] = regs_int64[reg_p1] - regs_int64[reg_p2];
                 break;
             case 13:  // MUL INT
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-                PC += 6;  // alignment
                 regs_int64[reg_p1] = regs_int64[reg_p1] * regs_int64[reg_p2];
                 break;
             case 14:  // DIV INT
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-                PC += 6;  // alignment
                 regs_int64[reg_p1] = regs_int64[reg_p1] / regs_int64[reg_p2];
                 break;
             case 15:  // MOD INT
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-                PC += 6;  // alignment
                 regs_int64[reg_p1] = regs_int64[reg_p1] % regs_int64[reg_p2];
                 break;
             case 16:  // EQ
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 - reg3;  // cmp_result
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs_int64[reg_p1] = regs_int64[reg_p1] - regs_int64[reg_p2];  // cmp result
 
-                reg11 = reg2 == 0 ? 1 : 0;
-                MEMORY[reg1] = reg11;
+                regs_int64[reg_p1] = regs_int64[reg_p1] == 0 ? 1 : 0;
                 break;
             case 17:  // GT
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 - reg3;  // cmp_result
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs_int64[reg_p1] = regs_int64[reg_p1] - regs_int64[reg_p2];  // cmp result
 
-                reg11 = reg2 > 0 ? 1 : 0;
-                MEMORY[reg1] = reg11;
+                regs_int64[reg_p1] = regs_int64[reg_p1] > 0 ? 1 : 0;
                 break;
             case 18:  // LT
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 - reg3;  // cmp_result
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs_int64[reg_p1] = regs_int64[reg_p1] - regs_int64[reg_p2];  // cmp result
 
-                reg11 = reg2 < 0 ? 1 : 0;
-                MEMORY[reg1] = reg11;
+                regs_int64[reg_p1] = regs_int64[reg_p1] < 0 ? 1 : 0;
                 break;
             case 19:  // AND
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg11 = MEMORY[reg2];  // left value
-                reg12 = MEMORY[reg3];  // right value
-                reg11 = reg11 && reg12;
-                MEMORY[reg1] = reg11;
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs_int64[reg_p1] = regs_int64[reg_p1] && regs_int64[reg_p2];
                 break;
             case 20:  // OR
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg11 = MEMORY[reg2];  // left value
-                reg12 = MEMORY[reg3];  // right value
-                reg11 = reg11 || reg12;
-                MEMORY[reg1] = reg11;
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs_int64[reg_p1] = regs_int64[reg_p1] || regs_int64[reg_p2];
                 break;
             case 21:  // NOT
-            read_2_ints  // res ptr, bool value ptr
-                reg11 = MEMORY[reg2];
-                reg11 = !reg11;
-                MEMORY[reg1] = reg11;
+                reg_p1 = MEMORY[PC++];
+                regs_int64[reg_p1] = !regs_int64[reg_p1];
                 break;
             case 22:  // NE
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 - reg3;  // cmp_result
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs_int64[reg_p1] = regs_int64[reg_p1] - regs_int64[reg_p2];  // cmp result
 
-                reg11 = reg2 != 0 ? 1 : 0;
-                MEMORY[reg1] = reg11;
+                regs_int64[reg_p1] = regs_int64[reg_p1] == 0 ? 0 : 1;
                 break;
             case 23:  // NEG
-            read_2_true_ptr
-                reg3 = -bytes_to_int(MEMORY + reg2);
-                int_to_bytes(MEMORY + reg1, reg3);
+                reg_p1 = MEMORY[PC++];
+                regs_int64[reg_p1] = -regs_int64[reg_p1];
                 break;
             case 30:  // IF ZERO GOTO
-            read_2_ints  // skip len, cond ptr
-                reg2 = true_ptr(reg2);  // true cond ptr
-
-                reg11 = MEMORY[reg2];
-//                printf("%d vvv\n", reg11);
-                if (reg11 == 0) {
-                    PC += reg1;
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+//                printf("%lld ", regs_int64[reg_p2]);
+                if (regs_int64[reg_p2] == 0) {
+                    PC += regs_int64[reg_p1];
                 }
                 break;
-            case 31:  // NATIVE CALL
-            read_4_ints  // func ptr, rtype len, r ptr, arg count
-                reg1 = bytes_to_int(MEMORY + reg1);  // true func ptr
-                reg5 = bytes_to_int(MEMORY + reg1);  // function code
-                reg3 = true_ptr(reg3);  // true return ptr
-                reg6 = PC;  // PC backup
-                PC += reg4 * (INT_LEN + PTR_LEN);
-
-                int_fast64_t *args = malloc(reg4 * 8);
-                for (reg9 = 0; reg9 < reg4; reg9++) {
-                    reg7 = bytes_to_int(MEMORY + reg6);  // arg_ptr
-                    reg6 += PTR_LEN;
-//                    reg8 = bytes_to_int(MEMORY + reg6);  // arg_len
-                    reg6 += INT_LEN;
-                    reg7 = true_ptr(reg7);  // true arg ptr
-                    args[reg9] = reg7;
-//                    printf("%lld\n", reg7);
-//                    args[reg9 * 2 + 1] = reg8;
-                }
-                call_native(reg5, reg3, reg2, reg4, args);
-
-                free(args);
-                break;
+//            case 31:  // NATIVE CALL
+//            read_4_ints  // func ptr, rtype len, r ptr, arg count
+//                reg1 = bytes_to_int(MEMORY + reg1);  // true func ptr
+//                reg5 = bytes_to_int(MEMORY + reg1);  // function code
+//                reg3 = true_ptr(reg3);  // true return ptr
+//                reg6 = PC;  // PC backup
+//                PC += reg4 * (INT_LEN + PTR_LEN);
+//
+//                int_fast64_t *args = malloc(reg4 * 8);
+//                for (reg9 = 0; reg9 < reg4; reg9++) {
+//                    reg7 = bytes_to_int(MEMORY + reg6);  // arg_ptr
+//                    reg6 += PTR_LEN;
+////                    reg8 = bytes_to_int(MEMORY + reg6);  // arg_len
+//                    reg6 += INT_LEN;
+//                    reg7 = true_ptr(reg7);  // true arg ptr
+//                    args[reg9] = reg7;
+////                    printf("%lld\n", reg7);
+////                    args[reg9 * 2 + 1] = reg8;
+//                }
+//                call_native(reg5, reg3, reg2, reg4, args);
+//
+//                free(args);
+//                break;
             case 32:  // STORE ADDR, store addr to des
             read_2_ints
                 reg1 = true_ptr(reg1);
