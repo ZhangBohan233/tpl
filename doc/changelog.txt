@@ -1,3 +1,8 @@
+#### Build 1023 ####
+2020/01/03
+
+* Changed the compilation sequence of assignment
+
 #### Build 1022 ####
 2020/01/03
 

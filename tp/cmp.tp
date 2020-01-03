@@ -1,13 +1,11 @@
-fn add(a: int, b: int) int {
-    return a + b;
+fn add(a: *int) void {
+    printf("%d\n", *a);
+    *a = (*a) + 3;
 }
 
 fn main() int {
-    var t0: int = clock();
-    var a: int = add(3, 4);
-    for i := 0; i < a; ++i {
-        printf("%d\n", i);
-    }
-    var t1: int = clock();
-    return t1 - t0;
+    var a: int = 5;
+    var b: *int = &a;
+    add(b);
+    return *b;
 }

@@ -153,7 +153,7 @@ class ByteOutput:
         self.codes.append(b)
 
     def push_stack(self, value: int):
-        reg1 = self.manager.get_int64_regs(1)[0]
+        reg1 = self.manager.require_int64_regs(1)[0]
 
         self.write_one(LOAD_I)
         self.write_one(reg1)
@@ -165,7 +165,7 @@ class ByteOutput:
         self.manager.append_int64_regs(reg1)
 
     def assign(self, tar: int, src: int, length: int):
-        reg1, reg2, reg3 = self.manager.get_int64_regs(3)
+        reg1, reg2, reg3 = self.manager.require_int64_regs(3)
 
         self.write_one(LOAD_I)
         self.write_one(reg1)
@@ -187,7 +187,7 @@ class ByteOutput:
         self.manager.append_int64_regs(reg3, reg2, reg1)
 
     def assign_i(self, des: int, real_value: int):
-        reg1, reg2 = self.manager.get_int64_regs(2)
+        reg1, reg2 = self.manager.require_int64_regs(2)
 
         self.write_one(LOAD_I)
         self.write_one(reg1)
@@ -208,7 +208,7 @@ class ByteOutput:
         :param args: list of tuple(arg_ptr, arg_len)
         :return:
         """
-        reg1, reg2 = self.manager.get_int64_regs(2)
+        reg1, reg2 = self.manager.require_int64_regs(2)
 
         spb = self.manager.sp
         i = 0
@@ -250,21 +250,67 @@ class ByteOutput:
         self.write_int(src)
 
     def store_addr_to_des(self, des: int, rel_value: int):
-        self.write_one(STORE_ADDR)
+        reg1, reg2 = self.manager.require_int64_regs(2)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg1)
         self.write_int(des)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg2)
         self.write_int(rel_value)
 
+        self.write_one(STORE_ADDR)
+        self.write_one(reg1)
+        self.write_one(reg2)
+
+        self.manager.append_int64_regs(reg2, reg1)
+
     def unpack_addr(self, des: int, addr_ptr: int, length: int):
-        self.write_one(UNPACK_ADDR)
+        reg1, reg2, reg3, reg4 = self.manager.require_int64_regs(4)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg1)
         self.write_int(des)
+
+        self.write_one(LOAD)
+        self.write_one(reg4)
+        self.write_one(reg2)
         self.write_int(addr_ptr)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg3)
         self.write_int(length)
 
+        self.write_one(UNPACK_ADDR)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
+
+        self.manager.append_int64_regs(reg4, reg3, reg2, reg1)
+
     def ptr_assign(self, des_ptr: int, right: int, length: int):
-        self.write_one(PTR_ASSIGN)
+        reg1, reg2, reg3, reg4 = self.manager.require_int64_regs(4)
+
+        self.write_one(LOAD)
+        self.write_one(reg4)
+        self.write_one(reg1)
         self.write_int(des_ptr)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg2)
         self.write_int(right)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg3)
         self.write_int(length)
+
+        self.write_one(PTR_ASSIGN)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
+
+        self.manager.append_int64_regs(reg4, reg3, reg2, reg1)
 
     def cast_to_int(self, tar: int, src: int, src_len: int):
         self.write_one(CAST_INT)
@@ -273,7 +319,7 @@ class ByteOutput:
         self.write_int(src_len)
 
     def add_binary_op_int(self, op: int, res: int, left: int, right: int):
-        reg1, reg2, reg3 = self.manager.get_int64_regs(3)
+        reg1, reg2, reg3 = self.manager.require_int64_regs(3)
 
         self.write_one(LOAD)
         self.write_one(reg3)
@@ -297,7 +343,7 @@ class ByteOutput:
         self.manager.append_int64_regs(reg3, reg2, reg1)
 
     def add_unary_op_int(self, op: int, res: int, value: int):
-        reg1, reg2 = self.manager.get_int64_regs(2)
+        reg1, reg2 = self.manager.require_int64_regs(2)
 
         self.write_one(LOAD)
         self.write_one(reg2)
@@ -315,7 +361,7 @@ class ByteOutput:
         self.manager.append_int64_regs(reg2, reg1)
 
     def add_return(self, src, total_len):
-        reg1, reg2 = self.manager.get_int64_regs(2)
+        reg1, reg2 = self.manager.require_int64_regs(2)
 
         self.write_one(LOAD_I)
         # self.write_one(reg3)
@@ -337,7 +383,7 @@ class ByteOutput:
         self.write_int(addr_addr)
 
     def op_i(self, op_code, operand_addr, adder_value: int):
-        reg1, reg2, reg3 = self.manager.get_int64_regs(3)
+        reg1, reg2, reg3 = self.manager.require_int64_regs(3)
 
         self.write_one(LOAD_I)
         self.write_one(reg1)  # right
@@ -360,7 +406,7 @@ class ByteOutput:
         self.manager.append_int64_regs(reg3, reg2, reg1)
 
     def if_zero_goto(self, offset: int, cond_ptr: int):
-        reg1, reg2, reg3 = self.manager.get_int64_regs(3)
+        reg1, reg2, reg3 = self.manager.require_int64_regs(3)
 
         self.write_one(LOAD_I)
         self.write_one(reg1)  # reg stores skip len
@@ -378,7 +424,7 @@ class ByteOutput:
         self.manager.append_int64_regs(reg3, reg2, reg1)
 
     def goto(self, offset: int):
-        reg1, = self.manager.get_int64_regs(1)
+        reg1, = self.manager.require_int64_regs(1)
 
         self.write_one(LOAD_I)
         self.write_one(reg1)
@@ -465,7 +511,7 @@ class MemoryManager:
         self.available_byte_regs = [11, 10]
         self.available_double_regs = [13, 12]
 
-    def get_int64_regs(self, count):
+    def require_int64_regs(self, count):
         return [self.available_int64_regs.pop() for _ in range(count)]
 
     def append_int64_regs(self, *regs):
@@ -726,11 +772,10 @@ class Compiler:
         return r_ptr
 
     def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
-        r = self.compile(node.right, env, bo)
-
         lf = node.line_num, node.file
 
         if node.left.node_type == ast.NAME_NODE:  # assign
+            r = self.compile(node.right, env, bo)
             if node.level == ast.ASSIGN:
                 tal = get_tal_of_evaluated_node(node.left, env)
                 ptr = env.get(node.left.name, lf)
@@ -755,6 +800,8 @@ class Compiler:
                     ptr = self.memory.allocate(PTR_LEN)
                     bo.push_stack(PTR_LEN)
 
+                    r = self.compile(node.right, env, bo)
+
                     bo.assign(ptr, r, PTR_LEN)
                 elif en.is_array(tal):  # right cannot be binary operator
                     if len(tal.array_lengths) > 1:
@@ -766,6 +813,8 @@ class Compiler:
                     bo.push_stack(total_len)
                     bo.store_addr_to_des(ptr, arr_ptr)
 
+                    r = self.compile(node.right, env, bo)
+
                     if r != 0:
                         bo.assign(arr_ptr, r, total_len)
                     # print(ptr)
@@ -773,16 +822,20 @@ class Compiler:
                     ptr = self.memory.allocate(total_len)
                     bo.push_stack(total_len)
 
+                    r = self.compile(node.right, env, bo)
+
                     bo.assign(ptr, r, total_len)
 
                 env.define_var(type_node.left.name, tal, ptr)
 
         elif node.left.node_type == ast.INDEXING_NODE:  # set item
             left_node: ast.IndexingNode = node.left
+            r = self.compile(node.right, env, bo)
             self.compile_setitem(left_node, r, env, bo)
 
         elif node.left.node_type == ast.UNARY_OPERATOR:
             left_node: ast.UnaryOperator = node.left
+            r = self.compile(node.right, env, bo)
             l_tal = get_tal_of_evaluated_node(left_node, env)
             if left_node.operation == "unpack" or en.is_array(l_tal):
                 res_ptr = self.get_unpack_final_pos(left_node, env, bo)
@@ -791,6 +844,7 @@ class Compiler:
                 bo.ptr_assign(res_ptr, r, right_tal.total_len(self.memory))
 
         elif isinstance(node.left, ast.Dot):
+            r = self.compile(node.right, env, bo)
             self.compile_attr_assign(node.left, r, env, bo)
 
     def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, env: en.Environment, bo: ByteOutput):

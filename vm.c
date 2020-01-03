@@ -405,11 +405,6 @@ void vm_run() {
                        MEMORY + true_ptr(regs_int64[reg_p2]),
                        regs_int64[reg_p3]);
                 break;
-//            read_3_ints  // dest, src, len
-//                reg1 = true_ptr(reg1);  // true tar
-//                reg2 = true_ptr(reg2);  // true src
-//                memcpy(MEMORY + reg1, MEMORY + reg2, reg3);
-//                break;
             case 4:  // CALL
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
@@ -612,31 +607,48 @@ void vm_run() {
 //                free(args);
 //                break;
             case 32:  // STORE ADDR, store addr to des
-            read_2_ints
-                reg1 = true_ptr(reg1);
-                reg2 = true_ptr(reg2);
-                int_to_bytes(MEMORY + reg1, reg2);
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs_int64[reg_p1] = true_ptr(regs_int64[reg_p1]);
+                regs_int64[reg_p2] = true_ptr(regs_int64[reg_p2]);
+                int_to_bytes(MEMORY + regs_int64[reg_p1], reg_p2);
                 break;
             case 33:  // UNPACK ADDR
-            read_3_ints  // result ptr, pointer address, length
-                reg1 = true_ptr(reg1);
-                reg2 = true_ptr(reg2);   // address of pointer
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                reg_p3 = MEMORY[PC++];
 
-                reg4 = bytes_to_int(MEMORY + reg2);  // address stored in pointer
-//                printf("unpack %lld, value %lld\n", reg2, reg4);
-                memcpy(MEMORY + reg1, MEMORY + reg4, reg3);
-//                mem_copy(reg4, reg1, reg3);
+                memcpy(MEMORY + true_ptr(regs_int64[reg_p1]),
+                        MEMORY + regs_int64[reg_p2],
+                        regs_int64[reg_p3]);
                 break;
+//            read_3_ints  // result ptr, pointer address, length
+//                reg1 = true_ptr(reg1);
+//                reg2 = true_ptr(reg2);   // address of pointer
+//
+//                reg4 = bytes_to_int(MEMORY + reg2);  // address stored in pointer
+////                printf("unpack %lld, value %lld\n", reg2, reg4);
+//                memcpy(MEMORY + reg1, MEMORY + reg4, reg3);
+////                mem_copy(reg4, reg1, reg3);
+//                break;
             case 34:  // PTR ASSIGN
-            read_3_ints  // address of ptr, src, len
-                reg1 = true_ptr(reg1);
-                reg2 = true_ptr(reg2);
-                reg4 = bytes_to_int(MEMORY + reg1);  // address of value
-//                reg4 = true_ptr(reg4);
-//                printf("ptr assign: ptr at %lld, src %lld, len %lld\n", reg1, reg2, reg3);
-//                mem_copy(reg2, reg4, reg3);
-                memcpy(MEMORY + reg4, MEMORY + reg2, reg3);
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                reg_p3 = MEMORY[PC++];
+
+                memcpy(MEMORY + regs_int64[reg_p1],
+                        MEMORY + true_ptr(regs_int64[reg_p2]),
+                        regs_int64[reg_p3]);
                 break;
+//            read_3_ints  // address of ptr, src, len
+//                reg1 = true_ptr(reg1);
+//                reg2 = true_ptr(reg2);
+//                reg4 = bytes_to_int(MEMORY + reg1);  // address of value
+////                reg4 = true_ptr(reg4);
+////                printf("ptr assign: ptr at %lld, src %lld, len %lld\n", reg1, reg2, reg3);
+////                mem_copy(reg2, reg4, reg3);
+//                memcpy(MEMORY + reg4, MEMORY + reg2, reg3);
+//                break;
             case 35:  // STORE SP
                 LOOP_STACK[++LSP] = SP;
 //                printf("add: %lld ", SP);

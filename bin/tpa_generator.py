@@ -142,11 +142,15 @@ class TPAssemblyCompiler:
         #         arg_ptr, arg_len = self.read_2_ints()
         #         out_stream.write("@        ${}  {}\n".format(arg_ptr, arg_len))
         elif instruction == cpl.STORE_ADDR:
-            out_stream.write("STORE_ADDR      ${}  {}\n".format(*self.read_2_ints()))
+            out_stream.write("STORE_ADDR      %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.UNPACK_ADDR:
-            out_stream.write("UNPACK_ADDR     ${}  ${}  {}\n".format(*self.read_3_ints()))
+            out_stream.write("UNPACK_ADDR     %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
         elif instruction == cpl.PTR_ASSIGN:
-            out_stream.write("PTR_ASSIGN      ${}  ${}  {}\n".format(*self.read_3_ints()))
+            out_stream.write("PTR_ASSIGN      %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
         elif instruction == cpl.STORE_SP:
             out_stream.write("STORE_SP\n")
         elif instruction == cpl.RES_SP:
