@@ -1,3 +1,14 @@
+#### Build 1022 ####
+2020/01/03
+
+* Redesigned VM:
+    * Compiler now allocate registers usage
+* Currently unavailable:
+    * Pointers
+    * Casts
+    * Floats
+    * Functions mem_copy, malloc, free
+
 #### Build 1021 ####
 2020/01/02
 
