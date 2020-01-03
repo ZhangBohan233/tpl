@@ -87,22 +87,31 @@ class TPAssemblyCompiler:
             out_stream.write("GOTO            {}\n".format(self.read_1_int()))
         elif instruction == cpl.PUSH:
             out_stream.write("PUSH            {}\n".format(self.read_1_int()))
-        elif instruction == cpl.ASSIGN_I:
-            out_stream.write("ASSIGN_I        ${}  {}\n".format(*self.read_2_ints()))
-        elif instruction == cpl.ASSIGN_B:
-            out_stream.write("ASSIGN_B        ${}  {}\n".format(*self.read_2_ints()))
+        elif instruction == cpl.LOAD:
+            out_stream.write("LOAD            %{}  ${}\n".format(self.read_one(), self.read_uint7()))
+        elif instruction == cpl.STORE:
+            out_stream.write("STORE           %{}  ${}\n".format(self.read_one(), self.read_uint7()))
+        # elif instruction == cpl.ASSIGN_I:
+        #     out_stream.write("ASSIGN_I        ${}  {}\n".format(*self.read_2_ints()))
+        # elif instruction == cpl.ASSIGN_B:
+        #     out_stream.write("ASSIGN_B        ${}  {}\n".format(*self.read_2_ints()))
         elif instruction == cpl.ADD:
-            out_stream.write("ADD             ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("ADD             %{}  %{}\n".format(self.read_one(), self.read_one()))
+            self.pc += 6
         elif instruction == cpl.CAST_INT:
             out_stream.write("CAST_INT        ${}  ${}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.SUB:
-            out_stream.write("SUB             ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("SUB             %{}  %{}\n".format(self.read_one(), self.read_one()))
+            self.pc += 6
         elif instruction == cpl.MUL:
-            out_stream.write("MUL             ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("MUL             %{}  %{}\n".format(self.read_one(), self.read_one()))
+            self.pc += 6
         elif instruction == cpl.DIV:
-            out_stream.write("DIV             ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("DIV             %{}  %{}\n".format(self.read_one(), self.read_one()))
+            self.pc += 6
         elif instruction == cpl.MOD:
-            out_stream.write("MOD             ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("MOD             %{}  %{}\n".format(self.read_one(), self.read_one()))
+            self.pc += 6
         elif instruction == cpl.EQ:
             out_stream.write("EQ              ${}  ${}  ${}\n".format(*self.read_3_ints()))
         elif instruction == cpl.GT:
@@ -201,6 +210,16 @@ class TPAssemblyCompiler:
         i1 = typ.bytes_to_int(self.get(self.pc, INT_LEN))
         self.pc += INT_LEN
         return i1
+
+    def read_one(self) -> int:
+        i = self.get(self.pc, 1)[0]
+        self.pc += 1
+        return i
+
+    def read_uint7(self) -> int:
+        i = typ.bytes_to_uint7(self.get(self.pc, 7))
+        self.pc += 7
+        return i
 
     def get(self, index, length):
         return self.codes[index: index + length]

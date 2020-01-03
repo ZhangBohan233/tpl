@@ -22,8 +22,8 @@ LOAD = 8  # LOAD     %REG   $ADDR                   |
 STORE = 9  # STORE   %REG   $ADDR
 # ASSIGN_I = 8  # A      PTR       REAL VALUE         | store the real value in PTR
 # ASSIGN_B = 9
-ADD = 10  # ADD     %REG1   %REG2
-CAST_INT = 11  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
+LOAD_I = 10
+ADD = 11  # ADD     %REG1   %REG2
 SUB = 12
 MUL = 13
 DIV = 14
@@ -36,6 +36,7 @@ OR = 20
 NOT = 21
 NE = 22
 NEG = 23
+CAST_INT = 24  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 
 IF_ZERO_GOTO = 30  # IF0  SKIP  SRC_PTR
 CALL_NAT = 31
@@ -136,7 +137,8 @@ EXTENDED_BOOL_RESULT_TABLE_FLOAT = {
 
 
 class ByteOutput:
-    def __init__(self):
+    def __init__(self, manager):
+        self.manager: MemoryManager = manager
         self.codes = bytearray()
 
     def __len__(self):
@@ -160,16 +162,25 @@ class ByteOutput:
         self.write_int(length)
 
     def assign_i(self, des: int, real_value: int):
-        self.write_one(ASSIGN_I)
-        self.write_int(des)
+        reg1 = self.manager.available_int64_regs.pop()
+
+        self.write_one(LOAD_I)
+        self.write_one(reg1)
+        self.reserve_space(7)
         self.write_int(real_value)
 
-    def assign_byte(self, des: int, real_value: int):
-        if real_value != 0 and real_value != 1:
-            raise lib.CompileTimeException("Boolean can only be 0 or 1")
-        self.write_one(ASSIGN_B)
-        self.write_int(des)
-        self.write_int(real_value)  # extended to 8 bytes for alignment
+        self.write_one(STORE)
+        self.write_one(reg1)
+        self.write_uint7(des)
+
+        self.manager.available_int64_regs.append(reg1)
+
+    # def assign_byte(self, des: int, real_value: int):
+    #     if real_value != 0 and real_value != 1:
+    #         raise lib.CompileTimeException("Boolean can only be 0 or 1")
+    #     self.write_one(ASSIGN_B)
+    #     self.write_int(des)
+    #     self.write_int(real_value)  # extended to 8 bytes for alignment
 
     def int_to_float(self, des: int, src: int):
         self.write_one(INT_TO_FLOAT)
@@ -204,11 +215,29 @@ class ByteOutput:
         self.write_int(src)
         self.write_int(src_len)
 
-    def add_binary_op(self, op: int, res: int, left: int, right: int):
+    def add_binary_op_int(self, op: int, res: int, left: int, right: int):
+        reg1 = self.manager.available_int64_regs.pop()
+        reg2 = self.manager.available_int64_regs.pop()
+
+        self.write_one(LOAD)
+        self.write_one(reg1)
+        self.write_uint7(left)
+
+        self.write_one(LOAD)
+        self.write_one(reg2)
+        self.write_uint7(right)
+
         self.write_one(op)
-        self.write_int(res)
-        self.write_int(left)
-        self.write_int(right)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.reserve_space(6)
+
+        self.write_one(STORE)
+        self.write_one(reg1)
+        self.write_uint7(res)
+
+        self.manager.available_int64_regs.append(reg2)
+        self.manager.available_int64_regs.append(reg1)
 
     def add_unary_op_int(self, op: int, res: int, value: int):
         self.write_one(op)
@@ -232,6 +261,9 @@ class ByteOutput:
     def write_int(self, i):
         self.codes.extend(typ.int_to_bytes(i))
 
+    def write_uint7(self, i):
+        self.codes.extend(typ.uint7_to_bytes(i))
+
     def reserve_space(self, n) -> int:
         i = len(self.codes)
         self.codes.extend(bytes(n))
@@ -248,8 +280,8 @@ class ByteOutput:
 
 
 class LoopByteOutput(ByteOutput):
-    def __init__(self, loop_indicator_pos, cond_len, step_node):
-        ByteOutput.__init__(self)
+    def __init__(self, manager, loop_indicator_pos, cond_len, step_node):
+        ByteOutput.__init__(self, manager)
 
         # self.outer = outer
         self.loop_indicator_pos = loop_indicator_pos
@@ -264,8 +296,8 @@ class LoopByteOutput(ByteOutput):
 
 
 class BlockByteOutput(ByteOutput):
-    def __init__(self, outer):
-        ByteOutput.__init__(self)
+    def __init__(self, manager, outer):
+        ByteOutput.__init__(self, manager)
 
         self.outer: ByteOutput = outer
 
@@ -300,6 +332,11 @@ class MemoryManager:
             "void": VOID_LEN
         }
         self.pointer_length = PTR_LEN
+
+        self.available_int64_regs = [7, 6, 5, 4, 3, 2, 1, 0]
+        self.available_int32_regs = [9, 8]
+        self.available_byte_regs = [11, 10]
+        self.available_double_regs = [13, 12]
 
     def get_type_size(self, name):
         if name[0] == "*":  # is a pointer
@@ -454,7 +491,7 @@ class Compiler:
         env.define_function("float", CompileTimeFunction(en.Type("float"), self.function_float))
 
     def compile_all(self, root: ast.Node) -> bytes:
-        bo = ByteOutput()
+        bo = ByteOutput(self.memory)
 
         env = en.GlobalEnvironment()
         self.add_native_functions(env)
@@ -470,7 +507,7 @@ class Compiler:
             self.function_call(main_ptr, [], env, bo)
 
         # print(self.memory.global_bytes)
-        lit_and_global = ByteOutput()
+        lit_and_global = ByteOutput(self.memory)
         lit_and_global.write_int(STACK_SIZE)
         lit_and_global.write_int(len(self.literal_bytes))
         lit_and_global.write_int(len(self.memory.global_bytes))
@@ -527,7 +564,7 @@ class Compiler:
             env.define_function(node.name, ftn)
 
         if node.body is not None:  # implementing
-            inner_bo = ByteOutput()
+            inner_bo = ByteOutput(self.memory)
             self.compile(node.body, scope, inner_bo)
             inner_bo.write_one(STOP)
             self.memory.implement_func(ftn_ptr, bytes(inner_bo))
@@ -662,9 +699,9 @@ class Compiler:
         bo.assign_i(unit_len_ptr, unit_len)
         indexing_ptr = self.memory.allocate(INT_LEN)
         bo.push_stack(INT_LEN)
-        bo.add_binary_op(MUL, indexing_ptr, index_ptr, unit_len_ptr)
+        bo.add_binary_op_int(MUL, indexing_ptr, index_ptr, unit_len_ptr)
         array_ptr = self.compile(node.call_obj, env, bo)
-        bo.add_binary_op(ADD, indexing_ptr, array_ptr, indexing_ptr)
+        bo.add_binary_op_int(ADD, indexing_ptr, array_ptr, indexing_ptr)
 
         return indexing_ptr, unit_len
 
@@ -843,7 +880,7 @@ class Compiler:
                 bo.push_stack(BOOLEAN_LEN)
 
                 op_code = BOOL_RESULT_TABLE_BOOL[node.operation]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
+                bo.add_binary_op_int(op_code, res_pos, lp, rp)
                 return res_pos
 
         elif l_tal.type_name == "char":
@@ -894,11 +931,11 @@ class Compiler:
                 bo.push_stack(FLOAT_LEN)
 
                 op_code = FLOAT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
+                bo.add_binary_op_int(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_code = EXTENDED_FLOAT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op(op_code, lp, lp, rp)
+                bo.add_binary_op_int(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_BOOL_RESULT_TABLE_FLOAT:
             res_pos = self.memory.allocate(BOOLEAN_LEN)
@@ -906,7 +943,7 @@ class Compiler:
 
             if op in BOOL_RESULT_TABLE_FLOAT:
                 op_code = BOOL_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
+                bo.add_binary_op_int(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_tup = EXTENDED_BOOL_RESULT_TABLE_FLOAT[op]
@@ -914,9 +951,9 @@ class Compiler:
                 bo.push_stack(BOOLEAN_LEN)
                 r_res = self.memory.allocate(BOOLEAN_LEN)
                 bo.push_stack(BOOLEAN_LEN)
-                bo.add_binary_op(op_tup[0], l_res, lp, rp)
-                bo.add_binary_op(op_tup[1], r_res, lp, rp)
-                bo.add_binary_op(OR, res_pos, l_res, r_res)
+                bo.add_binary_op_int(op_tup[0], l_res, lp, rp)
+                bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
+                bo.add_binary_op_int(OR, res_pos, l_res, r_res)
                 return res_pos
 
     def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
@@ -926,11 +963,11 @@ class Compiler:
                 bo.push_stack(INT_LEN)
 
                 op_code = INT_RESULT_TABLE_INT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
+                bo.add_binary_op_int(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_code = EXTENDED_INT_RESULT_TABLE_INT[op]
-                bo.add_binary_op(op_code, lp, lp, rp)
+                bo.add_binary_op_int(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_BOOL_RESULT_TABLE_INT:
             res_pos = self.memory.allocate(BOOLEAN_LEN)
@@ -938,7 +975,7 @@ class Compiler:
 
             if op in BOOL_RESULT_TABLE_INT:
                 op_code = BOOL_RESULT_TABLE_INT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
+                bo.add_binary_op_int(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_tup = EXTENDED_BOOL_RESULT_TABLE_INT[op]
@@ -946,9 +983,9 @@ class Compiler:
                 bo.push_stack(BOOLEAN_LEN)
                 r_res = self.memory.allocate(BOOLEAN_LEN)
                 bo.push_stack(BOOLEAN_LEN)
-                bo.add_binary_op(op_tup[0], l_res, lp, rp)
-                bo.add_binary_op(op_tup[1], r_res, lp, rp)
-                bo.add_binary_op(OR, res_pos, l_res, r_res)
+                bo.add_binary_op_int(op_tup[0], l_res, lp, rp)
+                bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
+                bo.add_binary_op_int(OR, res_pos, l_res, r_res)
                 return res_pos
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
@@ -961,8 +998,8 @@ class Compiler:
         # print(node.condition.lines[0])
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
         # print(cond_ptr)
-        if_bo = BlockByteOutput(bo)
-        else_bo = BlockByteOutput(bo)
+        if_bo = BlockByteOutput(self.memory, bo)
+        else_bo = BlockByteOutput(self.memory, bo)
 
         if_env = en.BlockEnvironment(env)
         else_env = en.BlockEnvironment(env)
@@ -991,7 +1028,7 @@ class Compiler:
 
         loop_indicator = self.memory.allocate(BOOLEAN_LEN)
         bo.push_stack(BOOLEAN_LEN)
-        bo.assign_byte(loop_indicator, 1)
+        bo.assign_i(loop_indicator, 1)
 
         title_env = en.LoopEnvironment(env)
         body_env = en.BlockEnvironment(title_env)
@@ -1006,11 +1043,11 @@ class Compiler:
 
         real_cond_ptr = self.memory.allocate(BOOLEAN_LEN)
         bo.push_stack(BOOLEAN_LEN)
-        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.add_binary_op_int(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
-        body_bo = LoopByteOutput(loop_indicator, cond_len, node.condition.lines[2])
+        body_bo = LoopByteOutput(self.memory, loop_indicator, cond_len, node.condition.lines[2])
 
         self.compile(node.body, body_env, body_bo)
         self.compile(node.condition.lines[2], title_env, body_bo)  # step
@@ -1041,7 +1078,7 @@ class Compiler:
 
         loop_indicator = self.memory.allocate(BOOLEAN_LEN)
         bo.push_stack(BOOLEAN_LEN)
-        bo.assign_byte(loop_indicator, 1)
+        bo.assign_i(loop_indicator, 1)
 
         init_len = len(bo)
         self.memory.store_sp()  # 循环开始
@@ -1054,11 +1091,11 @@ class Compiler:
 
         real_cond_ptr = self.memory.allocate(BOOLEAN_LEN)
         bo.push_stack(BOOLEAN_LEN)
-        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.add_binary_op_int(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
-        body_bo = LoopByteOutput(loop_indicator, cond_len, None)
+        body_bo = LoopByteOutput(self.memory, loop_indicator, cond_len, None)
 
         self.compile(node.body, body_env, body_bo)
         # self.memory.restore_sp()
@@ -1089,7 +1126,7 @@ class Compiler:
 
     def compile_break(self, node: ast.BreakStmt, env: en.Environment, bo: ByteOutput):
         loop_indicator = bo.get_loop_indicator()
-        bo.assign_byte(loop_indicator, 0)
+        bo.assign_i(loop_indicator, 0)
         self.compile_continue(None, env, bo)
 
     def compile_continue(self, node: ast.ContinueStmt, env: en.Environment, bo: ByteOutput):

@@ -49,6 +49,16 @@ reg2 = true_ptr(reg2);       \
 reg3 = true_ptr(reg3);       \
 }
 
+#define read_one_uint7(regs, reg_p) {       \
+regs[reg_p] = bytes_to_uint7(MEMORY + PC);  \
+PC += 7;                                    \
+}
+
+#define read_one_uint7_true_ptr(reg) {       \
+reg = true_ptr(bytes_to_uint7(MEMORY + PC)); \
+PC += 7;                                             \
+}
+
 const int INT_LEN = 8;
 const int PTR_LEN = 8;
 const int FLOAT_LEN = 8;
@@ -377,6 +387,10 @@ void vm_run() {
     int_fast64_t reg7;
     int_fast64_t reg8;
 
+    int_fast64_t regs_int64[8];
+    unsigned int reg_p1;
+    unsigned int reg_p2;
+
     int reg9;
     int reg10;
 
@@ -414,16 +428,12 @@ void vm_run() {
                     reg7 = bytes_to_int(MEMORY + reg4);  // arg_len
                     reg4 += INT_LEN;
                     reg6 = true_ptr(reg6);  // true arg ptr
-//                    mem_copy(reg6, SP, reg7);
                     memcpy(MEMORY + SP, MEMORY + reg6, reg7);
                     SP += reg7;
-//                    printf("%lld\n", reg6);
                 }
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++CSP] = reg5;
-
-//                printf("sp: %lld\n", reg5);
 
                 PC = reg1;
                 break;
@@ -433,7 +443,6 @@ void vm_run() {
 
                 reg4 = CALL_STACK[CSP] - reg2;  // where to put the return value
                 memcpy(MEMORY + reg4, MEMORY + reg3, reg2);
-//                mem_copy(reg3, reg4, reg2);
 
                 exit_func();
                 break;
@@ -447,25 +456,45 @@ void vm_run() {
                 PC += INT_LEN;
                 SP += reg1;
                 break;
-            case 8:  // ASSIGN_I
-            read_2_ints
-                reg1 = true_ptr(reg1);
-                int_to_bytes(MEMORY + reg1, reg2);
-//                printf("%lld %lld\n", reg1, reg2);
+            case 8:  // LOAD
+                reg_p1 = MEMORY[PC++];
+                read_one_uint7_true_ptr(reg1)
+                memcpy(regs_int64 + reg_p1, MEMORY + reg1, 8);
                 break;
-            case 9:  // ASSIGN_B
-            read_2_ints
-                reg1 = true_ptr(reg1);
-                MEMORY[reg1] = (unsigned char) reg2;
+            case 9:  // STORE
+                reg_p1 = MEMORY[PC++];
+                read_one_uint7_true_ptr(reg1)
+                memcpy(MEMORY + reg1, regs_int64 + reg_p1, 8);
                 break;
-            case 10:  // ADD INT
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 + reg3;  // result
-                int_to_bytes(MEMORY + reg1, reg2);
+            case 10:  // LOAD_I
+//                reg_p1 = MEMORY[PC++];
+//                PC += 7;
+//                regs_int64[reg_p1] = bytes_to_int(MEMORY + )
                 break;
-            case 11:  // CAST INT
+//            case 8:  // ASSIGN_I
+//            read_2_ints
+//                reg1 = true_ptr(reg1);
+//                int_to_bytes(MEMORY + reg1, reg2);
+////                printf("%lld %lld\n", reg1, reg2);
+//                break;
+//            case 9:  // ASSIGN_B
+//            read_2_ints
+//                reg1 = true_ptr(reg1);
+//                MEMORY[reg1] = (unsigned char) reg2;
+//                break;
+            case 11:  // ADD INT
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                PC += 6;  // alignment
+                regs_int64[reg_p1] = regs_int64[reg_p1] + regs_int64[reg_p2];
+                break;
+//            read_3_true_ptr  // res ptr, left ptr, right ptr
+//                reg2 = bytes_to_int(MEMORY + reg2);  // left value
+//                reg3 = bytes_to_int(MEMORY + reg3);  // right value
+//                reg2 = reg2 + reg3;  // result
+//                int_to_bytes(MEMORY + reg1, reg2);
+//                break;
+            case 24:  // CAST INT
             read_3_ints  // res ptr, src ptr, src len
                 reg1 = true_ptr(reg1);
                 reg2 = true_ptr(reg2);
@@ -474,32 +503,28 @@ void vm_run() {
                 } // TODO: else
                 break;
             case 12:  // SUB INT
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 - reg3;  // result
-                int_to_bytes(MEMORY + reg1, reg2);
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                PC += 6;  // alignment
+                regs_int64[reg_p1] = regs_int64[reg_p1] - regs_int64[reg_p2];
                 break;
             case 13:  // MUL INT
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 * reg3;  // result
-                int_to_bytes(MEMORY + reg1, reg2);
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                PC += 6;  // alignment
+                regs_int64[reg_p1] = regs_int64[reg_p1] * regs_int64[reg_p2];
                 break;
             case 14:  // DIV INT
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 / reg3;  // result
-                int_to_bytes(MEMORY + reg1, reg2);
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                PC += 6;  // alignment
+                regs_int64[reg_p1] = regs_int64[reg_p1] / regs_int64[reg_p2];
                 break;
             case 15:  // MOD INT
-            read_3_true_ptr  // res ptr, left ptr, right ptr
-                reg2 = bytes_to_int(MEMORY + reg2);  // left value
-                reg3 = bytes_to_int(MEMORY + reg3);  // right value
-                reg2 = reg2 % reg3;  // result
-                int_to_bytes(MEMORY + reg1, reg2);
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                PC += 6;  // alignment
+                regs_int64[reg_p1] = regs_int64[reg_p1] % regs_int64[reg_p2];
                 break;
             case 16:  // EQ
             read_3_true_ptr  // res ptr, left ptr, right ptr

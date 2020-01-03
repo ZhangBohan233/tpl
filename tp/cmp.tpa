@@ -1,153 +1,47 @@
 //STACK SIZE
 1024
 //LITERAL LENGTH:
-54
+26
 //GLOBAL LENGTH:
-1802
+332
 //LITERALS:
-0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 142 1 0 0 0 0 0 0 42 1 0 0 0 0 0 0 37 100 10 0 
+0 1 4 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 
 //FUNCTIONS COUNT:
-10
+6
 //FUNCTION POINTERS:
-1166
-1174
-1182
-1190
-1198
-1206
-1327
-1682
-2307
-2604
+1106
+1114
+1122
+1130
+1138
+1146
 //NATIVE FUNCTIONS COUNT:
 5
 
 //FUNCTIONS: 
-#0 PUSH            1
-#9 LT              $8  $0  $1026
-#34 IF_ZERO_GOTO    52  $8
-#51 PUSH            8
-#60 NEG             $9  $0
-#77 RETURN          $9  8
-#94 GOTO            17
-#103 RETURN          $0  8
-#120 STOP
-
 #0 PUSH            8
-#9 ASSIGN          $8  $1034  8
-#34 STORE_SP
-#35 PUSH            1
-#44 ASSIGN_B        $16  1
-#61 PUSH            8
-#70 ASSIGN          $17  $1034  8
-#95 STORE_SP
-#96 PUSH            1
-#105 PUSH            1
-#114 PUSH            1
-#123 LT              $26  $17  $0
-#148 EQ              $27  $17  $0
-#173 OR              $25  $26  $27
-#198 PUSH            1
-#207 AND             $28  $25  $16
-#232 IF_ZERO_GOTO    86  $28
-#249 PUSH            8
-#258 MUL             $29  $8  $17
-#283 ASSIGN          $8  $29  8
-#308 ADD_I           $17  1
-#325 RES_SP
-#326 GOTO            -240
-#335 RES_SP
-#336 RES_SP
-#337 RETURN          $8  8
-#354 STOP
-
-#0 PUSH            8
-#9 ASSIGN          $16  $0  8
-#34 PUSH            8
-#43 ASSIGN          $24  $0  8
-#68 PUSH            1
-#77 LT              $32  $0  $8
-#102 IF_ZERO_GOTO    59  $32
-#119 ASSIGN          $16  $8  8
-#144 ASSIGN          $24  $0  8
-#169 GOTO            50
-#178 ASSIGN          $16  $0  8
-#203 ASSIGN          $24  $8  8
-#228 PUSH            1
-#237 EQ              $33  $24  $1026
-#262 IF_ZERO_GOTO    26  $33
-#279 RETURN          $16  8
-#296 GOTO            0
-#305 PUSH            8
-#314 MOD             $34  $16  $24
-#339 PUSH            8
-#348 ASSIGN          $42  $34  8
-#373 STORE_SP
-#374 PUSH            1
-#383 ASSIGN_B        $50  1
-#400 STORE_SP
-#401 PUSH            1
-#410 NE              $51  $42  $1026
-#435 PUSH            1
-#444 AND             $52  $51  $50
-#469 IF_ZERO_GOTO    119  $52
-#486 ASSIGN          $16  $24  8
-#511 ASSIGN          $24  $42  8
-#536 PUSH            8
-#545 MOD             $53  $16  $24
-#570 ASSIGN          $42  $53  8
-#595 RES_SP
-#596 GOTO            -205
-#605 RES_SP
-#606 RES_SP
-#607 RETURN          $24  8
-#624 STOP
-
-#0 PUSH            1
-#9 LT              $8  $0  $1042
-#34 IF_ZERO_GOTO    26  $8
-#51 RETURN          $0  8
-#68 GOTO            219
-#77 PUSH            8
-#86 SUB             $9  $0  $1034
-#111 PUSH            8
-#120 CALL            $1150  8  1
-//ARGS:
-@        $9  8
-#161 PUSH            8
-#170 SUB             $25  $0  $1042
-#195 PUSH            8
-#204 CALL            $1150  8  1
-//ARGS:
-@        $25  8
-#245 PUSH            8
-#254 ADD             $41  $17  $33
-#279 RETURN          $41  8
-#296 STOP
-
-#0 PUSH            8
-#9 PUSH            8
-#18 CALL            $1134  8  1
-//ARGS:
-@        $1050  8
-#59 ASSIGN          $0  $8  8
-#84 PUSH            8
-#93 PUSH            8
-#102 CALL            $1142  8  2
-//ARGS:
-@        $1058  8
-@        $1066  8
-#159 ASSIGN          $16  $24  8
-#184 PUSH            0
-#193 CALL_NAT        $1102  0  $32  2
-//ARGS:
-@        $1074  4
-@        $16  8
-#258 RETURN          $0  8
-#275 STOP
+#9 LOAD            %0  $1034
+#18 LOAD            %1  $1042
+#27 MUL             %0  %1
+#36 STORE           %0  $0
+#45 PUSH            8
+#54 LOAD            %0  $1026
+#63 LOAD            %1  $0
+#72 ADD             %0  %1
+#81 STORE           %0  $8
+#90 PUSH            8
+#99 ASSIGN          $16  $8  8
+#124 PUSH            8
+#133 STORE_ADDR      $24  16
+#150 PUSH            8
+#159 ASSIGN          $32  $24  8
+#184 PUSH            8
+#193 UNPACK_ADDR     $40  $32  8
+#218 RETURN          $40  8
+#235 STOP
 
 
 //MAIN: 
 PUSH            8
-CALL            $1158  8  0
+CALL            $1098  8  0
 //ARGS:
