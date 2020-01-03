@@ -1,6 +1,10 @@
+fn add(a: *int) void {
+    *a = *a + 3;
+}
 
 fn main() int {
-    var i: int = 1;
-
-    return i;
+    var a: int = 5;
+    var b: *int = &a;
+    add(b);
+    return *b;
 }
