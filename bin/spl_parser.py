@@ -74,6 +74,8 @@ class Parser:
                         var_level = ast.CONST
                     elif sym == "var":
                         var_level = ast.VAR
+                    elif sym == "register":
+                        var_level = ast.REGISTER
                     elif sym == "{":
                         brace_count += 1
                         if is_conditional:

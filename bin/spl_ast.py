@@ -55,6 +55,7 @@ ASSIGN = 0
 CONST = 1
 VAR = 2
 FUNC_DEFINE = 3
+REGISTER = 4
 
 
 class SpaceCounter:

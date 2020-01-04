@@ -1,2 +1,1 @@
-* ptr->attr
-* function with different params
+* const

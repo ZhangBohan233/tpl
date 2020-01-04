@@ -155,6 +155,8 @@ class TPAssemblyCompiler:
             out_stream.write("STORE_SP\n")
         elif instruction == cpl.RES_SP:
             out_stream.write("RES_SP\n")
+        elif instruction == cpl.MOVE_REG:
+            out_stream.write("MOVE_REG        %{}  %{}\n".format(self.read_one(), self.read_one()))
         # elif instruction == cpl.TO_REL:
         #     out_stream.write("TO_REL          ${}\n".format(self.read_1_int()))
         elif instruction == cpl.INT_TO_FLOAT:

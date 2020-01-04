@@ -1,3 +1,10 @@
+#### Build 1028 ####
+2020/01/04
+
+* New syntax:
+    * "register x: int" which stores variable in a register
+
+
 #### Build 1027 ####
 2020/01/04
 

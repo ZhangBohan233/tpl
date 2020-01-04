@@ -420,7 +420,9 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];  // reg of value ptr
                 reg_p2 = MEMORY[PC++];  // reg of length
                 ret = CALL_STACK[CSP] - regs64[reg_p2].int_value;
-                memcpy(MEMORY + ret, MEMORY + true_ptr(regs64[reg_p1].int_value), regs64[reg_p2].int_value);
+                memcpy(MEMORY + ret,
+                        MEMORY + true_ptr(regs64[reg_p1].int_value),
+                        regs64[reg_p2].int_value);
 
                 exit_func();
                 break;
@@ -578,13 +580,11 @@ void vm_run() {
                 SP = LOOP_STACK[LSP--];
 //                printf("res: %lld %d ", SP, LSP);
                 break;
-//            case 37:  // TO REL
-//                reg1 = bytes_to_int(MEMORY + PC);  // addr of ptr
-//                PC += INT_LEN;
-//                reg2 = bytes_to_int(MEMORY + reg1);
-//                reg2 = rel_ptr(reg2);
-//                int_to_bytes(MEMORY + reg1, reg2);
-//                break;
+            case 37:  // MOVE_REG
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs64[reg_p1] = regs64[reg_p2];
+                break;
             case 39:  // INT_TO_FLOAT
                 reg_p1 = MEMORY[PC++];
                 regs64[reg_p1].double_value = (double) regs64[reg_p1].int_value;

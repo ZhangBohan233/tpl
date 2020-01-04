@@ -45,6 +45,7 @@ UNPACK_ADDR = 33
 PTR_ASSIGN = 34  # | assign the addr stored in ptr with the value stored in right
 STORE_SP = 35
 RES_SP = 36
+MOVE_REG = 37  # | copy between registers
 # TO_REL = 37  # | transform absolute addr to
 # ADD_I = 38       # | add with real value
 INT_TO_FLOAT = 39
@@ -192,6 +193,23 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
+    def assign_reg(self, reg_id, src):
+        reg = -reg_id - 1
+
+        self.write_one(LOAD)
+        self.write_one(reg)
+        self.write_int(src)
+
+    def store_from_reg(self, des, reg_id):
+        temp_reg = self.manager.require_reg64()
+
+        self.write_one(STORE)
+        self.write_one(temp_reg)
+        self.write_one(-reg_id - 1)
+        self.write_int(des)
+
+        self.manager.append_regs64(temp_reg)
+
     def assign_i(self, des: int, real_value: int):
         reg1, reg2 = self.manager.require_regs64(2)
 
@@ -222,7 +240,10 @@ class ByteOutput:
             ptr = self.manager.allocate(arg[1])
             self.push_stack(arg[1])
 
-            self.assign(ptr, arg[0], arg[1])
+            if arg[0] < 0:  # register:
+                self.store_from_reg(ptr, arg[0])
+            else:
+                self.assign(ptr, arg[0], arg[1])
 
             i += arg[1]
 
@@ -362,52 +383,79 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
-    def add_binary_op_int(self, op: int, res: int, left: int, right: int):
+    def add_binary_op(self, op: int, res: int, left: int, right: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD)
-        self.write_one(reg1)
-        self.write_int(left)
+        if left < 0:  # left is reg
+            self.write_one(MOVE_REG)
+            self.write_one(reg1)
+            self.write_one(-left - 1)
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg1)
+            self.write_int(left)
 
-        self.write_one(LOAD)
-        self.write_one(reg2)
-        self.write_int(right)
+        if right < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(reg2)
+            self.write_one(-right - 1)
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg2)
+            self.write_int(right)
 
         self.write_one(op)
         self.write_one(reg1)
         self.write_one(reg2)
 
-        self.write_one(STORE)
-        self.write_one(reg3)
-        self.write_one(reg1)
-        self.write_int(res)
+        if res < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(-res - 1)
+            self.write_one(reg1)
+        else:
+            self.write_one(STORE)
+            self.write_one(reg3)
+            self.write_one(reg1)
+            self.write_int(res)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
-    def add_unary_op_int(self, op: int, res: int, value: int):
+    def add_unary_op(self, op: int, res: int, value: int):
         reg1, reg2 = self.manager.require_regs64(2)
 
-        self.write_one(LOAD)
-        self.write_one(reg1)
-        self.write_int(value)
+        if value < 0:  # value is reg
+            self.write_one(MOVE_REG)
+            self.write_one(reg1)
+            self.write_one(-value - 1)
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg1)
+            self.write_int(value)
 
         self.write_one(op)
         self.write_one(reg1)
 
-        self.write_one(STORE)
-        self.write_one(reg2)
-        self.write_one(reg1)
-        self.write_int(res)
+        if res < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(-res - 1)
+            self.write_one(reg1)
+        else:
+            self.write_one(STORE)
+            self.write_one(reg2)
+            self.write_one(reg1)
+            self.write_int(res)
 
         self.manager.append_regs64(reg2, reg1)
 
     def add_return(self, src, total_len):
         reg1, reg2 = self.manager.require_regs64(2)
 
-        self.write_one(LOAD_I)
-        # self.write_one(reg3)
-        self.write_one(reg1)  # return ptr
-        self.write_int(src)
+        if src < 0:
+            raise lib.CompileTimeException("Cannot return a register.")
+        else:
+            self.write_one(LOAD_I)
+            self.write_one(reg1)  # return ptr
+            self.write_int(src)
 
         self.write_one(LOAD_I)
         self.write_one(reg2)  # return length
@@ -419,10 +467,6 @@ class ByteOutput:
 
         self.manager.append_regs64(reg2, reg1)
 
-    # def add_to_rel_addr(self, addr_addr: int):
-    #     self.write_one(TO_REL)
-    #     self.write_int(addr_addr)
-
     def op_i(self, op_code, operand_addr, adder_value: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
@@ -430,18 +474,28 @@ class ByteOutput:
         self.write_one(reg1)  # right
         self.write_int(adder_value)
 
-        self.write_one(LOAD)
-        self.write_one(reg2)  # left
-        self.write_int(operand_addr)
+        if operand_addr < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(reg2)
+            self.write_one(-operand_addr - 1)
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg2)  # left
+            self.write_int(operand_addr)
 
         self.write_one(op_code)
         self.write_one(reg2)
         self.write_one(reg1)
 
-        self.write_one(STORE)
-        self.write_one(reg3)
-        self.write_one(reg2)
-        self.write_int(operand_addr)
+        if operand_addr < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(-operand_addr - 1)
+            self.write_one(reg2)
+        else:
+            self.write_one(STORE)
+            self.write_one(reg3)
+            self.write_one(reg2)
+            self.write_int(operand_addr)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
@@ -548,7 +602,12 @@ class MemoryManager:
         self.available_regs64 = [7, 6, 5, 4, 3, 2, 1, 0]
 
     def require_regs64(self, count):
+        if count > len(self.available_regs64):
+            raise lib.CompileTimeException("Virtual Machine does not have enough registers")
         return [self.available_regs64.pop() for _ in range(count)]
+
+    def require_reg64(self):
+        return self.available_regs64.pop()
 
     def append_regs64(self, *regs):
         for reg in regs:
@@ -792,11 +851,10 @@ class Compiler:
             inner_bo.write_one(STOP)
             self.memory.implement_func(ftn_ptr, bytes(inner_bo))
 
-        self.memory.restore_stack()
-        # print(ftn_ptr)
+            for reg_id_neg in scope.registers:  # return back registers
+                self.memory.append_regs64(-reg_id_neg - 1)
 
-        # ftn = Function(param_pairs, r_tal, ftn_ptr)
-        # env.define_function(node.name, ftn)
+        self.memory.restore_stack()
 
     def compile_name_node(self, node: ast.NameNode, env: en.Environment, bo: ByteOutput):
         lf = node.line_num, node.file
@@ -824,7 +882,10 @@ class Compiler:
                 ptr = env.get(node.left.name, lf)
                 total_len = tal.total_len(self.memory)
 
-                bo.assign(ptr, r, total_len)
+                if r < 0:  # r is a register
+                    bo.store_from_reg(ptr, r)
+                else:
+                    bo.assign(ptr, r, total_len)
 
         elif node.left.node_type == ast.TYPE_NODE:  # define
             type_node: ast.TypeNode = node.left
@@ -869,9 +930,29 @@ class Compiler:
 
                     r = self.compile(node.right, env, bo)
 
-                    bo.assign(ptr, r, total_len)
+                    if r < 0:  # r is a register
+                        bo.store_from_reg(ptr, r)
+                    else:
+                        bo.assign(ptr, r, total_len)
 
                 env.define_var(type_node.left.name, tal, ptr)
+
+            elif node.level == ast.REGISTER:
+                tal = get_tal_of_defining_node(type_node.right, env, self.memory)
+                total_len = tal.total_len(self.memory)
+
+                if en.is_array(tal) or en.is_pointer(tal) or total_len != INT_LEN:
+                    raise lib.CompileTimeException("Register variable can only be primitive type that has the same "
+                                                   "length as int.")
+
+                r = self.compile(node.right, env, bo)
+                reg = self.memory.require_regs64(1)[0]
+                reg = -reg - 1
+
+                bo.assign_reg(reg, r)
+
+                env.define_var(type_node.left.name, tal, reg)
+                env.add_register(reg)
 
         elif node.left.node_type == ast.INDEXING_NODE:  # set item
             left_node: ast.IndexingNode = node.left
@@ -931,9 +1012,9 @@ class Compiler:
         bo.assign_i(unit_len_ptr, unit_len)
         indexing_ptr = self.memory.allocate(INT_LEN)
         bo.push_stack(INT_LEN)
-        bo.add_binary_op_int(MUL, indexing_ptr, index_ptr, unit_len_ptr)
+        bo.add_binary_op(MUL, indexing_ptr, index_ptr, unit_len_ptr)
         array_ptr = self.compile(node.call_obj, env, bo)
-        bo.add_binary_op_int(ADD, indexing_ptr, array_ptr, indexing_ptr)
+        bo.add_binary_op(ADD, indexing_ptr, array_ptr, indexing_ptr)
 
         return indexing_ptr, unit_len
 
@@ -1024,6 +1105,8 @@ class Compiler:
     def compile_unary_op(self, node: ast.UnaryOperator, env: en.Environment, bo: ByteOutput):
         if node.operation == "pack":
             num_ptr = self.compile(node.value, env, bo)
+            if num_ptr < 0:
+                raise lib.CompileTimeException("Register has no memory address")
             ptr_ptr = self.memory.allocate(PTR_LEN)
             bo.push_stack(PTR_LEN)
             # bo.assign_i(ptr_ptr, num_ptr)
@@ -1046,7 +1129,7 @@ class Compiler:
             vp = self.compile(node.value, env, bo)
             res_ptr = self.memory.allocate(INT_LEN)
             bo.push_stack(INT_LEN)
-            bo.add_unary_op_int(NOT, res_ptr, vp)
+            bo.add_unary_op(NOT, res_ptr, vp)
             return res_ptr
         elif node.operation == "neg":
             v_tal = get_tal_of_evaluated_node(node.value, env)
@@ -1054,7 +1137,7 @@ class Compiler:
             if v_tal.type_name == "int":
                 res_ptr = self.memory.allocate(INT_LEN)
                 bo.push_stack(INT_LEN)
-                bo.add_unary_op_int(NEG, res_ptr, vp)
+                bo.add_unary_op(NEG, res_ptr, vp)
                 return res_ptr
             elif v_tal.type_name == "char":  # TODO: May contain bugs
                 res_ptr = self.memory.allocate(CHAR_LEN)
@@ -1062,12 +1145,12 @@ class Compiler:
                 trans_ptr = self.memory.allocate(INT_LEN)
                 bo.push_stack(INT_LEN)
                 bo.cast_to_int(trans_ptr, vp, CHAR_LEN)
-                bo.add_unary_op_int(NEG, res_ptr, trans_ptr)
+                bo.add_unary_op(NEG, res_ptr, trans_ptr)
                 return res_ptr
             elif v_tal.type_name == "float":
                 res_ptr = self.memory.allocate(FLOAT_LEN)
                 bo.push_stack(FLOAT_LEN)
-                bo.add_unary_op_int(NEG_F, res_ptr, vp)
+                bo.add_unary_op(NEG_F, res_ptr, vp)
                 return res_ptr
             else:
                 raise lib.CompileTimeException("Cannot take negation of type '{}'".format(v_tal.type_name))
@@ -1142,11 +1225,11 @@ class Compiler:
                 bo.push_stack(FLOAT_LEN)
 
                 op_code = FLOAT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                bo.add_binary_op(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_code = EXTENDED_FLOAT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op_int(op_code, lp, lp, rp)
+                bo.add_binary_op(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_INT_RESULT_TABLE_FLOAT:
             res_pos = self.memory.allocate(INT_LEN)
@@ -1154,7 +1237,7 @@ class Compiler:
 
             if op in INT_RESULT_TABLE_FLOAT:
                 op_code = INT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                bo.add_binary_op(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_tup = EXTENDED_INT_RESULT_TABLE_FLOAT[op]
@@ -1162,9 +1245,9 @@ class Compiler:
                 bo.push_stack(INT_LEN)
                 r_res = self.memory.allocate(INT_LEN)
                 bo.push_stack(INT_LEN)
-                bo.add_binary_op_int(op_tup[0], l_res, lp, rp)
-                bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
-                bo.add_binary_op_int(OR, res_pos, l_res, r_res)
+                bo.add_binary_op(op_tup[0], l_res, lp, rp)
+                bo.add_binary_op(op_tup[1], r_res, lp, rp)
+                bo.add_binary_op(OR, res_pos, l_res, r_res)
                 return res_pos
 
     def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
@@ -1174,11 +1257,11 @@ class Compiler:
                 bo.push_stack(INT_LEN)
 
                 op_code = INT_RESULT_TABLE_INT[op]
-                bo.add_binary_op_int(op_code, res_pos, lp, rp)
+                bo.add_binary_op(op_code, res_pos, lp, rp)
                 return res_pos
             else:
                 op_code = INT_RESULT_TABLE_INT_FULL[op]
-                bo.add_binary_op_int(op_code, lp, lp, rp)
+                bo.add_binary_op(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_INT_RESULT_TABLE_INT:
             res_pos = self.memory.allocate(INT_LEN)
@@ -1194,9 +1277,9 @@ class Compiler:
             bo.push_stack(INT_LEN)
             r_res = self.memory.allocate(INT_LEN)
             bo.push_stack(INT_LEN)
-            bo.add_binary_op_int(op_tup[0], l_res, lp, rp)
-            bo.add_binary_op_int(op_tup[1], r_res, lp, rp)
-            bo.add_binary_op_int(OR, res_pos, l_res, r_res)
+            bo.add_binary_op(op_tup[0], l_res, lp, rp)
+            bo.add_binary_op(op_tup[1], r_res, lp, rp)
+            bo.add_binary_op(OR, res_pos, l_res, r_res)
             return res_pos
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
@@ -1251,7 +1334,7 @@ class Compiler:
 
         real_cond_ptr = self.memory.allocate(INT_LEN)
         bo.push_stack(INT_LEN)
-        bo.add_binary_op_int(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
@@ -1296,7 +1379,7 @@ class Compiler:
 
         real_cond_ptr = self.memory.allocate(INT_LEN)
         bo.push_stack(INT_LEN)
-        bo.add_binary_op_int(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 

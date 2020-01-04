@@ -11,7 +11,7 @@ fn main() int {
     var f: int = fib(30);
     var t1: int = clock();
 
-    for var i: int = 0; i < 1000000; ++i {
+    for register i: int = 0; i < 1000000; ++i {
     }
 
     var t2: int = clock();

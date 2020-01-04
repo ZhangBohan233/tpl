@@ -76,8 +76,8 @@ class Environment:
         self.constants = {}
         self.var_types: dict[str: Type] = {}  # name: (type name, arr len)
 
-    def invalidate(self):
-        raise EnvironmentException("Cannot invalidate a main environment")
+    def add_register(self, reg_id_neg):
+        raise EnvironmentException("Cannot assign register outside of function")
 
     def is_global(self):
         return False
@@ -183,6 +183,9 @@ class SubAbstractEnvironment(Environment):
     def __init__(self, outer):
         Environment.__init__(self, outer)
 
+    def add_register(self, reg_id_neg):
+        self.outer.add_register(reg_id_neg)
+
     def terminate(self, ptr):
         self.outer.terminate(ptr)
 
@@ -256,6 +259,10 @@ class FunctionEnvironment(MainAbstractEnvironment):
 
         self.terminated = False
         self.return_ptr = 0
+        self.registers = []
+
+    def add_register(self, reg_id_neg):
+        self.registers.append(reg_id_neg)
 
     def terminate(self, ptr):
         self.terminated = True
