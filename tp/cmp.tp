@@ -1,22 +1,27 @@
-fn fib(n: int) int {
-    if n < 2 {
-        return n;
-    } else {
-        return fib(n - 1) + fib(n - 2);
-    }
+struct A {
+    var a: int;
+    var b: float;
+    var c: int;
 }
 
 
 fn main() int {
-    var t0: int = clock();
-    var f: int = fib(25);
-    var t1: int = clock();
+    var b: *A = malloc(sizeof(A));
+    printf("%d\n", b);
+    b..a = 5;
+    b..b = 66.4;
+    b..c = 3;
 
-    printf("%d\n", t1 - t0);
-    printf("%d\n", f);
+    var c: float = b..b;
 
-    for var i: int = 0; i < 10; ++i {
-    }
+    free(b);
 
-    return f;
+    var arr: int[2];
+    arr[0] = 32;
+    arr[1] = 7;
+
+    var d: *int = malloc(16);
+    mem_copy(d, arr, 16);
+
+    return int(c);
 }

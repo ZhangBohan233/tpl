@@ -1219,9 +1219,7 @@ class Compiler:
         # if_branch_len = len(if_bo) + INT_LEN + 1  # skip if branch + goto stmt after if branch
         if_branch_len = len(if_bo) + 10 + 2  # load_i(10), goto(2)
 
-        # if_bo.write_one(GOTO)
-        # if_bo.write_int(len(else_bo))  # goto the pos after else block
-        if_bo.goto(len(else_bo))
+        if_bo.goto(len(else_bo))  # goto the pos after else block
 
         bo.if_zero_goto(if_branch_len, cond_ptr)
 

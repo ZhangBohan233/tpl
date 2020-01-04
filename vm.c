@@ -264,24 +264,19 @@ int_fast64_t find_ava(int length) {
     }
 }
 
-void native_malloc(int_fast64_t argc, int_fast64_t ret_len, int_fast64_t ret_ptr, int_fast64_t *argv) {
-    if (argc != 1 || ret_len != PTR_LEN) {
+void native_malloc(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned char *args) {
+    if (arg_len != INT_LEN) {
         printf("Unmatched arg length or return length");
         ERROR_CODE = 2;
         return;
     }
 
-    int_fast64_t asked_len = bytes_to_int(MEMORY + argv[0]);
+    int_fast64_t asked_len = bytes_to_int(args);
+//    printf("asked: %lld\n", asked_len);
     int_fast64_t real_len = asked_len + INT_LEN;
     int_fast64_t allocate_len = real_len % 8 == 0 ? real_len / 8 : real_len / 8 + 1;
 
-//    print_sorted(AVAILABLE, AVA_SIZE);
-
-//    printf("alloc %lld\n", allocate_len);
     int_fast64_t location = find_ava(allocate_len);
-//    printf("malloc %lld\n", location + INT_LEN);
-
-//    print_sorted(AVAILABLE, AVA_SIZE);
 
     int_to_bytes(MEMORY + location, allocate_len);
 
@@ -298,18 +293,18 @@ void native_clock(int_fast64_t arg_len, int_fast64_t ret_ptr) {
     int_to_bytes(MEMORY + ret_ptr, t);
 }
 
-void native_free(int_fast64_t argc, const int_fast64_t *argv) {
-    if (argc != 1) {
+void native_free(int_fast64_t arg_len, const unsigned char *args) {
+    if (arg_len != PTR_LEN) {
         printf("Unmatched arg length or return length");
         ERROR_CODE = 2;
         return;
     }
-    int_fast64_t free_ptr = bytes_to_int(MEMORY + argv[0]);
+    int_fast64_t free_ptr = bytes_to_int(args);
     int_fast64_t real_ptr = free_ptr - INT_LEN;
     int_fast64_t alloc_len = bytes_to_int(MEMORY + real_ptr);
 
     if (real_ptr < HEAP_START || real_ptr > MEMORY_SIZE) {
-        printf("Cannot free pointer outside heap");
+        printf("Cannot free pointer: %lld outside heap\n", real_ptr);
         ERROR_CODE = 2;
         return;
     }
@@ -322,20 +317,17 @@ void native_free(int_fast64_t argc, const int_fast64_t *argv) {
 //    print_sorted(AVAILABLE, AVA_SIZE);
 }
 
-void native_mem_copy(int_fast64_t argc, const int_fast64_t *argv) {
-    if (argc != 3) {
-        fprintf(stderr, "'mem_copy' takes 3 arguments, %lld given\n", argc);
+void native_mem_copy(int_fast64_t arg_len, const unsigned char *args) {
+    if (arg_len != INT_LEN * 3) {
+        fprintf(stderr, "'mem_copy' takes 3 arguments.\n");
         ERROR_CODE = 2;
         return;
     }
-    int_fast64_t dest_addr = argv[0];
-    int_fast64_t src_addr = argv[1];
-    int_fast64_t length_ptr = argv[2];
-    int_fast64_t dest = true_ptr(bytes_to_int(MEMORY + dest_addr));
-    int_fast64_t src = true_ptr(bytes_to_int(MEMORY + src_addr));
-    int_fast64_t length = bytes_to_int(MEMORY + length_ptr);
-//    printf("%lld %lld %lld\n", dest, src, length);
-//    mem_copy(src, dest, length);
+    int_fast64_t dest = bytes_to_int(args);
+    int_fast64_t src = bytes_to_int(args + INT_LEN);
+    int_fast64_t length = bytes_to_int(args + INT_LEN_2);
+
+//    printf("%lld %lld %lld\n", dest_addr, src_addr, length_ptr);
     memcpy(MEMORY + dest, MEMORY + src, length);
 }
 
@@ -348,16 +340,17 @@ void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_l
             native_clock(arg_len, ret_ptr_end - ret_len);
             break;
         case 2:  // malloc
-//            native_malloc(arg_count, ret_len, ret_ptr, arg_array);
+            ret_len = PTR_LEN;
+            native_malloc(arg_len, ret_ptr_end - ret_len, args);
             break;
         case 3:  // printf
             native_printf(arg_len, args);
             break;
         case 4:  // mem_copy
-//            native_mem_copy(arg_count, arg_array);
+            native_mem_copy(arg_len, args);
             break;
         case 5:  // free
-//            native_free(arg_count, arg_array);
+            native_free(arg_len, args);
             break;
         default:
             printf("Unknown native function %lld", func);
