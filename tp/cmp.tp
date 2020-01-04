@@ -1,7 +1,9 @@
 
 fn main() int {
-    var a: char[] = "qwerty";
-    var b: int = 5;
-    printf("%s\n %d\n", a, b);
-    return b + 3;
+    var a: float = 5.5;
+    var b: float = 3.2 + 4;
+    if a > 6 {
+        printf("ggg");
+    }
+    return int(a);
 }

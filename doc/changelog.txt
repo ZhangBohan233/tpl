@@ -1,3 +1,11 @@
+#### Build 1025 ####
+2020/01/03
+
+* Finished casts and floats
+* Bug fixes:
+    * Fixed that pointers comparison returns pointer
+
+
 #### Build 1024 ####
 2020/01/03
 

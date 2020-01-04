@@ -99,10 +99,12 @@ class TPAssemblyCompiler:
                              .format(self.read_one(), self.read_one(), self.read_1_int()))
         elif instruction == cpl.LOAD_I:
             out_stream.write("LOAD_I          %{}  {}\n".format(self.read_one(), self.read_1_int()))
+        elif instruction == cpl.CAST_INT:
+            out_stream.write("CAST_INT        %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
         elif instruction == cpl.ADD:
             out_stream.write("ADD             %{}  %{}\n".format(self.read_one(), self.read_one()))
-        elif instruction == cpl.CAST_INT:
-            out_stream.write("CAST_INT        ${}  ${}  {}\n".format(*self.read_3_ints()))
         elif instruction == cpl.SUB:
             out_stream.write("SUB             %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.MUL:
@@ -127,8 +129,6 @@ class TPAssemblyCompiler:
             out_stream.write("NE              %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.NEG:
             out_stream.write("NEG             %{}\n".format(self.read_one()))
-        elif instruction == cpl.NEG_F:
-            out_stream.write("NEG_F           ${}  ${}\n".format(*self.read_2_ints()))
         elif instruction == cpl.IF_ZERO_GOTO:
             out_stream.write("IF_ZERO_GOTO    %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.CALL_NAT:
@@ -155,38 +155,32 @@ class TPAssemblyCompiler:
             out_stream.write("STORE_SP\n")
         elif instruction == cpl.RES_SP:
             out_stream.write("RES_SP\n")
-        elif instruction == cpl.TO_REL:
-            out_stream.write("TO_REL          ${}\n".format(self.read_1_int()))
-        # elif instruction == cpl.ADD_I:
-        #     out_stream.write("ADD_I           ${}  {}\n".format(*self.read_2_ints()))
+        # elif instruction == cpl.TO_REL:
+        #     out_stream.write("TO_REL          ${}\n".format(self.read_1_int()))
         elif instruction == cpl.INT_TO_FLOAT:
-            out_stream.write("INT_TO_FLOAT    ${}  ${}\n".format(*self.read_2_ints()))
+            out_stream.write("INT_TO_FLOAT    %{}\n".format(self.read_one()))
         elif instruction == cpl.FLOAT_TO_INT:
-            out_stream.write("FLOAT_TO_INT    ${}  ${}\n".format(*self.read_2_ints()))
-            # elif instruction == cpl.SUB_I:
-            #     out_stream.write("SUB_I           ${}  {}\n".format(*self.read_2_ints()))
-            # elif instruction == cpl.ADD_FI:
-            #     out_stream.write("ADD_FI          ${}  {}\n".format(*self.read_2_ints()))
-            # elif instruction == cpl.SUB_FI:
-            out_stream.write("SUB_FI          ${}  {}\n".format(*self.read_2_ints()))
+            out_stream.write("FLOAT_TO_INT    %{}\n".format(self.read_one()))
         elif instruction == cpl.ADD_F:
-            out_stream.write("ADD_F           ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("ADD_F           %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.SUB_F:
-            out_stream.write("SUB_F           ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("SUB_F           %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.MUL_F:
-            out_stream.write("MUL_F           ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("MUL_F           %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.DIV_F:
-            out_stream.write("DIV_F           ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("DIV_F           %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.MOD_F:
-            out_stream.write("MOD_F           ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("MOD_F           %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.EQ_F:
-            out_stream.write("EQ_F            ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("EQ_F            %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.GT_F:
-            out_stream.write("GT_F            ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("GT_F            %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.LT_F:
-            out_stream.write("LT_F            ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("LT_F            %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.NE_F:
-            out_stream.write("NE_F            ${}  ${}  ${}\n".format(*self.read_3_ints()))
+            out_stream.write("NE_F            %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.NEG_F:
+            out_stream.write("NEG_F           %{}\n".format(self.read_one()))
         else:
             print("Unknown instruction: {}".format(instruction))
             raise Exception
