@@ -658,6 +658,8 @@ class Compiler:
     def __init__(self, literal_bytes: bytes):
         self.memory = MemoryManager(literal_bytes)
 
+        self.modified_string_poses = set()
+
         self.node_table = {
             ast.LITERAL: self.compile_literal,
             ast.STRING_LITERAL: self.compile_string_literal,
@@ -748,9 +750,11 @@ class Compiler:
 
     def compile_string_literal(self, node: ast.StringLiteralNode, env: en.Environment, bo: ByteOutput):
         lit_pos = node.literal.lit_pos
-        orig_string_ptr = typ.bytes_to_int(self.memory.literal[lit_pos: lit_pos + PTR_LEN])
-        new_string_ptr = orig_string_ptr + self.memory.literal_begins
-        self.memory.literal[lit_pos: lit_pos + PTR_LEN] = typ.int_to_bytes(new_string_ptr)
+        if lit_pos not in self.modified_string_poses:
+            self.modified_string_poses.add(lit_pos)
+            orig_string_ptr = typ.bytes_to_int(self.memory.literal[lit_pos: lit_pos + PTR_LEN])
+            new_string_ptr = orig_string_ptr + self.memory.literal_begins
+            self.memory.literal[lit_pos: lit_pos + PTR_LEN] = typ.int_to_bytes(new_string_ptr)
         return self.compile(node.literal, env, bo)
 
     def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
@@ -1219,9 +1223,6 @@ class Compiler:
         # if_bo.write_int(len(else_bo))  # goto the pos after else block
         if_bo.goto(len(else_bo))
 
-        # bo.write_one(IF_ZERO_GOTO)
-        # bo.write_int(if_branch_len)
-        # bo.write_int(cond_ptr)
         bo.if_zero_goto(if_branch_len, cond_ptr)
 
         bo.codes.extend(if_bo.codes)
@@ -1264,14 +1265,9 @@ class Compiler:
 
         body_len = len(body_bo) + 10 + 2  # load_i(10), goto(2)
 
-        # bo.write_one(IF_ZERO_GOTO)
-        # bo.write_int(body_len)
-        # bo.write_int(real_cond_ptr)
         bo.if_zero_goto(body_len, real_cond_ptr)
 
-        # body_bo.write_one(GOTO)
-        # body_bo.write_int(-body_len - cond_len - 11 - 10 - 3)
-        body_bo.goto(-body_len - cond_len - 11 - 10 - 3)  # the length of if_zero_goto(3), load_i(10), load(11)
+        body_bo.goto(-body_len - cond_len - 10 - 10 - 3)  # the length of if_zero_goto(3), load_i(10), load(10)
 
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)
@@ -1311,17 +1307,11 @@ class Compiler:
         self.compile(node.body, body_env, body_bo)
         # self.memory.restore_sp()
         body_bo.write_one(RES_SP)
-        # body_len = len(body_bo) + INT_LEN + 1  # body length + GOTO length
         body_len = len(body_bo) + 10 + 2  # load_i(10), goto(2)
 
-        # bo.write_one(IF_ZERO_GOTO)
-        # bo.write_int(body_len)
-        # bo.write_int(real_cond_ptr)
         bo.if_zero_goto(body_len, real_cond_ptr)
 
-        # body_bo.write_one(GOTO)
-        # body_bo.write_int(-body_len - cond_len - INT_LEN * 2 - 1)
-        body_bo.goto(-body_len - cond_len - 11 - 10 - 3)  # the length of if_zero_goto(3), load_i(10), load(11)
+        body_bo.goto(-body_len - cond_len - 10 - 10 - 3)  # the length of if_zero_goto(3), load_i(10), load(10)
 
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)

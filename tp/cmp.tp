@@ -1,9 +1,22 @@
+fn fib(n: int) int {
+    if n < 2 {
+        return n;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
+
 
 fn main() int {
-    var a: float = 5.5;
-    var b: float = 3.2 + 4;
-    if a > 6 {
-        printf("ggg");
+    var t0: int = clock();
+    var f: int = fib(25);
+    var t1: int = clock();
+
+    printf("%d\n", t1 - t0);
+    printf("%d\n", f);
+
+    for var i: int = 0; i < 10; ++i {
     }
-    return int(a);
+
+    return f;
 }

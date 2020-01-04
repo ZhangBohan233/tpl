@@ -134,7 +134,7 @@ void print_memory() {
 void print_call_stack() {
     printf("Call stack: ");
     for (int i = 0; i <= CSP; i++) {
-        printf("%lld, ", CALL_STACK[CSP]);
+        printf("%lld, ", CALL_STACK[i]);
     }
     printf("\n");
 }
@@ -192,7 +192,7 @@ void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
     int_fast64_t i = fmt_ptr;
     int arg_ptr = INT_LEN;
     int f = 0;
-    while (i < fmt_end) {
+    for (; i < fmt_end; i++) {
         unsigned char ch = MEMORY[i];
         if (ch == '%') {
             f = 1;
@@ -223,7 +223,6 @@ void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
         } else {
             printf("%c", ch);
         }
-        i++;
     }
 }
 
@@ -342,6 +341,7 @@ void native_mem_copy(int_fast64_t argc, const int_fast64_t *argv) {
 
 void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_len, unsigned char *args) {
     int ret_len;
+//    printf("func: %lld, arg len: %lld\n", func, arg_len);
     switch (func) {
         case 1:  // clock
             ret_len = INT_LEN;
@@ -413,6 +413,8 @@ void vm_run() {
 
                 regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // true ftn ptr
                 regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // ftn content
+
+//                printf("call nat %lld\n", regs64[reg_p1].int_value);
 
                 call_native(regs64[reg_p1].int_value,
                             SP - regs64[reg_p2].int_value,
@@ -572,7 +574,7 @@ void vm_run() {
                 reg_p3 = MEMORY[PC++];
 
                 memcpy(MEMORY + regs64[reg_p1].int_value,
-                        MEMORY + true_ptr(regs64[reg_p2].int_value),
+                       MEMORY + true_ptr(regs64[reg_p2].int_value),
                        regs64[reg_p3].int_value);
                 break;
             case 35:  // STORE SP
