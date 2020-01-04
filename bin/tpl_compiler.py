@@ -18,7 +18,7 @@ CALL = 4  # CALL
 RETURN = 5  # RETURN   VALUE_PTR
 GOTO = 6  # JUMP       CODE_PTR
 PUSH = 7  # PUSH
-LOAD = 8  # LOAD     %TEMP   %DES_REG   $ADDR                   |
+LOAD = 8  # LOAD     %DES_REG   $ADDR                   |
 STORE = 9  # STORE   %TEMP   %REG   $DES_ADDR
 # ASSIGN_I = 8  # A      PTR       REAL VALUE         | store the real value in PTR
 # ASSIGN_B = 9
@@ -45,8 +45,7 @@ UNPACK_ADDR = 33
 PTR_ASSIGN = 34  # | assign the addr stored in ptr with the value stored in right
 STORE_SP = 35
 RES_SP = 36
-TO_REL = 37      # | transform absolute addr to
-ASSIGN_ARG = 38   # | assign argument
+TO_REL = 37  # | transform absolute addr to
 # ADD_I = 38       # | add with real value
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
@@ -274,7 +273,6 @@ class ByteOutput:
         self.write_int(des)
 
         self.write_one(LOAD)
-        self.write_one(reg4)
         self.write_one(reg2)
         self.write_int(addr_ptr)
 
@@ -293,7 +291,6 @@ class ByteOutput:
         reg1, reg2, reg3, reg4 = self.manager.require_int64_regs(4)
 
         self.write_one(LOAD)
-        self.write_one(reg4)
         self.write_one(reg1)
         self.write_int(des_ptr)
 
@@ -322,12 +319,10 @@ class ByteOutput:
         reg1, reg2, reg3 = self.manager.require_int64_regs(3)
 
         self.write_one(LOAD)
-        self.write_one(reg3)
         self.write_one(reg1)
         self.write_int(left)
 
         self.write_one(LOAD)
-        self.write_one(reg3)
         self.write_one(reg2)
         self.write_int(right)
 
@@ -346,7 +341,6 @@ class ByteOutput:
         reg1, reg2 = self.manager.require_int64_regs(2)
 
         self.write_one(LOAD)
-        self.write_one(reg2)
         self.write_one(reg1)
         self.write_int(value)
 
@@ -390,7 +384,6 @@ class ByteOutput:
         self.write_int(adder_value)
 
         self.write_one(LOAD)
-        self.write_one(reg3)
         self.write_one(reg2)  # left
         self.write_int(operand_addr)
 
@@ -413,7 +406,6 @@ class ByteOutput:
         self.write_int(offset)
 
         self.write_one(LOAD)
-        self.write_one(reg3)
         self.write_one(reg2)  # reg stores cond ptr
         self.write_int(cond_ptr)
 
@@ -621,7 +613,6 @@ class Struct:
 class Compiler:
     def __init__(self, literal_bytes: bytes):
         self.memory = MemoryManager(literal_bytes)
-        self.literal_bytes = literal_bytes
 
         self.node_table = {
             ast.LITERAL: self.compile_literal,
@@ -689,9 +680,9 @@ class Compiler:
         # print(self.memory.global_bytes)
         lit_and_global = ByteOutput(self.memory)
         lit_and_global.write_int(STACK_SIZE)
-        lit_and_global.write_int(len(self.literal_bytes))
+        lit_and_global.write_int(len(self.memory.literal))
         lit_and_global.write_int(len(self.memory.global_bytes))
-        lit_and_global.codes.extend(self.literal_bytes)
+        lit_and_global.codes.extend(self.memory.literal)
         lit_and_global.codes.extend(self.memory.global_bytes)
         lit_and_global.codes.extend(bo.codes)
         # print(self.memory.global_bytes)
@@ -712,6 +703,10 @@ class Compiler:
         return self.memory.calculate_lit_ptr(node.lit_pos)
 
     def compile_string_literal(self, node: ast.StringLiteralNode, env: en.Environment, bo: ByteOutput):
+        lit_pos = node.literal.lit_pos
+        orig_string_ptr = typ.bytes_to_int(self.memory.literal[lit_pos: lit_pos + PTR_LEN])
+        new_string_ptr = orig_string_ptr + self.memory.literal_begins
+        self.memory.literal[lit_pos: lit_pos + PTR_LEN] = typ.int_to_bytes(new_string_ptr)
         return self.compile(node.literal, env, bo)
 
     def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
@@ -815,8 +810,10 @@ class Compiler:
 
                     r = self.compile(node.right, env, bo)
 
-                    if r != 0:
-                        bo.assign(arr_ptr, r, total_len)
+                    if r != 0:  # preset array
+                        # bo.ptr_assign(arr_ptr, r, total_len)
+                        bo.unpack_addr(arr_ptr, r, total_len)
+                        # bo.assign(arr_ptr, r, total_len)
                     # print(ptr)
                 else:
                     ptr = self.memory.allocate(total_len)
@@ -937,10 +934,14 @@ class Compiler:
             tal = get_tal_of_evaluated_node(arg_node, env)
             total_len = tal.total_len(self.memory)
 
+            if en.is_pointer(tal) or en.is_array(tal):
+                total_len = PTR_LEN
+
             arg_ptr = self.compile(arg_node, env, bo)
             tup = arg_ptr, total_len
             args.append(tup)
 
+        # print(args)
         if isinstance(ftn, Function):
             return self.function_call(ftn, args, env, bo)
         elif isinstance(ftn, NativeFunction):
@@ -969,16 +970,6 @@ class Compiler:
         bo.push_stack(r_len)
 
         bo.call(True, func.ptr, args)
-
-        # bo.write_one(CALL_NAT)
-        # bo.write_int(func.ptr)
-        # bo.write_int(r_len)  # rtype length
-        # bo.write_int(r_ptr)  # return value ptr
-        # bo.write_int(len(args))
-        #
-        # for arg in args:
-        #     bo.write_int(arg[0])
-        #     bo.write_int(arg[1])
 
         return r_ptr
 
@@ -1531,14 +1522,14 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
                 raise lib.TypeException("Cannot unpack a non-pointer type")
         elif node.operation == "pack":
             return en.Type("*" + tal.type_name)
-        elif node.operation in OTHER_BOOL_RESULT_UNARY:
-            return en.Type("int")
+        # elif node.operation in OTHER_BOOL_RESULT_UNARY:
+        #     return en.Type("int")
         else:
             return tal
     elif node.node_type == ast.BINARY_OPERATOR:
         node: ast.BinaryOperator
-        if node.operation in EXTENDED_INT_RESULT_TABLE_INT:
-            return en.Type("int")
+        # if node.operation in EXTENDED_INT_RESULT_TABLE_INT:
+        #     return en.Type("int")
         return get_tal_of_evaluated_node(node.left, env)
     elif node.node_type == ast.FUNCTION_CALL:
         node: ast.FuncCall

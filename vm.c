@@ -178,21 +178,23 @@ void exit_func() {
 }
 
 void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
-    if (arg_len <= 0) {
+    if (arg_len < 8) {
         printf("'printf' takes at least 1 argument");
         ERROR_CODE = 1;
         return;
     }
+    int_fast64_t fmt_ptr = bytes_to_int(arg_array);
 //    for (int j = 0; j < arg_len; j++) printf("%d ", arg_array[j]);
 //    printf("\n");
-    int fmt_end = 0;
-    while (arg_array[fmt_end] != 0) fmt_end++;
+    int_fast64_t fmt_end = fmt_ptr;
+    while (MEMORY[fmt_end] != 0) fmt_end++;
+//    printf("%lld %lld\n", fmt_ptr, fmt_end);
 
-    int i = 0;
-    int arg_ptr = fmt_end + 1;
+    int_fast64_t i = fmt_ptr;
+    int arg_ptr = INT_LEN;
     int f = 0;
     while (i < fmt_end) {
-        unsigned char ch = arg_array[i];
+        unsigned char ch = MEMORY[i];
         if (ch == '%') {
             f = 1;
         } else if (f) {
@@ -213,7 +215,9 @@ void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
 //                printf("%f", value);
             } else if (ch == 's') {  // string
                 f = 0;
-                for (; arg_array[arg_ptr] != 0; arg_ptr++) printf("%c", arg_array[arg_ptr]);
+                int_fast64_t str_ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += INT_LEN;
+                for (; MEMORY[str_ptr] != 0; str_ptr++) printf("%c", MEMORY[str_ptr]);
             } else {
                 fprintf(stderr, "Unknown flag: '%c'\n", ch);
                 f = 0;
@@ -423,10 +427,6 @@ void vm_run() {
                 regs_int64[reg_p1] = bytes_to_int(MEMORY + regs_int64[reg_p1]);  // true ftn ptr
                 regs_int64[reg_p1] = bytes_to_int(MEMORY + regs_int64[reg_p1]);  // ftn content
 
-//                PC_STACK[++PSP] = PC;
-//                CALL_STACK[++CSP] = SP - regs_int64[reg_p2];
-//                ret = CALL_STACK[CSP] - regs_int64[reg_p2];
-
                 call_native(regs_int64[reg_p1],
                             SP - regs_int64[reg_p2],
                             regs_int64[reg_p2],
@@ -434,34 +434,7 @@ void vm_run() {
 
                 SP -= regs_int64[reg_p2];
                 break;
-//            read_3_ints  // addr of func_ptr, r_len, arg_count
-//                reg4 = PC;  // pc backup
-//                PC += reg3 * (INT_LEN + PTR_LEN);
-//                reg5 = SP;  // sp backup
-//
-//                reg1 = bytes_to_int(MEMORY + reg1);  // true func ptr
-//
-//                for (reg9 = 0; reg9 < reg3; reg9++) {
-//                    reg6 = bytes_to_int(MEMORY + reg4);  // arg_ptr
-//                    reg4 += PTR_LEN;
-//                    reg7 = bytes_to_int(MEMORY + reg4);  // arg_len
-//                    reg4 += INT_LEN;
-//                    reg6 = true_ptr(reg6);  // true arg ptr
-//                    memcpy(MEMORY + SP, MEMORY + reg6, reg7);
-//                    SP += reg7;
-//                }
-//
-//                PC_STACK[++PSP] = PC;
-//                CALL_STACK[++CSP] = reg5;
-//
-//                PC = reg1;
-//                break;
             case 5:  // RETURN
-//            read_2_ints  // value ptr, rtype len
-//                reg3 = true_ptr(reg1);  // true value ptr
-//
-//                reg4 = CALL_STACK[CSP] - reg2;  // where to put the return value
-//                memcpy(MEMORY + reg4, MEMORY + reg3, reg2);
                 reg_p1 = MEMORY[PC++];  // reg of value ptr
                 reg_p2 = MEMORY[PC++];  // reg of length
                 ret = CALL_STACK[CSP] - regs_int64[reg_p2];
@@ -476,13 +449,17 @@ void vm_run() {
             case 7:  // PUSH STACK
                 reg_p1 = MEMORY[PC++];
                 SP += regs_int64[reg_p1];
+                if (SP >= LITERAL_START) {
+                    fprintf(stderr, "Stack Overflow\n");
+                    return;
+                }
                 break;
             case 8:  // LOAD
-                reg_p1 = MEMORY[PC++];  // reg index of value addr
-                reg_p2 = MEMORY[PC++];  // reg index of loading reg
-                regs_int64[reg_p1] = true_ptr(bytes_to_int(MEMORY + PC));
+                reg_p1 = MEMORY[PC++];  // reg index of loading reg
+
+                regs_int64[reg_p1] = bytes_to_int(MEMORY + PC);
                 PC += 8;
-                memcpy(regs_int64 + reg_p2, MEMORY + regs_int64[reg_p1], 8);
+                regs_int64[reg_p1] = bytes_to_int(MEMORY + true_ptr(regs_int64[reg_p1]));
                 break;
             case 9:  // STORE
                 reg_p1 = MEMORY[PC++];  // reg index of value addr
@@ -583,40 +560,22 @@ void vm_run() {
                     PC += regs_int64[reg_p1];
                 }
                 break;
-//            case 31:  // NATIVE CALL
-//            read_4_ints  // func ptr, rtype len, r ptr, arg count
-//                reg1 = bytes_to_int(MEMORY + reg1);  // true func ptr
-//                reg5 = bytes_to_int(MEMORY + reg1);  // function code
-//                reg3 = true_ptr(reg3);  // true return ptr
-//                reg6 = PC;  // PC backup
-//                PC += reg4 * (INT_LEN + PTR_LEN);
-//
-//                int_fast64_t *args = malloc(reg4 * 8);
-//                for (reg9 = 0; reg9 < reg4; reg9++) {
-//                    reg7 = bytes_to_int(MEMORY + reg6);  // arg_ptr
-//                    reg6 += PTR_LEN;
-////                    reg8 = bytes_to_int(MEMORY + reg6);  // arg_len
-//                    reg6 += INT_LEN;
-//                    reg7 = true_ptr(reg7);  // true arg ptr
-//                    args[reg9] = reg7;
-////                    printf("%lld\n", reg7);
-////                    args[reg9 * 2 + 1] = reg8;
-//                }
-//                call_native(reg5, reg3, reg2, reg4, args);
-//
-//                free(args);
-//                break;
             case 32:  // STORE ADDR, store addr to des
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
                 regs_int64[reg_p1] = true_ptr(regs_int64[reg_p1]);
                 regs_int64[reg_p2] = true_ptr(regs_int64[reg_p2]);
-                int_to_bytes(MEMORY + regs_int64[reg_p1], reg_p2);
+//                printf("%lld %lld\n", regs_int64[reg_p1], regs_int64[reg_p2]);
+                int_to_bytes(MEMORY + regs_int64[reg_p1], regs_int64[reg_p2]);
                 break;
             case 33:  // UNPACK ADDR
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
                 reg_p3 = MEMORY[PC++];
+
+//                regs_int64[reg_p2] = bytes_to_int(MEMORY + true_ptr(regs_int64[reg_p2]));
+
+//                printf("%lld %lld %lld\n", regs_int64[reg_p1], regs_int64[reg_p2], regs_int64[reg_p3]);
 
                 memcpy(MEMORY + true_ptr(regs_int64[reg_p1]),
                         MEMORY + regs_int64[reg_p2],
@@ -635,6 +594,8 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
                 reg_p3 = MEMORY[PC++];
+
+//                regs_int64[reg_p1] = bytes_to_int(MEMORY + true_ptr(regs_int64[reg_p1]));
 
                 memcpy(MEMORY + regs_int64[reg_p1],
                         MEMORY + true_ptr(regs_int64[reg_p2]),
@@ -664,14 +625,6 @@ void vm_run() {
                 reg2 = rel_ptr(reg2);
                 int_to_bytes(MEMORY + reg1, reg2);
                 break;
-            case 38:  // ADD_I
-            read_2_ints
-                reg1 = true_ptr(reg1);
-                reg3 = bytes_to_int(MEMORY + reg1);
-                reg3 = reg3 + reg2;
-                int_to_bytes(MEMORY + reg1, reg3);
-//                printf("addi, addr %lld\n", reg1);
-                break;
             case 39:  // INT_TO_FLOAT
             read_2_true_ptr  // des, src
                 reg3 = bytes_to_int(MEMORY + reg2);  // int value
@@ -684,27 +637,6 @@ void vm_run() {
                 reg3 = (int_fast64_t) reg13;
 //                printf("%lld %f\n", reg3, reg13);
                 int_to_bytes(MEMORY + reg1, reg3);
-                break;
-            case 41:  // SUB_I
-            read_2_ints
-                reg1 = true_ptr(reg1);
-                reg3 = bytes_to_int(MEMORY + reg1);
-                reg3 = reg3 - reg2;
-                int_to_bytes(MEMORY + reg1, reg3);
-                break;
-            case 42:  // ADD_FI
-            read_2_ints
-                reg1 = true_ptr(reg1);
-                reg13 = bytes_to_double(MEMORY + reg1);
-                reg13 = reg13 + reg2;
-                double_to_bytes(MEMORY + reg1, reg13);
-                break;
-            case 43:  // SUB_FI
-            read_2_ints
-                reg1 = true_ptr(reg1);
-                reg13 = bytes_to_double(MEMORY + reg1);
-                reg13 = reg13 - reg2;
-                double_to_bytes(MEMORY + reg1, reg13);
                 break;
             case 50:  // ADD_F
             read_3_true_ptr // des, left, right
@@ -788,18 +720,18 @@ void vm_run() {
         }
 //        printf("sp: %lld\n", SP);
 
-        if (SP >= LITERAL_START) {
-            fprintf(stderr, "Stack Overflow\n");
-            return;
-        }
-        if (ERROR_CODE != 0) {
-            fprintf(stderr, "Error code: %d \n", ERROR_CODE);
-            return;
-        }
-        if (MEMORY[0] != 0) {
-            fprintf(stderr, "Segmentation fault: core dumped \n");
-            return;
-        }
+//        if (SP >= LITERAL_START) {
+//            fprintf(stderr, "Stack Overflow\n");
+//            return;
+//        }
+//        if (ERROR_CODE != 0) {
+//            fprintf(stderr, "Error code: %d \n", ERROR_CODE);
+//            return;
+//        }
+//        if (MEMORY[0] != 0) {
+//            fprintf(stderr, "Segmentation fault: core dumped \n");
+//            return;
+//        }
     }
 }
 

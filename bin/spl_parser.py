@@ -4,6 +4,9 @@ import bin.spl_types as typ
 ABSTRACT_IDENTIFIER = {"fn", "class"}
 
 
+PTR_LEN = 8
+
+
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -71,11 +74,6 @@ class Parser:
                         var_level = ast.CONST
                     elif sym == "var":
                         var_level = ast.VAR
-                    # elif sym == "@":
-                    #     i += 1
-                    #     next_token: stl.IdToken = self.tokens[i]
-                    #     # titles.append(next_token.symbol)
-                    #     parser.add_annotation(line, next_token.symbol)
                     elif sym == "{":
                         brace_count += 1
                         if is_conditional:
@@ -327,6 +325,8 @@ class Parser:
             b = typ.string_to_bytes(lit)
             if make_string:
                 lit_type = 3
+                ptr = len(self.literal_bytes) + PTR_LEN
+                b = typ.int_to_bytes(ptr) + b  # string pointer
                 b += bytes(1)  # add the string terminator
             else:
                 if len(b) != 1:
@@ -335,12 +335,7 @@ class Parser:
         else:
             raise stl.ParseException("Unexpected literal type")
 
-        if lit_type == 2:  # special case for boolean, since in python, bool and int has the same hash
-            if lit:
-                return ast.Literal(lf, 1, 2)
-            else:
-                return ast.Literal(lf, 0, 2)
-        elif lit in self.literals:
+        if lit in self.literals:
             pos = self.literals[lit]
             node = ast.Literal(lf, pos, lit_type)
             return node
@@ -350,7 +345,7 @@ class Parser:
             self.literal_bytes.extend(b)
             node = ast.Literal(lf, ptr, lit_type)
             if lit_type == 3:
-                self.string_lengths[ptr] = len(b)
+                self.string_lengths[ptr] = len(b) - PTR_LEN
             return node
 
 

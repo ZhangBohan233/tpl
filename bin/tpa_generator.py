@@ -92,8 +92,8 @@ class TPAssemblyCompiler:
         elif instruction == cpl.PUSH:
             out_stream.write("PUSH            %{}\n".format(self.read_one()))
         elif instruction == cpl.LOAD:
-            out_stream.write("LOAD            %{}  %{}  ${}\n"
-                             .format(self.read_one(), self.read_one(), self.read_1_int()))
+            out_stream.write("LOAD            %{}  ${}\n"
+                             .format(self.read_one(), self.read_1_int()))
         elif instruction == cpl.STORE:
             out_stream.write("STORE           %{}  %{}  ${}\n"
                              .format(self.read_one(), self.read_one(), self.read_1_int()))

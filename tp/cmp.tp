@@ -1,11 +1,7 @@
-fn add(a: *int) void {
-    printf("%d\n", *a);
-    *a = (*a) + 3;
-}
 
 fn main() int {
-    var a: int = 5;
-    var b: *int = &a;
-    add(b);
-    return *b;
+    var a: char[] = "qwerty";
+    var b: int = 5;
+    printf("%s\n %d\n", a, b);
+    return b + 3;
 }
