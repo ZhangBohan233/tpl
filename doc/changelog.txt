@@ -1,3 +1,11 @@
+#### Build 1026 ####
+2020/01/04
+
+* Bug fixes:
+    * Fixed that loops have incorrect goto offset, caused by the length change of LOAD instruction
+    * Fixed that duplicate string literal pointers are counted multiple times
+
+
 #### Build 1025 ####
 2020/01/03
 
