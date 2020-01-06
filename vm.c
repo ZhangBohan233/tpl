@@ -32,8 +32,8 @@ int_fast64_t FUNCTIONS_START = 1024;
 int_fast64_t CODE_START = 1024;
 int_fast64_t HEAP_START = 1024;
 
-const int_fast64_t MEMORY_SIZE = 4096;
-unsigned char MEMORY[4096];
+const int_fast64_t MEMORY_SIZE = 8192;
+unsigned char MEMORY[8192];
 
 uint_fast64_t SP = 1;
 uint_fast64_t PC = 1024;
@@ -314,8 +314,14 @@ void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_l
     }
 }
 
+int str_len(const char *s) {
+    int i = 0;
+    while (s[i] != '\0') i++;
+    return i;
+}
+
 void vm_set_args(int vm_argc, char **vm_argv) {
-    if (MEMORY[PC + 12] == 4) {  // no args
+    if (MEMORY[PC + 32] == 4) {  // no args
         MAIN_RTN_PTR = 1;
     } else {
         int_to_bytes(MEMORY + 1, vm_argc);
@@ -324,10 +330,11 @@ void vm_set_args(int vm_argc, char **vm_argv) {
 
         _native_malloc(INT_LEN + 1, PTR_LEN * vm_argc);
         int_fast64_t first_arg_pos = bytes_to_int(MEMORY + INT_LEN + 1);
-//        printf("%lld\n", first_arg_pos);
+//        printf("%d\n", vm_argc);
 
         for (int i = 0; i < vm_argc; i++) {
-            unsigned int arg_len = strlen(vm_argv[i]) + 1;
+//            printf("%s\n", vm_argv[i]);
+            unsigned int arg_len = str_len(vm_argv[i]) + 1;
 //            printf("%u\n", arg_len);
             _native_malloc(first_arg_pos + PTR_LEN * i, arg_len);
             int_fast64_t ptr = bytes_to_int(MEMORY + first_arg_pos + PTR_LEN * i);
@@ -699,7 +706,7 @@ int main(int argc, char **argv) {
     }
 
     int vm_argc = argc - vm_args_begin;
-    char **vm_argv = malloc(sizeof(char**));
+    char **vm_argv = malloc(sizeof(char**) * vm_argc);
     for (int i = vm_args_begin; i < argc; i++) {
         vm_argv[i - vm_args_begin] = argv[i];
     }

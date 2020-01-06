@@ -1048,25 +1048,25 @@ class Compiler:
     #     return indexing_ptr, unit_len
 
     def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
-        indexing_addr, tal = self.indexing_ptr(node, env, bo)
+        # node_depth = index_node_depth(node)
+        #
+        # tal_depth = len(tal.array_lengths) + pointer_depth(tal.type_name)
+        #
+        # if node_depth == tal_depth:
+        #     length = tal.unit_len(self.memory)
+        # elif node_depth > tal_depth:
+        #     raise lib.CompileTimeException()
+        # else:
+        #     length = PTR_LEN
 
-        node_depth = index_node_depth(node)
-
-        tal_depth = len(tal.array_lengths) + pointer_depth(tal.type_name)
-
-        if node_depth == tal_depth:
-            length = tal.unit_len(self.memory)
-        elif node_depth > tal_depth:
-            raise lib.CompileTimeException()
-        else:
-            length = PTR_LEN
+        indexing_addr, tal, length = self.indexing_ptr(node, env, bo)
         # print(length)
 
         return indexing_addr, length
 
     def indexing_ptr(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
         if isinstance(node.call_obj, ast.IndexingNode):  # call obj is array
-            arr_addr_ptr, tal = self.indexing_ptr(node.call_obj, env, bo)
+            arr_addr_ptr, tal, lll = self.indexing_ptr(node.call_obj, env, bo)
         elif isinstance(node.call_obj, ast.NameNode):
             arr_self_addr = self.compile(node.call_obj, env, bo)
             arr_addr_ptr = self.memory.allocate(PTR_LEN)  # pointer storing the addr of arr head
@@ -1079,6 +1079,16 @@ class Compiler:
         if len(node.arg.lines) != 1:
             raise lib.CompileTimeException("Indexing takes exactly 1 argument")
 
+        node_depth = index_node_depth(node)
+        tal_depth = len(tal.array_lengths) + pointer_depth(tal.type_name)
+
+        if node_depth == tal_depth:
+            length = tal.unit_len(self.memory)
+        elif node_depth > tal_depth:
+            raise lib.CompileTimeException()
+        else:
+            length = PTR_LEN
+
         index_num_ptr = self.compile(node.arg.lines[0], env, bo)
 
         indexing_addr = self.memory.allocate(PTR_LEN)
@@ -1087,11 +1097,11 @@ class Compiler:
         bo.unpack_addr(indexing_addr, arr_addr_ptr, PTR_LEN)  # now store the addr of array content
         unit_len_ptr = self.memory.allocate(INT_LEN)
         bo.push_stack(INT_LEN)
-        bo.assign_i(unit_len_ptr, INT_LEN)
+        bo.assign_i(unit_len_ptr, length)
         bo.add_binary_op(MUL, unit_len_ptr, unit_len_ptr, index_num_ptr)
         bo.add_binary_op(ADD, indexing_addr, indexing_addr, unit_len_ptr)
 
-        return indexing_addr, tal
+        return indexing_addr, tal, length
 
     def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, int):
         left_tal = get_tal_of_evaluated_node(node.left, env)
