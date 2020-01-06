@@ -47,6 +47,8 @@ int PSP = -1;
 int LOOP_STACK[1000];  // 1000 nested loop
 int LSP = -1;
 
+int MAIN_RTN_PTR = 1;
+
 // The error code, set by virtual machine. Used to tell the main loop that the process is interrupted
 // Interrupt the vm if the code is not 0
 //
@@ -216,6 +218,16 @@ int_fast64_t find_ava(int length) {
     }
 }
 
+void _native_malloc(int_fast64_t ret_ptr, int_fast64_t asked_len) {
+    int_fast64_t real_len = asked_len + INT_LEN;
+    int_fast64_t allocate_len = real_len % 8 == 0 ? real_len / 8 : real_len / 8 + 1;
+
+    int_fast64_t location = find_ava(allocate_len);
+
+    int_to_bytes(MEMORY + location, allocate_len);
+    int_to_bytes(MEMORY + ret_ptr, location + INT_LEN);
+}
+
 void native_malloc(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned char *args) {
     if (arg_len != INT_LEN) {
         printf("Unmatched arg length or return length");
@@ -224,15 +236,7 @@ void native_malloc(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned ch
     }
 
     int_fast64_t asked_len = bytes_to_int(args);
-//    printf("asked: %lld\n", asked_len);
-    int_fast64_t real_len = asked_len + INT_LEN;
-    int_fast64_t allocate_len = real_len % 8 == 0 ? real_len / 8 : real_len / 8 + 1;
-
-    int_fast64_t location = find_ava(allocate_len);
-
-    int_to_bytes(MEMORY + location, allocate_len);
-
-    int_to_bytes(MEMORY + ret_ptr, location + INT_LEN);
+    _native_malloc(ret_ptr, asked_len);
 }
 
 void native_clock(int_fast64_t arg_len, int_fast64_t ret_ptr) {
@@ -310,6 +314,28 @@ void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_l
     }
 }
 
+void vm_set_args(int vm_argc, char **vm_argv) {
+    if (MEMORY[PC + 12] == 4) {  // no args
+        MAIN_RTN_PTR = 1;
+    } else {
+        int_to_bytes(MEMORY + 1, vm_argc);
+        int_to_bytes(MEMORY + INT_LEN + 1, 234);
+        MAIN_RTN_PTR = 1 + INT_LEN;
+
+        _native_malloc(INT_LEN + 1, PTR_LEN * vm_argc);
+        int_fast64_t first_arg_pos = bytes_to_int(MEMORY + INT_LEN + 1);
+//        printf("%lld\n", first_arg_pos);
+
+        for (int i = 0; i < vm_argc; i++) {
+            unsigned int arg_len = strlen(vm_argv[i]) + 1;
+//            printf("%u\n", arg_len);
+            _native_malloc(first_arg_pos + PTR_LEN * i, arg_len);
+            int_fast64_t ptr = bytes_to_int(MEMORY + first_arg_pos + PTR_LEN * i);
+            memcpy(MEMORY + ptr, vm_argv[i], arg_len);
+        }
+    }
+}
+
 void vm_run() {
     union reg64 {
         int_fast64_t int_value;
@@ -350,6 +376,7 @@ void vm_run() {
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++CSP] = SP - regs64[reg_p2].int_value;
+//                printf("%lld\n", CALL_STACK[CSP]);
 
                 PC = regs64[reg_p1].int_value;
                 break;
@@ -648,6 +675,8 @@ int main(int argc, char **argv) {
     int p_exit = 0;
     char *file_name = argv[1];
 
+    int vm_args_begin = 0;
+
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (arg[0] == '-') {
@@ -664,7 +693,15 @@ int main(int argc, char **argv) {
             }
         } else {
             file_name = arg;
+            vm_args_begin = i;
+            break;
         }
+    }
+
+    int vm_argc = argc - vm_args_begin;
+    char **vm_argv = malloc(sizeof(char**));
+    for (int i = vm_args_begin; i < argc; i++) {
+        vm_argv[i - vm_args_begin] = argv[i];
     }
 
     int read;
@@ -672,13 +709,13 @@ int main(int argc, char **argv) {
     unsigned char *codes = read_file(file_name, &read);
 
     vm_load(codes, read);
-
+    vm_set_args(vm_argc, vm_argv);
     vm_run();
 
-    if (ERROR_CODE != 0) int_to_bytes(MEMORY + 1, ERROR_CODE);
+    if (ERROR_CODE != 0) int_to_bytes(MEMORY + MAIN_RTN_PTR, ERROR_CODE);
 
     if (p_memory) print_memory();
-    if (p_exit) printf("Process finished with exit code %lld\n", bytes_to_int(MEMORY + 1));
+    if (p_exit) printf("Process finished with exit code %lld\n", bytes_to_int(MEMORY + MAIN_RTN_PTR));
 
     vm_shutdown();
 

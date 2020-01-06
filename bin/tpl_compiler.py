@@ -779,8 +779,18 @@ class Compiler:
         self.memory.compile_all_functions()
 
         if "main" in env.functions:
-            main_ptr = env.functions["main"]
-            self.function_call(main_ptr, [], env, bo)
+            main_ptr: Function = env.functions["main"]
+            if len(main_ptr.params) == 0:
+                self.function_call(main_ptr, [], env, bo)
+            elif len(main_ptr.params) == 2 and \
+                    main_ptr.params[0].tal.type_name == "int" and \
+                    main_ptr.params[1].tal.type_name == "**char":
+                self.memory.allocate(INT_LEN)
+                bo.push_stack(INT_LEN)
+                self.function_call(main_ptr, [(1, INT_LEN), (9, PTR_LEN)], env, bo)
+            else:
+                raise lib.CompileTimeException("Function main must either have zero parameters or two parameters "
+                                               "arg count(int) and arg array(**char).")
 
         # print(self.memory.global_bytes)
         lit_and_global = ByteOutput(self.memory)

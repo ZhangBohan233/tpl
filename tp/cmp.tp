@@ -1,19 +1,8 @@
 
-fn main() int {
-    var c: *char = malloc(7);
-    var d: char[] = "qwerty";
-    mem_copy(c, d, 6);
 
-    var e: *char = malloc(4);
-    var f: char[] = "abc";
-    mem_copy(e, f, 3);
+fn main(argc: int, argv: **char) int {
 
-    var args: **char = malloc(16);
-    args[0] = c;
-    args[1] = e;
+    printf("%c\n", argv[0][0]);
 
-    var ee: char = args[0][0];
-    printf("%c\n", ee);
-
-    return 0;
+    return argc;
 }

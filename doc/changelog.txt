@@ -1,3 +1,10 @@
+#### Build 1030 ####
+2020/01/06
+
+* Access to command line arguments:
+    * fn main(argc: int, argv: **char) int {...}
+
+
 #### Build 1029 ####
 2020/01/05
 
