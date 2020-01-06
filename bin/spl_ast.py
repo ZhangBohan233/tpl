@@ -253,7 +253,8 @@ class UnaryExpr(Expr):
         return "UE({} {})".format(self.operation, self.value)
 
     def __repr__(self):
-        return "UE'{}'".format(self.operation)
+        return self.__str__()
+        # return "UE'{}'".format(self.operation)
 
 
 class UnaryOperator(UnaryExpr):
@@ -1287,7 +1288,7 @@ def parse_expr(lst):
             node = lst[i]
             if isinstance(node, UnaryExpr):
                 pre = node.precedence()
-                if pre > max_pre and node.value is None:
+                if pre >= max_pre and node.value is None:
                     max_pre = pre
                     index = i
             elif isinstance(node, BinaryExpr):
@@ -1336,6 +1337,7 @@ def parse_expr(lst):
                 lst.pop(index + 1)
         else:
             raise stl.ParseException("Unknown error while parsing operators")
+        # print(lst)
     return lst[0]
 
 

@@ -15,50 +15,6 @@
 
 //#define rel_ptr(ptr) (ptr < LITERAL_START && CSP >= 0 ? ptr - CALL_STACK[CSP] : ptr)
 
-//#define read_2_ints {\
-//reg1 = bytes_to_int(MEMORY + PC);\
-//reg2 = bytes_to_int(MEMORY + PC + INT_LEN);\
-//PC += INT_LEN_2;\
-//}
-//
-//#define read_3_ints {\
-//reg1 = bytes_to_int(MEMORY + PC);\
-//reg2 = bytes_to_int(MEMORY + PC + INT_LEN);\
-//reg3 = bytes_to_int(MEMORY + PC + INT_LEN_2);\
-//PC += INT_LEN_3;\
-//}
-//
-//#define read_4_ints {\
-//reg1 = bytes_to_int(MEMORY + PC);\
-//reg2 = bytes_to_int(MEMORY + PC + INT_LEN);\
-//reg3 = bytes_to_int(MEMORY + PC + INT_LEN_2);\
-//reg4 = bytes_to_int(MEMORY + PC + INT_LEN_3);\
-//PC += INT_LEN_4;\
-//}
-//
-//#define read_2_true_ptr {    \
-//read_2_ints;                 \
-//reg1 = true_ptr(reg1);       \
-//reg2 = true_ptr(reg2);       \
-//}
-//
-//#define read_3_true_ptr {    \
-//read_3_ints;                 \
-//reg1 = true_ptr(reg1);       \
-//reg2 = true_ptr(reg2);       \
-//reg3 = true_ptr(reg3);       \
-//}
-//
-//#define read_one_uint7(regs, reg_p) {       \
-//regs[reg_p] = bytes_to_uint7(MEMORY + PC);  \
-//PC += 7;                                    \
-//}
-//
-//#define read_one_uint7_true_ptr(reg) {       \
-//reg = true_ptr(bytes_to_uint7(MEMORY + PC)); \
-//PC += 7;                                             \
-//}
-
 const int INT_LEN = 8;
 const int PTR_LEN = 8;
 const int FLOAT_LEN = 8;
@@ -167,10 +123,6 @@ void vm_load(const unsigned char *codes, int read) {
 void vm_shutdown() {
     free(AVAILABLE);
 }
-
-//void mem_copy(int_fast64_t from, int_fast64_t to, int_fast64_t len) {
-//    memcpy(MEMORY + to, MEMORY + from, len);
-//}
 
 void exit_func() {
     SP = CALL_STACK[CSP--];
@@ -393,7 +345,8 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
 
-                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // true ftn ptr
+//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // true ftn ptr
+                memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++CSP] = SP - regs64[reg_p2].int_value;
@@ -404,8 +357,10 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
 
-                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // true ftn ptr
-                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // ftn content
+//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // true ftn ptr
+//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // ftn content
+                memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
+                memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // ftn content
 
 //                printf("call nat %lld\n", regs64[reg_p1].int_value);
 
@@ -435,6 +390,7 @@ void vm_run() {
                 SP += regs64[reg_p1].int_value;
                 if (SP >= LITERAL_START) {
                     fprintf(stderr, "Stack Overflow\n");
+                    ERROR_CODE = 1;
                     return;
                 }
                 break;
@@ -442,7 +398,8 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];  // reg index of loading reg
                 memcpy(regs64[reg_p1].bytes, MEMORY + PC, INT_LEN);
                 PC += INT_LEN;
-                regs64[reg_p1].int_value = bytes_to_int(MEMORY + true_ptr(regs64[reg_p1].int_value));
+//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + true_ptr(regs64[reg_p1].int_value));
+                memcpy(regs64[reg_p1].bytes, MEMORY + true_ptr(regs64[reg_p1].int_value), INT_LEN);
                 break;
             case 9:  // STORE
                 reg_p1 = MEMORY[PC++];  // reg index of value addr
@@ -459,6 +416,7 @@ void vm_run() {
             case 11:  // ADD INT
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
+//                printf("addend %lld, adder %lld\n", regs64[reg_p1].int_value, regs64[reg_p2].int_value);
                 regs64[reg_p1].int_value = regs64[reg_p1].int_value + regs64[reg_p2].int_value;
                 break;
             case 24:  // CAST INT
@@ -716,6 +674,8 @@ int main(int argc, char **argv) {
     vm_load(codes, read);
 
     vm_run();
+
+    if (ERROR_CODE != 0) int_to_bytes(MEMORY + 1, ERROR_CODE);
 
     if (p_memory) print_memory();
     if (p_exit) printf("Process finished with exit code %lld\n", bytes_to_int(MEMORY + 1));

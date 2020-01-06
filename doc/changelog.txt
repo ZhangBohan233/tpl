@@ -1,3 +1,11 @@
+#### Build 1029 ####
+2020/01/05
+
+* High dimensional getitem and setitem
+* Changed the ast precedence of unary expr
+* Deleted some unused codes
+
+
 #### Build 1028 ####
 2020/01/04
 

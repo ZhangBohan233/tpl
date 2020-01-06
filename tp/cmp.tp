@@ -1,24 +1,19 @@
-fn g() void {
-    register a: int = 3;
-}
-
-
-fn f() void {
-    register a: float = 3.4;
-    register b: int = 3;
-}
-
-
-fn h() void {
-    register a: float = 3.4;
-    register b: int = 3;
-}
-
 
 fn main() int {
-    register a: float = 6.1;
-    var b: int = 4 + 3;
-    var c: int = int(a + 4.5);
+    var c: *char = malloc(7);
+    var d: char[] = "qwerty";
+    mem_copy(c, d, 6);
 
-    return c;
+    var e: *char = malloc(4);
+    var f: char[] = "abc";
+    mem_copy(e, f, 3);
+
+    var args: **char = malloc(16);
+    args[0] = c;
+    args[1] = e;
+
+    var ee: char = args[0][0];
+    printf("%c\n", ee);
+
+    return 0;
 }
