@@ -2,7 +2,8 @@ include "string"
 
 fn main(argc: int, argv: **char) int {
 
-    var v: int = str_to_int(argv[2]);
-    return v;
+    var v: float = str_to_float(argv[2]);
+    printf("%f\n", v);
+    return 0;
 
 }

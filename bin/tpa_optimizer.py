@@ -223,7 +223,7 @@ class Optimizer:
         self.parser.generate_lengths()
 
     def optimize(self, level: int):
-        if level >= 1:
+        if level > 1:
             self.merge_variables()
 
     def merge_variables(self):

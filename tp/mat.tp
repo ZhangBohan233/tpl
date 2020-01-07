@@ -1,0 +1,11 @@
+fn main() int {
+    var ca: char[8] = "334.523";
+    //var s: *char = malloc(8);
+    //mem_copy(s, ca, 8);
+
+    var c: char = ca[0];
+    printf("%d\n", c);
+    printf("%d", int(c));
+
+    return 0;
+}

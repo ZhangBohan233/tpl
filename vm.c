@@ -32,8 +32,8 @@ int_fast64_t FUNCTIONS_START = 1024;
 int_fast64_t CODE_START = 1024;
 int_fast64_t HEAP_START = 1024;
 
-const int_fast64_t MEMORY_SIZE = 8192;
-unsigned char MEMORY[8192];
+const int_fast64_t MEMORY_SIZE = 16384;
+unsigned char MEMORY[16384];
 
 uint_fast64_t SP = 1;
 uint_fast64_t PC = 1024;
@@ -71,10 +71,12 @@ void print_memory() {
         printf("%d ", MEMORY[i]);
     }
 
-    printf("\nFunctions %lld: ", FUNCTIONS_START);
-    for (; i < CODE_START; i++) {
-        printf("%d ", MEMORY[i]);
-    }
+//    printf("\nFunctions %lld: ", FUNCTIONS_START);
+//    for (; i < CODE_START; i++) {
+//        printf("%d ", MEMORY[i]);
+//    }
+    printf("\nFunctions %lld: ...", FUNCTIONS_START);
+    i = CODE_START;
 
     printf("\nCode %lld: ", CODE_START);
     for (; i < HEAP_START; i++) {
@@ -326,7 +328,7 @@ void vm_set_args(int vm_argc, char **vm_argv) {
     } else {
         int_to_bytes(MEMORY + 1, vm_argc);
         int_to_bytes(MEMORY + INT_LEN + 1, 234);
-        MAIN_RTN_PTR = 1 + INT_LEN;
+        MAIN_RTN_PTR = 1 + INT_LEN + PTR_LEN;
 
         _native_malloc(INT_LEN + 1, PTR_LEN * vm_argc);
         int_fast64_t first_arg_pos = bytes_to_int(MEMORY + INT_LEN + 1);
@@ -410,8 +412,8 @@ void vm_run() {
                 reg_p2 = MEMORY[PC++];  // reg of length
                 ret = CALL_STACK[CSP] - regs64[reg_p2].int_value;
                 memcpy(MEMORY + ret,
-                        MEMORY + true_ptr(regs64[reg_p1].int_value),
-                        regs64[reg_p2].int_value);
+                       MEMORY + true_ptr(regs64[reg_p1].int_value),
+                       regs64[reg_p2].int_value);
 
                 exit_func();
                 break;
@@ -454,14 +456,16 @@ void vm_run() {
                 regs64[reg_p1].int_value = regs64[reg_p1].int_value + regs64[reg_p2].int_value;
                 break;
             case 24:  // CAST INT
-                reg_p1 = MEMORY[PC++];
-                reg_p2 = MEMORY[PC++];
-                reg_p3 = MEMORY[PC++];
-
-                if (regs64[reg_p3].int_value <= INT_LEN) {
+                reg_p1 = MEMORY[PC++];  // dest
+                reg_p2 = MEMORY[PC++];  // src
+                reg_p3 = MEMORY[PC++];  // len
+                if (regs64[reg_p3].int_value == CHAR_LEN) {  // cast char to int
+                    regs64[reg_p3].int_value = MEMORY[true_ptr(regs64[reg_p2].int_value)];
+                    memcpy(MEMORY + true_ptr(regs64[reg_p1].int_value), regs64[reg_p3].bytes, INT_LEN);
+                } else if (regs64[reg_p3].int_value == INT_LEN) {
                     memcpy(MEMORY + true_ptr(regs64[reg_p1].int_value),
                            MEMORY + true_ptr(regs64[reg_p2].int_value),
-                           regs64[reg_p3].int_value);
+                           INT_LEN);
                 }
                 break;
             case 12:  // SUB INT
@@ -674,7 +678,7 @@ void test() {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        printf("Usage: tpl.exe -[FLAG] TPC_FILE");
+        printf("Usage: tpl.exe -[VM_FLAGS] FILE -[PROGRAM_FLAGS]");
         exit(1);
     }
 
@@ -706,7 +710,7 @@ int main(int argc, char **argv) {
     }
 
     int vm_argc = argc - vm_args_begin;
-    char **vm_argv = malloc(sizeof(char**) * vm_argc);
+    char **vm_argv = malloc(sizeof(char **) * vm_argc);
     for (int i = vm_args_begin; i < argc; i++) {
         vm_argv[i - vm_args_begin] = argv[i];
     }
@@ -725,6 +729,7 @@ int main(int argc, char **argv) {
     if (p_exit) printf("Process finished with exit code %lld\n", bytes_to_int(MEMORY + MAIN_RTN_PTR));
 
     vm_shutdown();
+    free(vm_argv);
 
     exit(0);
 }

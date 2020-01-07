@@ -1,3 +1,20 @@
+#### Build 1032 ####
+2020/01/07
+
+* Bug fixes:
+    * C vm does not free the argv pointer
+    * The return pointer of main(argc, argv) overwrites the argv pointer
+    * Casting to int may cause undefined behavior
+* Compile time optimization:
+    * Changed the optimization level:
+        * -o1: only syntax tree level optimization
+        * -o2: -o1 + tpa code optimization
+    * New syntax tree optimization:
+        * Constant unary operator pre-calculation
+* New library function:
+    * str_to_float in "string"
+
+
 #### Build 1031 ####
 2020/01/06
 

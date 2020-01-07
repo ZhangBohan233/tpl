@@ -82,7 +82,7 @@ if __name__ == '__main__':
             dec = decompiler.TPAssemblyCompiler(byt)
             dec.compile(wf)
 
-        if args["optimize"] > 0:
+        if args["optimize"] > 1:
             # print("Optimization currently unavailable")
             # exit(1)
             with open(tpa_name, "r") as tpa_f:

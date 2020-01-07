@@ -785,8 +785,8 @@ class Compiler:
             elif len(main_ptr.params) == 2 and \
                     main_ptr.params[0].tal.type_name == "int" and \
                     main_ptr.params[1].tal.type_name == "**char":
-                self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
+                self.memory.allocate(INT_LEN + PTR_LEN)
+                bo.push_stack(INT_LEN + PTR_LEN)
                 self.function_call(main_ptr, [(1, INT_LEN), (9, PTR_LEN)], env, bo)
             else:
                 raise lib.CompileTimeException("Function main must either have zero parameters or two parameters "
@@ -1506,8 +1506,10 @@ class Compiler:
         self.compile(step_node, env, bo)
         len_diff = len(bo) - cur_len
 
-        bo.write_one(GOTO)
-        bo.write_int(-length_before - len_diff - INT_LEN - 1)
+        bo.write_one(RES_SP)
+        bo.goto(-length_before - len_diff - 25)
+        # bo.write_one(GOTO)
+        # bo.write_int(-length_before - len_diff - INT_LEN - 1)
 
     def compile_undefined(self, node: ast.UndefinedNode, env: en.Environment, bo: ByteOutput):
         return 0
