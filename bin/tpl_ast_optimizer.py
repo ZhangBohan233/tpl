@@ -1,3 +1,4 @@
+import sys
 import bin.spl_ast as ast
 import bin.spl_types as typ
 import bin.spl_parser as psr
@@ -11,12 +12,41 @@ VOID_LEN = 0
 
 LF = 0, "TreeOptimizer"
 
+
+def logical_rs1(v: int):
+    v >>= 1
+    temp = v.to_bytes(8, sys.byteorder, signed=True)
+    if sys.byteorder == "little":
+        sign_byte = temp[7]
+        if sign_byte > 127:  # negative
+            sign_byte -= 128
+        res_b = temp[:7] + bytes((sign_byte,))
+    else:
+        sign_byte = temp[0]
+        if sign_byte > 127:  # negative
+            sign_byte -= 128
+        res_b = bytes((sign_byte,)) + temp[1:]
+    return int.from_bytes(res_b, sys.byteorder, signed=True)
+
+
+def logical_right_shift(a: int, b: int):
+    for i in range(b):
+        a = logical_rs1(a)
+    return a
+
+
 INT_BIN_OP_TABLE = {
     "+": lambda a, b: a + b,
     "-": lambda a, b: a - b,
     "*": lambda a, b: a * b,
     "/": lambda a, b: a // b,
     "%": lambda a, b: a % b,
+    ">>": lambda a, b: a >> b,
+    ">>>": logical_right_shift,
+    "<<": lambda a, b: a << b,
+    "&": lambda a, b: a & b,
+    "|": lambda a, b: a | b,
+    "^": lambda a, b: a ^ b
 }
 
 FLOAT_BIN_OP_TABLE = INT_BIN_OP_TABLE.copy()

@@ -13,6 +13,8 @@
 
 #define true_ptr(ptr) (ptr < LITERAL_START && CSP >= 0 ? ptr + CALL_STACK[CSP] : ptr)
 
+#define rshift_logical(val, n) ((int_fast64_t) ((uint_fast64_t) val >> n));
+
 //#define rel_ptr(ptr) (ptr < LITERAL_START && CSP >= 0 ? ptr - CALL_STACK[CSP] : ptr)
 
 const int INT_LEN = 8;
@@ -26,11 +28,14 @@ const int INT_LEN_2 = 16;
 //const int INT_LEN_3 = 24;
 //const int INT_LEN_4 = 32;
 
-const int_fast64_t STACK_START = 1;
+int_fast64_t CALL_STACK_BEGINS = 1;
 int_fast64_t LITERAL_START = 1024;
+int_fast64_t GLOBAL_START = 1024;
 int_fast64_t FUNCTIONS_START = 1024;
 int_fast64_t CODE_START = 1024;
 int_fast64_t HEAP_START = 1024;
+
+int MAIN_HAS_ARG = 0;
 
 const int_fast64_t MEMORY_SIZE = 16384;
 unsigned char MEMORY[16384];
@@ -46,8 +51,6 @@ int PSP = -1;
 
 int LOOP_STACK[1000];  // 1000 nested loop
 int LSP = -1;
-
-int MAIN_RTN_PTR = 1;
 
 // The error code, set by virtual machine. Used to tell the main loop that the process is interrupted
 // Interrupt the vm if the code is not 0
@@ -67,16 +70,21 @@ void print_memory() {
     }
 
     printf("\nLiteral %lld: ", LITERAL_START);
-    for (; i < FUNCTIONS_START; i++) {
+    for (; i < GLOBAL_START; ++i) {
         printf("%d ", MEMORY[i]);
     }
 
-//    printf("\nFunctions %lld: ", FUNCTIONS_START);
-//    for (; i < CODE_START; i++) {
-//        printf("%d ", MEMORY[i]);
-//    }
-    printf("\nFunctions %lld: ...", FUNCTIONS_START);
-    i = CODE_START;
+    printf("\nGlobal %lld: ", GLOBAL_START);
+    for (; i < FUNCTIONS_START; ++i) {
+        printf("%d ", MEMORY[i]);
+    }
+
+    printf("\nFunctions %lld: ", FUNCTIONS_START);
+    for (; i < CODE_START; i++) {
+        printf("%d ", MEMORY[i]);
+    }
+//    printf("\nFunctions %lld: ...", FUNCTIONS_START);
+//    i = CODE_START;
 
     printf("\nCode %lld: ", CODE_START);
     for (; i < HEAP_START; i++) {
@@ -109,16 +117,23 @@ void vm_load(const unsigned char *codes, int read) {
     }
 
     int_fast64_t literal_size = bytes_to_int(codes + INT_LEN);
-    int_fast64_t functions_size = bytes_to_int(codes + INT_LEN_2);
+    int_fast64_t global_len = bytes_to_int(codes + INT_LEN * 2);
+    int_fast64_t functions_size = bytes_to_int(codes + INT_LEN * 3);
+    MAIN_HAS_ARG = codes[INT_LEN * 4];
 
-    FUNCTIONS_START += literal_size;
+    int head_len = INT_LEN * 4 + 1;
+
+    GLOBAL_START = LITERAL_START + literal_size;
+    FUNCTIONS_START = GLOBAL_START + global_len;
     CODE_START = FUNCTIONS_START + functions_size;
     PC = CODE_START;
 
-    int copy_len = read - INT_LEN * 3;
-    HEAP_START = LITERAL_START + copy_len;
+    int_fast64_t func_and_code_len = read - head_len - literal_size;
+    HEAP_START = FUNCTIONS_START + func_and_code_len;
 
-    memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 3, copy_len);
+    memcpy(MEMORY + LITERAL_START, codes + head_len, literal_size);  // copy literal
+    memcpy(MEMORY + FUNCTIONS_START, codes + head_len + literal_size, func_and_code_len);
+//    memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 4 + 1, copy_len);
 
     AVAILABLE = build_heap(HEAP_START, MEMORY_SIZE, &AVA_SIZE);
 //    print_memory();
@@ -323,12 +338,9 @@ int str_len(const char *s) {
 }
 
 void vm_set_args(int vm_argc, char **vm_argv) {
-    if (MEMORY[PC + 32] == 4) {  // no args
-        MAIN_RTN_PTR = 1;
-    } else {
+    if (MAIN_HAS_ARG) {
         int_to_bytes(MEMORY + 1, vm_argc);
         int_to_bytes(MEMORY + INT_LEN + 1, 234);
-        MAIN_RTN_PTR = 1 + INT_LEN + PTR_LEN;
 
         _native_malloc(INT_LEN + 1, PTR_LEN * vm_argc);
         int_fast64_t first_arg_pos = bytes_to_int(MEMORY + INT_LEN + 1);
@@ -449,13 +461,7 @@ void vm_run() {
                 memcpy(regs64[reg_p1].bytes, MEMORY + PC, INT_LEN);
                 PC += INT_LEN;
                 break;
-            case 11:  // ADD INT
-                reg_p1 = MEMORY[PC++];
-                reg_p2 = MEMORY[PC++];
-//                printf("addend %lld, adder %lld\n", regs64[reg_p1].int_value, regs64[reg_p2].int_value);
-                regs64[reg_p1].int_value = regs64[reg_p1].int_value + regs64[reg_p2].int_value;
-                break;
-            case 24:  // CAST INT
+            case 38:  // CAST INT
                 reg_p1 = MEMORY[PC++];  // dest
                 reg_p2 = MEMORY[PC++];  // src
                 reg_p3 = MEMORY[PC++];  // len
@@ -467,6 +473,12 @@ void vm_run() {
                            MEMORY + true_ptr(regs64[reg_p2].int_value),
                            INT_LEN);
                 }
+                break;
+            case 11:  // ADD INT
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+//                printf("addend %lld, adder %lld\n", regs64[reg_p1].int_value, regs64[reg_p2].int_value);
+                regs64[reg_p1].int_value = regs64[reg_p1].int_value + regs64[reg_p2].int_value;
                 break;
             case 12:  // SUB INT
                 reg_p1 = MEMORY[PC++];
@@ -533,6 +545,36 @@ void vm_run() {
             case 23:  // NEG
                 reg_p1 = MEMORY[PC++];
                 regs64[reg_p1].int_value = -regs64[reg_p1].int_value;
+                break;
+            case 24:  // RSHIFT_A
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs64[reg_p1].int_value = regs64[reg_p1].int_value >> regs64[reg_p2].int_value;
+                break;
+            case 25:  // RSHIFT_L
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs64[reg_p1].int_value = rshift_logical(regs64[reg_p1].int_value, regs64[reg_p2].int_value);
+                break;
+            case 26:  // LSHIFT
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs64[reg_p1].int_value = regs64[reg_p1].int_value << regs64[reg_p2].int_value;
+                break;
+            case 27:  // B_AND
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs64[reg_p1].int_value = regs64[reg_p1].int_value & regs64[reg_p2].int_value;
+                break;
+            case 28:  // B_OR
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs64[reg_p1].int_value = regs64[reg_p1].int_value | regs64[reg_p2].int_value;
+                break;
+            case 29:  // B_XOR
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                regs64[reg_p1].int_value = regs64[reg_p1].int_value ^ regs64[reg_p2].int_value;
                 break;
             case 30:  // IF ZERO GOTO
                 reg_p1 = MEMORY[PC++];
@@ -723,10 +765,12 @@ int main(int argc, char **argv) {
     vm_set_args(vm_argc, vm_argv);
     vm_run();
 
-    if (ERROR_CODE != 0) int_to_bytes(MEMORY + MAIN_RTN_PTR, ERROR_CODE);
+    uint_fast64_t main_rtn_ptr = CALL_STACK[0] - INT_LEN;
+
+    if (ERROR_CODE != 0) int_to_bytes(MEMORY + main_rtn_ptr, ERROR_CODE);
 
     if (p_memory) print_memory();
-    if (p_exit) printf("Process finished with exit code %lld\n", bytes_to_int(MEMORY + MAIN_RTN_PTR));
+    if (p_exit) printf("Process finished with exit code %lld\n", bytes_to_int(MEMORY + main_rtn_ptr));
 
     vm_shutdown();
     free(vm_argv);

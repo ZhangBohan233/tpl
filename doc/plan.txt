@@ -1,2 +1,4 @@
 * const
 * Loop conditions in register if enough
+* bitwise operators
+* global variables

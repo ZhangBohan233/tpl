@@ -64,6 +64,8 @@ class TpaParser:
         self.stack_size = 0
         self.lit_len = 0
         self.global_len = 0
+        self.call_stack_begins = 0
+        self.main_takes_arg = 0
         self.func_count = 0
         self.nat_func_count = 0
         self.ins_begins = 0
@@ -73,9 +75,11 @@ class TpaParser:
         self.stack_size = int(self.tokens[0][0])
         self.lit_len = int(self.tokens[1][0])
         self.global_len = int(self.tokens[2][0])
-        self.func_count = int(self.tokens[4][0])
-        self.nat_func_count = int(self.tokens[self.func_count + 5][0])
-        self.ins_begins = self.func_count + 6
+        self.call_stack_begins = int(self.tokens[3][0])
+        self.main_takes_arg = int(self.tokens[4][0])
+        self.func_count = int(self.tokens[6][0])
+        self.nat_func_count = int(self.tokens[self.func_count + 7][0])
+        self.ins_begins = self.func_count + 8
 
     def to_byte_code(self) -> bytes:
         out = bytearray()
@@ -83,7 +87,7 @@ class TpaParser:
         out.extend(typ.int_to_bytes(self.lit_len))
         out.extend(typ.int_to_bytes(self.global_len))
 
-        literal = self.tokens[3]
+        literal = self.tokens[5]
         for ch in literal:  # write literal
             out.append(int(ch))
 

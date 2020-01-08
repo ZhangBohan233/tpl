@@ -36,7 +36,12 @@ OR = 20
 NOT = 21
 NE = 22
 NEG = 23
-CAST_INT = 24  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
+RSHIFT_A = 24  # | arithmetic left shift.  Copy the sign bit
+RSHIFT_L = 25  # | logical left shift.  Fill the sign bit with 0
+LSHIFT = 26
+B_AND = 27
+B_OR = 28
+B_XOR = 29
 
 IF_ZERO_GOTO = 30  # IF0  SKIP  SRC_PTR
 CALL_NAT = 31
@@ -48,6 +53,7 @@ RES_SP = 36
 MOVE_REG = 37  # | copy between registers
 # TO_REL = 37  # | transform absolute addr to
 # ADD_I = 38       # | add with real value
+CAST_INT = 38  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
 # SUB_I = 41
@@ -76,6 +82,12 @@ INT_RESULT_TABLE_INT = {
     "*": MUL,
     "/": DIV,
     "%": MOD,
+    ">>": RSHIFT_A,
+    ">>>": RSHIFT_L,
+    "<<": LSHIFT,
+    "&": B_AND,
+    "|": B_OR,
+    "^": B_XOR,
     ">": GT,
     "==": EQ,
     "!=": NE,
@@ -101,7 +113,13 @@ INT_RESULT_TABLE_INT_FULL = {
     "-=": SUB,
     "*=": MUL,
     "/=": DIV,
-    "%=": MOD
+    "%=": MOD,
+    ">>": RSHIFT_A,
+    ">>>": RSHIFT_L,
+    "<<": LSHIFT,
+    "&": B_AND,
+    "|": B_OR,
+    "^": B_XOR
 }
 
 EXTENDED_INT_RESULT_TABLE_INT = {
@@ -122,7 +140,7 @@ FLOAT_RESULT_TABLE_FLOAT = {
     "%": MOD_F
 }
 
-EXTENDED_FLOAT_RESULT_TABLE_FLOAT = {
+FLOAT_RESULT_TABLE_FLOAT_FULL = {
     **FLOAT_RESULT_TABLE_FLOAT,
     "+=": ADD_F,
     "-=": SUB_F,
@@ -142,6 +160,10 @@ EXTENDED_INT_RESULT_TABLE_FLOAT = {
     **INT_RESULT_TABLE_FLOAT,
     ">=": (GT_F, EQ_F),
     "<=": (LT_F, EQ_F),
+}
+
+WITH_ASSIGN = {
+    "+=", "-=", "*=", "/=", "%=", ">>=", ">>>=", "<<=", "|=", "&=", "^="
 }
 
 
@@ -582,10 +604,13 @@ class MemoryManager:
         self.sp = 1
         self.literal_begins = STACK_SIZE
         self.global_begins = STACK_SIZE + len(literal_bytes)
-        self.gp = self.global_begins + INT_LEN
+        self.functions_begin = 0
+        self.func_p = 0
+        self.gp = self.global_begins
 
-        self.literal = literal_bytes
-        self.global_bytes = bytearray(INT_LEN)  # function counts
+        self.literal: bytearray = literal_bytes
+        self.global_bytes = bytearray()
+        self.functions_bytes = bytearray(INT_LEN)  # function counts
         self.functions = {}
 
         self.blocks = []
@@ -600,6 +625,13 @@ class MemoryManager:
         self.pointer_length = PTR_LEN
 
         self.available_regs64 = [7, 6, 5, 4, 3, 2, 1, 0]
+
+    def set_global_length(self, gl):
+        self.functions_begin = self.global_begins + gl
+        self.func_p = self.functions_begin + INT_LEN  # reserve space for functions count
+
+    def get_global_len(self):
+        return self.functions_begin - self.global_begins
 
     def require_regs64(self, count):
         if count > len(self.available_regs64):
@@ -635,10 +667,11 @@ class MemoryManager:
 
     def allocate(self, length) -> int:
         if len(self.blocks) == 0:  # global
-            ptr = self.sp
+            ptr = self.gp
+            self.gp += length
         else:  # in call
             ptr = self.sp - self.blocks[-1]
-        self.sp += length
+            self.sp += length
         return ptr
 
     def calculate_lit_ptr(self, lit_num):
@@ -649,18 +682,18 @@ class MemoryManager:
 
     def compile_all_functions(self):
         # print(self.functions)
-        self.global_bytes[0:INT_LEN] = typ.int_to_bytes(len(self.functions))
+        self.functions_bytes[0:INT_LEN] = typ.int_to_bytes(len(self.functions))
         for ptr in self.functions:
             fb = self.functions[ptr]
-            ptr_in_g = ptr - self.global_begins
-            self.global_bytes[ptr_in_g: ptr_in_g + PTR_LEN] = typ.int_to_bytes(self.gp)
-            self.global_bytes.extend(fb)
-            self.gp += len(fb)
+            ptr_in_g = ptr - self.functions_begin
+            self.functions_bytes[ptr_in_g: ptr_in_g + PTR_LEN] = typ.int_to_bytes(self.func_p)
+            self.functions_bytes.extend(fb)
+            self.func_p += len(fb)
 
     def define_func_ptr(self):
-        i = self.gp
-        self.global_bytes.extend(bytes(PTR_LEN))
-        self.gp += PTR_LEN
+        i = self.func_p
+        self.functions_bytes.extend(bytes(PTR_LEN))
+        self.func_p += PTR_LEN
         return i
 
     def implement_func(self, func_ptr: int, fn_bytes: bytes):
@@ -714,7 +747,7 @@ class Struct:
 
 
 class Compiler:
-    def __init__(self, literal_bytes: bytes):
+    def __init__(self, literal_bytes: bytearray):
         self.memory = MemoryManager(literal_bytes)
 
         self.modified_string_poses = set()
@@ -766,7 +799,21 @@ class Compiler:
         env.define_function("int", CompileTimeFunction(en.Type("int"), self.function_int))
         env.define_function("float", CompileTimeFunction(en.Type("float"), self.function_float))
 
+    def calculate_global_len(self, root: ast.Node, is_child: bool):
+        if is_child:
+            test_env = en.GlobalEnvironment()
+            test_bo = ByteOutput(self.memory)
+
+            self.compile(root, test_env, test_bo)
+            return self.memory.gp - self.memory.global_begins
+        else:
+            child = Compiler(self.memory.literal.copy())
+            return child.calculate_global_len(root, True)
+
     def compile_all(self, root: ast.Node) -> bytes:
+        global_len = self.calculate_global_len(root, False)
+
+        self.memory.set_global_length(global_len)
         bo = ByteOutput(self.memory)
 
         env = en.GlobalEnvironment()
@@ -778,6 +825,7 @@ class Compiler:
         self.compile(root, env, bo)
         self.memory.compile_all_functions()
 
+        main_take_arg = 0
         if "main" in env.functions:
             main_ptr: Function = env.functions["main"]
             if len(main_ptr.params) == 0:
@@ -785,6 +833,7 @@ class Compiler:
             elif len(main_ptr.params) == 2 and \
                     main_ptr.params[0].tal.type_name == "int" and \
                     main_ptr.params[1].tal.type_name == "**char":
+                main_take_arg = 1
                 self.memory.allocate(INT_LEN + PTR_LEN)
                 bo.push_stack(INT_LEN + PTR_LEN)
                 self.function_call(main_ptr, [(1, INT_LEN), (9, PTR_LEN)], env, bo)
@@ -793,22 +842,23 @@ class Compiler:
                                                "arg count(int) and arg array(**char).")
 
         # print(self.memory.global_bytes)
-        lit_and_global = ByteOutput(self.memory)
-        lit_and_global.write_int(STACK_SIZE)
-        lit_and_global.write_int(len(self.memory.literal))
-        lit_and_global.write_int(len(self.memory.global_bytes))
-        lit_and_global.codes.extend(self.memory.literal)
-        lit_and_global.codes.extend(self.memory.global_bytes)
-        lit_and_global.codes.extend(bo.codes)
-        # print(self.memory.global_bytes)
-        return bytes(lit_and_global)
+        final_result = ByteOutput(self.memory)
+        final_result.write_int(STACK_SIZE)
+        final_result.write_int(len(self.memory.literal))
+        final_result.write_int(self.memory.get_global_len())
+        final_result.write_int(len(self.memory.functions_bytes))
+        final_result.write_one(main_take_arg)
+        final_result.codes.extend(self.memory.literal)
+        final_result.codes.extend(self.memory.functions_bytes)
+        final_result.codes.extend(bo.codes)
+        return bytes(final_result)
 
-    def compile(self, node: ast.Node, env: en.Environment, bo: ByteOutput):
+    def compile(self, node: ast.Node, env: en.Environment, bo: ByteOutput, **kwargs):
         if node is None:
             return 0
         nt = node.node_type
         cmp_ftn = self.node_table[nt]
-        return cmp_ftn(node, env, bo)
+        return cmp_ftn(node, env, bo, **kwargs)
 
     def compile_block_stmt(self, node: ast.BlockStmt, env: en.Environment, bo: ByteOutput):
         for line in node.lines:
@@ -827,6 +877,8 @@ class Compiler:
         return self.compile(node.literal, env, bo)
 
     def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
+        if self.memory.functions_begin == 0:  # not set
+            return 0
         r_tal = get_tal_of_defining_node(node.r_type, env, self.memory)
 
         scope = en.FunctionEnvironment(env)
@@ -866,9 +918,9 @@ class Compiler:
 
         self.memory.restore_stack()
 
-    def compile_name_node(self, node: ast.NameNode, env: en.Environment, bo: ByteOutput):
+    def compile_name_node(self, node: ast.NameNode, env: en.Environment, bo: ByteOutput, assign_const: bool = False):
         lf = node.line_num, node.file
-        ptr = env.get(node.name, lf)
+        ptr = env.get(node.name, lf, assign_const)
         return ptr
 
     def compile_quick_assignment(self, node: ast.QuickAssignmentNode, env: en.Environment, bo: ByteOutput):
@@ -889,7 +941,7 @@ class Compiler:
             r = self.compile(node.right, env, bo)
             if node.level == ast.ASSIGN:
                 tal = get_tal_of_evaluated_node(node.left, env)
-                ptr = env.get(node.left.name, lf)
+                ptr = env.get(node.left.name, lf, assign_const=True)
                 total_len = tal.total_len(self.memory)
 
                 if r < 0:  # r is a register
@@ -899,7 +951,7 @@ class Compiler:
 
         elif node.left.node_type == ast.TYPE_NODE:  # define
             type_node: ast.TypeNode = node.left
-            if node.level == ast.VAR:
+            if node.level == ast.VAR or node.level == ast.CONST:
                 tal = get_tal_of_defining_node(type_node.right, env, self.memory)
                 total_len = tal.total_len(self.memory)
 
@@ -930,7 +982,10 @@ class Compiler:
                     else:
                         bo.assign(ptr, r, total_len)
 
-                env.define_var(type_node.left.name, tal, ptr)
+                if node.level == ast.CONST:
+                    env.define_const(type_node.left.name, tal, ptr)
+                else:
+                    env.define_var(type_node.left.name, tal, ptr)
 
             elif node.level == ast.REGISTER:
                 tal = get_tal_of_defining_node(type_node.right, env, self.memory)
@@ -1246,8 +1301,15 @@ class Compiler:
         l_tal = get_tal_of_evaluated_node(node.left, env)
         r_tal = get_tal_of_evaluated_node(node.right, env)
         # print(l_tal, r_tal, node.operation)
-        if l_tal.type_name == "int" or l_tal.type_name[0] == "*" or en.is_array(l_tal):
+
+        if node.operation in WITH_ASSIGN:
+            # is assignment
+            lp = self.compile(node.left, env, bo, assign_const=True)
+        else:
             lp = self.compile(node.left, env, bo)
+        rp = self.compile(node.right, env, bo)
+
+        if l_tal.type_name == "int" or l_tal.type_name[0] == "*" or en.is_array(l_tal):
             rp = self.compile(node.right, env, bo)
             if r_tal.type_name == "float":
                 rip = self.memory.allocate(FLOAT_LEN)
@@ -1263,8 +1325,6 @@ class Compiler:
             return self.binary_op_int(node.operation, lp, rp, bo)
 
         elif l_tal.type_name == "char":
-            lp = self.compile(node.left, env, bo)
-            rp = self.compile(node.right, env, bo)
 
             lip = self.memory.allocate(INT_LEN)
             bo.push_stack(INT_LEN)
@@ -1284,8 +1344,6 @@ class Compiler:
             return self.binary_op_int(node.operation, lip, rip, bo)
 
         elif l_tal.type_name == "float":
-            lp = self.compile(node.left, env, bo)
-            rp = self.compile(node.right, env, bo)
 
             if r_tal.type_name != "float":
                 if r_tal.type_name == "int":
@@ -1304,7 +1362,7 @@ class Compiler:
         raise lib.CompileTimeException("Unsupported binary operation '{}'".format(node.operation))
 
     def binary_op_float(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
-        if op in EXTENDED_FLOAT_RESULT_TABLE_FLOAT:
+        if op in FLOAT_RESULT_TABLE_FLOAT_FULL:
             if op in FLOAT_RESULT_TABLE_FLOAT:
                 res_pos = self.memory.allocate(FLOAT_LEN)
                 bo.push_stack(FLOAT_LEN)
@@ -1313,7 +1371,7 @@ class Compiler:
                 bo.add_binary_op(op_code, res_pos, lp, rp)
                 return res_pos
             else:
-                op_code = EXTENDED_FLOAT_RESULT_TABLE_FLOAT[op]
+                op_code = FLOAT_RESULT_TABLE_FLOAT_FULL[op]
                 bo.add_binary_op(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_INT_RESULT_TABLE_FLOAT:
@@ -1541,7 +1599,7 @@ class Compiler:
         env.add_struct(node.name, struct)
 
     def compile_in_decrement(self, node: ast.InDecrementOperator, env: en.Environment, bo: ByteOutput):
-        ptr = self.compile(node.value, env, bo)
+        ptr = self.compile(node.value, env, bo, assign_const=True)
         tal = get_tal_of_evaluated_node(node.value, env)
         if node.is_post:
             if node.operation == "++":
@@ -1572,7 +1630,7 @@ class Compiler:
         if isinstance(node, ast.UnaryOperator) and node.operation == "unpack":
             return self.get_unpack_final_pos(node.value, env, bo)
         elif isinstance(node, ast.NameNode):
-            return env.get(node.name, (node.line_num, node.file))
+            return env.get(node.name, (node.line_num, node.file), False)
         elif isinstance(node, ast.Expr):
             return self.compile(node, env, bo)
         else:

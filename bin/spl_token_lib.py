@@ -9,7 +9,7 @@ TERNARY_OPERATORS = {"?": True, ":": False}  # the bool value indicate whether t
 BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mod",
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
-                    "<<": "lshift", ">>": "rshift", "===": "", "!==": "", "instanceof": "",
+                    "<<": "lshift", ">>": "rshift_a", ">>>": "rshift_l", "===": "", "!==": "", "instanceof": "",
                     "subclassof": "", ":": "", "->": "lambda", "<-": "extendedby"}
 UNARY_OPERATORS = {"!": "not"}
 OTHERS = {"=", "@", ":", ":="}

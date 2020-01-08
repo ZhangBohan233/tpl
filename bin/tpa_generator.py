@@ -12,15 +12,17 @@ VOID_LEN = 0
 class TPAssemblyCompiler:
     def __init__(self, codes: bytes):
 
-        self.codes = codes[INT_LEN * 3:]
+        self.codes = codes[INT_LEN * 4 + 1:]
 
-        self.stack_size, self.literal_len, self.global_len = \
+        self.stack_size, self.literal_len, self.global_len, self.func_len = \
             typ.bytes_to_int(codes[:INT_LEN]), \
-            typ.bytes_to_int(codes[INT_LEN:INT_LEN * 2]), \
-            typ.bytes_to_int(codes[INT_LEN * 2:INT_LEN * 3])
-        self.global_begin = self.literal_len
-        self.code_begin = self.global_begin + self.global_len
-        self.pc = self.global_begin
+            typ.bytes_to_int(codes[INT_LEN: INT_LEN * 2]), \
+            typ.bytes_to_int(codes[INT_LEN * 2: INT_LEN * 3]), \
+            typ.bytes_to_int(codes[INT_LEN * 3: INT_LEN * 4])
+        self.main_take_arg = codes[INT_LEN * 4]
+        self.func_code_begins = self.literal_len
+        self.code_begin = self.func_code_begins + self.func_len
+        self.pc = self.func_code_begins
 
         self.func_begin_pc = 0
 
@@ -31,10 +33,14 @@ class TPAssemblyCompiler:
         out_stream.write(str(self.stack_size))
         out_stream.write("\n//LITERAL LENGTH:\n")
         out_stream.write(str(self.literal_len))
-        out_stream.write("\n//GLOBAL LENGTH:\n")
+        out_stream.write("\n//GLOBAL MEMORY LENGTH:\n")
         out_stream.write(str(self.global_len))
+        out_stream.write("\n//FUNCTIONS LENGTH:\n")
+        out_stream.write(str(self.func_len))
+        out_stream.write("\n//MAIN TAKES ARG:\n")
+        out_stream.write("%" + str(self.main_take_arg))
         out_stream.write("\n//LITERALS:\n")
-        for i in range(self.global_begin):
+        for i in range(self.func_code_begins):
             out_stream.write(str(self.codes[i]) + " ")
         out_stream.write("\n")
 
@@ -60,7 +66,7 @@ class TPAssemblyCompiler:
             out_stream.write("#{} ".format(self.pc - self.func_begin_pc))
             self.one_loop(out_stream)
 
-        out_stream.write("\n//MAIN: \n")
+        out_stream.write("\n//MAIN:\n")
 
         while self.pc < length:  # main codes
             # out_stream.write("#{} ".format(self.pc))
@@ -129,6 +135,18 @@ class TPAssemblyCompiler:
             out_stream.write("NE              %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.NEG:
             out_stream.write("NEG             %{}\n".format(self.read_one()))
+        elif instruction == cpl.RSHIFT_A:
+            out_stream.write("RSHIFT_A        %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.RSHIFT_L:
+            out_stream.write("RSHIFT_L        %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.LSHIFT:
+            out_stream.write("LSHIFT          %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.B_AND:
+            out_stream.write("B_AND           %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.B_OR:
+            out_stream.write("B_OR            %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.B_XOR:
+            out_stream.write("B_XOR           %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.IF_ZERO_GOTO:
             out_stream.write("IF_ZERO_GOTO    %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.CALL_NAT:

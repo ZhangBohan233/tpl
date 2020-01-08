@@ -73,7 +73,7 @@ class Environment:
         # self.var_count = 0
 
         self.variables: dict[str: int] = {}
-        self.constants = {}
+        self.constants: dict[str: int] = {}
         self.var_types: dict[str: Type] = {}  # name: (type name, arr len)
 
     def add_register(self, reg_id_neg):
@@ -106,17 +106,17 @@ class Environment:
             raise VariableException("Name '{}' already defined in this scope".format(name))
 
         # self.constants[name] = Variable(type_name, mem.MEMORY.type_sizes[type_name], ptr, array_length)
-        self.variables[name] = ptr
+        self.constants[name] = ptr
         self.var_types[name] = type_
 
-    def assign(self, name: str, ptr: int, lf):
-        if name in self.variables:
-            self.variables[name] = ptr
-        elif not self.is_global():
-            self.outer.assign(name, ptr, lf)
-        else:
-            raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
-                                    .format(name, lf[1], lf[0]))
+    # def assign(self, name: str, ptr: int, lf):
+    #     if name in self.variables:
+    #         self.variables[name] = ptr
+    #     elif not self.is_global():
+    #         self.outer.assign(name, ptr, lf)
+    #     else:
+    #         raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
+    #                                 .format(name, lf[1], lf[0]))
 
     def define_function(self, name: str, func):
         raise EnvironmentException("Function must be declared in global scope")
@@ -128,12 +128,16 @@ class Environment:
     def get_function(self, name: str, lf):
         return self.outer.get_function(name, lf)
 
-    def get(self, name: str, lf):
+    def get(self, name: str, lf, assign_const: bool):
         if name in self.constants:
-            return self.constants[name]
+            if assign_const:
+                raise EnvironmentException("Cannot assign constant '{}', in file '{}', at line {}"
+                                           .format(name, lf[1], lf[0]))
+            else:
+                return self.constants[name]
         if name in self.variables:
             return self.variables[name]
-        return self.outer.get(name, lf)
+        return self.outer.get(name, lf, assign_const)
 
     def get_type_arr_len(self, name: str, lf) -> (str, int):
         if name in self.var_types:
@@ -199,9 +203,13 @@ class GlobalEnvironment(MainAbstractEnvironment):
     def is_struct(self, name: str):
         return name in self.structs
 
-    def get(self, name: str, lf):
+    def get(self, name: str, lf, assign_const: bool):
         if name in self.constants:
-            return self.constants[name]
+            if assign_const:
+                raise EnvironmentException("Cannot assign constant '{}', in file '{}', at line {}"
+                                           .format(name, lf[1], lf[0]))
+            else:
+                return self.constants[name]
         if name in self.variables:
             return self.variables[name]
         if name in self.structs:

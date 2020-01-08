@@ -4,6 +4,6 @@ fn main(argc: int, argv: **char) int {
 
     var v: float = str_to_float(argv[2]);
     printf("%f\n", v);
-    return 0;
+    return 1;
 
 }

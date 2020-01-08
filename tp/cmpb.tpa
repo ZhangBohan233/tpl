@@ -1,0 +1,47 @@
+//STACK SIZE
+1024
+//LITERAL LENGTH:
+16
+//GLOBAL LENGTH:
+166
+//MAIN TAKES ARG:
+%0
+//LITERALS:
+5 0 0 0 0 0 0 0 77 0 0 0 0 0 0 0 
+//FUNCTIONS COUNT:
+6
+//FUNCTION POINTERS:
+1096
+1104
+1112
+1120
+1128
+1136
+//NATIVE FUNCTIONS COUNT:
+5
+
+//FUNCTIONS: 
+#0 LOAD_I          %0  8
+#10 PUSH            %0
+#12 LOAD_I          %0  0
+#22 LOAD_I          %1  1032
+#32 LOAD_I          %2  8
+#42 ASSIGN          %0  %1  %2
+#46 LOAD_I          %0  0
+#56 LOAD_I          %1  8
+#66 RETURN          %0  %1
+#69 STOP
+
+
+//MAIN:
+LOAD_I          %0  8
+PUSH            %0
+LOAD_I          %0  1
+LOAD_I          %1  1024
+LOAD_I          %2  8
+ASSIGN          %0  %1  %2
+LOAD_I          %0  8
+PUSH            %0
+LOAD_I          %0  1088
+LOAD_I          %1  0
+CALL            %0  %1

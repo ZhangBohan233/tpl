@@ -1,3 +1,16 @@
+#### Build 1033 ####
+2020/01/07
+
+* Global variable is now supported
+* Implemented constant declaration
+* New binary operators for int:
+    * Bitwise operators '>>', '>>>', '<<', '&', '|', '^'
+* Changed the memory structure:
+    * Added the global variable segment
+    * Current memory structure:
+        * Stack, literal, globals, functions, codes, heap
+
+
 #### Build 1032 ####
 2020/01/07
 
