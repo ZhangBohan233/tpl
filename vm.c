@@ -40,7 +40,7 @@ int MAIN_HAS_ARG = 0;
 const int_fast64_t MEMORY_SIZE = 16384;
 unsigned char MEMORY[16384];
 
-uint_fast64_t SP = 1;
+uint_fast64_t SP = 9;
 uint_fast64_t PC = 1024;
 
 uint_fast64_t CALL_STACK[1000];  // recursion limit
@@ -339,17 +339,13 @@ int str_len(const char *s) {
 
 void vm_set_args(int vm_argc, char **vm_argv) {
     if (MAIN_HAS_ARG) {
-        int_to_bytes(MEMORY + 1, vm_argc);
-        int_to_bytes(MEMORY + INT_LEN + 1, 234);
+        int_to_bytes(MEMORY + FUNCTIONS_START - 16, vm_argc);
 
-        _native_malloc(INT_LEN + 1, PTR_LEN * vm_argc);
-        int_fast64_t first_arg_pos = bytes_to_int(MEMORY + INT_LEN + 1);
-//        printf("%d\n", vm_argc);
+        _native_malloc(FUNCTIONS_START - 8, PTR_LEN * vm_argc);
+        int_fast64_t first_arg_pos = bytes_to_int(MEMORY + FUNCTIONS_START - 8);
 
         for (int i = 0; i < vm_argc; i++) {
-//            printf("%s\n", vm_argv[i]);
             unsigned int arg_len = str_len(vm_argv[i]) + 1;
-//            printf("%u\n", arg_len);
             _native_malloc(first_arg_pos + PTR_LEN * i, arg_len);
             int_fast64_t ptr = bytes_to_int(MEMORY + first_arg_pos + PTR_LEN * i);
             memcpy(MEMORY + ptr, vm_argv[i], arg_len);
@@ -392,12 +388,11 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
 
-//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // true ftn ptr
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++CSP] = SP - regs64[reg_p2].int_value;
-//                printf("%lld\n", CALL_STACK[CSP]);
+//                printf("call %lld\n", SP);
 
                 PC = regs64[reg_p1].int_value;
                 break;
@@ -720,7 +715,7 @@ void test() {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        printf("Usage: tpl.exe -[VM_FLAGS] FILE -[PROGRAM_FLAGS]");
+        printf("Usage: tpl.exe [VM_FLAGS] FILE [PROGRAM_FLAGS]");
         exit(1);
     }
 

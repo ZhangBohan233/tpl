@@ -246,6 +246,35 @@ class ByteOutput:
 
         self.manager.append_regs64(reg2, reg1)
 
+    def call_main(self, ftn_ptr: int, args: list):
+        reg1, reg2 = self.manager.require_regs64(2)
+
+        spb = self.manager.sp + 8
+        i = 0
+        for arg in args:
+            ptr = spb + i
+
+            self.assign(ptr, arg[0], arg[1])
+            self.push_stack(arg[1])
+
+            i += arg[1]
+
+        self.manager.sp = spb
+
+        self.write_one(LOAD_I)
+        self.write_one(reg1)  # ftn ptr
+        self.write_int(ftn_ptr)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg2)  # args length
+        self.write_int(i)
+
+        self.write_one(CALL)
+        self.write_one(reg1)
+        self.write_one(reg2)
+
+        self.manager.append_regs64(reg2, reg1)
+
     def call(self, is_native: bool, ftn_ptr: int, args: list):
         """
 
@@ -259,8 +288,8 @@ class ByteOutput:
         spb = self.manager.sp
         i = 0
         for arg in args:
-            ptr = self.manager.allocate(arg[1])
-            self.push_stack(arg[1])
+            ptr = self.manager.allocate(arg[1], self)
+            # self.push_stack(arg[1])
 
             if arg[0] < 0:  # register:
                 self.store_from_reg(ptr, arg[0])
@@ -665,13 +694,15 @@ class MemoryManager:
     def restore_sp(self):
         self.sp = self.loop_sp_stack.pop()
 
-    def allocate(self, length) -> int:
+    def allocate(self, length, bo) -> int:
         if len(self.blocks) == 0:  # global
             ptr = self.gp
             self.gp += length
         else:  # in call
             ptr = self.sp - self.blocks[-1]
             self.sp += length
+            if bo is not None:
+                bo.push_stack(length)
         return ptr
 
     def calculate_lit_ptr(self, lit_num):
@@ -796,6 +827,7 @@ class Compiler:
 
     def add_compile_time_functions(self, env: en.GlobalEnvironment):
         env.define_function("sizeof", CompileTimeFunction(en.Type("int"), self.function_sizeof))
+        env.define_function("char", CompileTimeFunction(en.Type("char"), self.function_char))
         env.define_function("int", CompileTimeFunction(en.Type("int"), self.function_int))
         env.define_function("float", CompileTimeFunction(en.Type("float"), self.function_float))
 
@@ -825,18 +857,20 @@ class Compiler:
         self.compile(root, env, bo)
         self.memory.compile_all_functions()
 
+        global_ends = self.memory.functions_begin
+
         main_take_arg = 0
         if "main" in env.functions:
             main_ptr: Function = env.functions["main"]
             if len(main_ptr.params) == 0:
-                self.function_call(main_ptr, [], env, bo)
+                self.call_main(main_ptr, [], bo)
             elif len(main_ptr.params) == 2 and \
                     main_ptr.params[0].tal.type_name == "int" and \
                     main_ptr.params[1].tal.type_name == "**char":
                 main_take_arg = 1
-                self.memory.allocate(INT_LEN + PTR_LEN)
-                bo.push_stack(INT_LEN + PTR_LEN)
-                self.function_call(main_ptr, [(1, INT_LEN), (9, PTR_LEN)], env, bo)
+                # self.memory.allocate(INT_LEN + PTR_LEN, None)
+                # bo.push_stack(INT_LEN + PTR_LEN)
+                self.call_main(main_ptr, [(global_ends - 16, INT_LEN), (global_ends - 8, PTR_LEN)], bo)
             else:
                 raise lib.CompileTimeException("Function main must either have zero parameters or two parameters "
                                                "arg count(int) and arg array(**char).")
@@ -878,6 +912,18 @@ class Compiler:
 
     def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
         if self.memory.functions_begin == 0:  # not set
+            if node.name == "main":
+                if len(node.params.lines) == 2:
+                    argc: ast.TypeNode = node.params.lines[0]
+                    argv: ast.TypeNode = node.params.lines[1]
+                    if argc.right.name == "int":
+                        if isinstance(argv.right, ast.UnaryOperator) and \
+                                argv.right.operation == "unpack" and \
+                                isinstance(argv.right.value, ast.UnaryOperator) and \
+                                argv.right.value.operation == "unpack":
+                            argv_type: ast.NameNode = argv.right.value.value
+                            if argv_type.name == "char":
+                                self.memory.gp += INT_LEN + PTR_LEN
             return 0
         r_tal = get_tal_of_defining_node(node.r_type, env, self.memory)
 
@@ -891,7 +937,7 @@ class Compiler:
             tal = get_tal_of_defining_node(tn.right, env, self.memory)
             total_len = tal.total_len(self.memory)
 
-            ptr = self.memory.allocate(total_len)
+            ptr = self.memory.allocate(total_len, None)
 
             scope.define_var(name_node.name, tal, ptr)
 
@@ -927,8 +973,8 @@ class Compiler:
         name: str = node.left.name
         tal = get_tal_of_evaluated_node(node.right, env)
         length = tal.total_len(self.memory)
-        r_ptr = self.memory.allocate(length)
-        bo.push_stack(length)
+        r_ptr = self.memory.allocate(length, bo)
+        # bo.push_stack(length)
         r = self.compile(node.right, env, bo)  # TODO: optimize
         env.define_var(name, tal, r_ptr)
         bo.assign(r_ptr, r, length)
@@ -962,8 +1008,8 @@ class Compiler:
 
                 if en.is_pointer(tal):
                     assert total_len == PTR_LEN
-                    ptr = self.memory.allocate(PTR_LEN)
-                    bo.push_stack(PTR_LEN)
+                    ptr = self.memory.allocate(PTR_LEN, bo)
+                    # bo.push_stack(PTR_LEN)
 
                     r = self.compile(node.right, env, bo)
 
@@ -972,8 +1018,8 @@ class Compiler:
                     ptr = self.compile_array_creation(node.right, env, tal, bo)
 
                 else:
-                    ptr = self.memory.allocate(total_len)
-                    bo.push_stack(total_len)
+                    ptr = self.memory.allocate(total_len, bo)
+                    # bo.push_stack(total_len)
 
                     r = self.compile(node.right, env, bo)
 
@@ -1032,10 +1078,10 @@ class Compiler:
         # print(tal)
         # if len(tal.array_lengths) == 1:
         total_len = tal.total_len(self.memory)
-        ptr = self.memory.allocate(PTR_LEN)
-        bo.push_stack(PTR_LEN)
-        arr_addr = self.memory.allocate(total_len)
-        bo.push_stack(total_len)
+        ptr = self.memory.allocate(PTR_LEN, bo)
+        # bo.push_stack(PTR_LEN)
+        arr_addr = self.memory.allocate(total_len, bo)
+        # bo.push_stack(total_len)
         bo.store_addr_to_des(ptr, arr_addr)
 
         if assign_right:
@@ -1065,8 +1111,8 @@ class Compiler:
     def compile_getitem(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
         indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
 
-        result_ptr = self.memory.allocate(unit_len)
-        bo.push_stack(unit_len)
+        result_ptr = self.memory.allocate(unit_len, bo)
+        # bo.push_stack(unit_len)
         bo.unpack_addr(result_ptr, indexing_ptr, unit_len)
         return result_ptr
 
@@ -1078,8 +1124,8 @@ class Compiler:
     def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput):
         attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
 
-        res_ptr = self.memory.allocate(length)
-        bo.push_stack(length)
+        res_ptr = self.memory.allocate(length, bo)
+        # bo.push_stack(length)
 
         bo.unpack_addr(res_ptr, attr_addr, length)
         # print(res_ptr, attr_addr, length)
@@ -1124,8 +1170,8 @@ class Compiler:
             arr_addr_ptr, tal, lll = self.indexing_ptr(node.call_obj, env, bo)
         elif isinstance(node.call_obj, ast.NameNode):
             arr_self_addr = self.compile(node.call_obj, env, bo)
-            arr_addr_ptr = self.memory.allocate(PTR_LEN)  # pointer storing the addr of arr head
-            bo.push_stack(PTR_LEN)
+            arr_addr_ptr = self.memory.allocate(PTR_LEN, bo)  # pointer storing the addr of arr head
+            # bo.push_stack(PTR_LEN)
             bo.store_addr_to_des(arr_addr_ptr, arr_self_addr)
             tal = get_tal_of_evaluated_node(node.call_obj, env)
         else:
@@ -1146,12 +1192,12 @@ class Compiler:
 
         index_num_ptr = self.compile(node.arg.lines[0], env, bo)
 
-        indexing_addr = self.memory.allocate(PTR_LEN)
-        bo.push_stack(PTR_LEN)
+        indexing_addr = self.memory.allocate(PTR_LEN, bo)
+        # bo.push_stack(PTR_LEN)
 
         bo.unpack_addr(indexing_addr, arr_addr_ptr, PTR_LEN)  # now store the addr of array content
-        unit_len_ptr = self.memory.allocate(INT_LEN)
-        bo.push_stack(INT_LEN)
+        unit_len_ptr = self.memory.allocate(INT_LEN, bo)
+        # bo.push_stack(INT_LEN)
         bo.assign_i(unit_len_ptr, length)
         bo.add_binary_op(MUL, unit_len_ptr, unit_len_ptr, index_num_ptr)
         bo.add_binary_op(ADD, indexing_addr, indexing_addr, unit_len_ptr)
@@ -1176,14 +1222,14 @@ class Compiler:
         # print(struct, attr_tal, struct_ptr)
 
         if node.dot_count == 1:  # self
-            addr_ptr = self.memory.allocate(PTR_LEN)
-            bo.push_stack(PTR_LEN)
+            addr_ptr = self.memory.allocate(PTR_LEN, bo)
+            # bo.push_stack(PTR_LEN)
             bo.store_addr_to_des(addr_ptr, struct_ptr + attr_pos)
             return addr_ptr, attr_len
         elif node.dot_count == 2:
             # print(struct_ptr)
-            real_addr_ptr = self.memory.allocate(PTR_LEN)
-            bo.push_stack(PTR_LEN)
+            real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
+            # bo.push_stack(PTR_LEN)
             bo.assign(real_addr_ptr, struct_ptr, attr_len)
             bo.op_i(ADD, real_addr_ptr, attr_pos)
             return real_addr_ptr, attr_len
@@ -1218,6 +1264,12 @@ class Compiler:
         else:
             raise lib.CompileTimeException("Unexpected function type")
 
+    def call_main(self, func: Function, args: list, bo: ByteOutput):
+        # self.memory.push_stack()
+        r_ptr = self.memory.allocate(INT_LEN, bo)
+        bo.call_main(func.ptr, args)
+        # self.memory.restore_stack()
+
     def function_call(self, func: Function, args: list, call_env: en.Environment, bo: ByteOutput):
         if len(args) != len(func.params):
             raise lib.CompileTimeException("Function requires {} arguments, {} given"
@@ -1225,8 +1277,8 @@ class Compiler:
 
         r_len = func.r_tal.total_len(self.memory)
 
-        r_ptr = self.memory.allocate(r_len)
-        bo.push_stack(r_len)
+        r_ptr = self.memory.allocate(r_len, bo)
+        # bo.push_stack(r_len)
 
         bo.call(False, func.ptr, args)
 
@@ -1235,8 +1287,8 @@ class Compiler:
     def native_function_call(self, func: NativeFunction, args: list, call_env, bo: ByteOutput):
         r_len = func.r_tal.total_len(self.memory)
 
-        r_ptr = self.memory.allocate(r_len)
-        bo.push_stack(r_len)
+        r_ptr = self.memory.allocate(r_len, bo)
+        # bo.push_stack(r_len)
 
         bo.call(True, func.ptr, args)
 
@@ -1247,8 +1299,8 @@ class Compiler:
             num_ptr = self.compile(node.value, env, bo)
             if num_ptr < 0:
                 raise lib.CompileTimeException("Register has no memory address")
-            ptr_ptr = self.memory.allocate(PTR_LEN)
-            bo.push_stack(PTR_LEN)
+            ptr_ptr = self.memory.allocate(PTR_LEN, bo)
+            # bo.push_stack(PTR_LEN)
             # bo.assign_i(ptr_ptr, num_ptr)
             bo.store_addr_to_des(ptr_ptr, num_ptr)
             return ptr_ptr
@@ -1257,9 +1309,9 @@ class Compiler:
             total_len = orig_tal.total_len(self.memory)
             ptr_ptr = self.compile(node.value, env, bo)
             # print(total_len)
-            num_ptr = self.memory.allocate(total_len)
+            num_ptr = self.memory.allocate(total_len, bo)
             # print(num_ptr)
-            bo.push_stack(total_len)
+            # bo.push_stack(total_len)
             bo.unpack_addr(num_ptr, ptr_ptr, total_len)
             return num_ptr
         elif node.operation == "!":
@@ -1267,29 +1319,29 @@ class Compiler:
             if v_tal.total_len(self.memory) != INT_LEN:
                 raise lib.CompileTimeException()
             vp = self.compile(node.value, env, bo)
-            res_ptr = self.memory.allocate(INT_LEN)
-            bo.push_stack(INT_LEN)
+            res_ptr = self.memory.allocate(INT_LEN, bo)
+            # bo.push_stack(INT_LEN)
             bo.add_unary_op(NOT, res_ptr, vp)
             return res_ptr
         elif node.operation == "neg":
             v_tal = get_tal_of_evaluated_node(node.value, env)
             vp = self.compile(node.value, env, bo)
             if v_tal.type_name == "int":
-                res_ptr = self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
+                res_ptr = self.memory.allocate(INT_LEN, bo)
+                # bo.push_stack(INT_LEN)
                 bo.add_unary_op(NEG, res_ptr, vp)
                 return res_ptr
             elif v_tal.type_name == "char":  # TODO: May contain bugs
-                res_ptr = self.memory.allocate(CHAR_LEN)
-                bo.push_stack(CHAR_LEN)
-                trans_ptr = self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
+                res_ptr = self.memory.allocate(CHAR_LEN, bo)
+                # bo.push_stack(CHAR_LEN)
+                trans_ptr = self.memory.allocate(INT_LEN, bo)
+                # bo.push_stack(INT_LEN)
                 bo.cast_to_int(trans_ptr, vp, CHAR_LEN)
                 bo.add_unary_op(NEG, res_ptr, trans_ptr)
                 return res_ptr
             elif v_tal.type_name == "float":
-                res_ptr = self.memory.allocate(FLOAT_LEN)
-                bo.push_stack(FLOAT_LEN)
+                res_ptr = self.memory.allocate(FLOAT_LEN, bo)
+                # bo.push_stack(FLOAT_LEN)
                 bo.add_unary_op(NEG_F, res_ptr, vp)
                 return res_ptr
             else:
@@ -1312,13 +1364,13 @@ class Compiler:
         if l_tal.type_name == "int" or l_tal.type_name[0] == "*" or en.is_array(l_tal):
             rp = self.compile(node.right, env, bo)
             if r_tal.type_name == "float":
-                rip = self.memory.allocate(FLOAT_LEN)
-                bo.push_stack(FLOAT_LEN)
+                rip = self.memory.allocate(FLOAT_LEN, bo)
+                # bo.push_stack(FLOAT_LEN)
                 bo.float_to_int(rip, rp)
                 rp = rip
             elif r_tal.type_name != "int" and r_tal.type_name[0] != "*":
-                rip = self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
+                rip = self.memory.allocate(INT_LEN, bo)
+                # bo.push_stack(INT_LEN)
                 bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
                 rp = rip
 
@@ -1326,17 +1378,17 @@ class Compiler:
 
         elif l_tal.type_name == "char":
 
-            lip = self.memory.allocate(INT_LEN)
-            bo.push_stack(INT_LEN)
+            lip = self.memory.allocate(INT_LEN, bo)
+            # bo.push_stack(INT_LEN)
             bo.cast_to_int(lip, lp, CHAR_LEN)
 
             if r_tal.type_name == "float":
-                rip = self.memory.allocate(FLOAT_LEN)
-                bo.push_stack(FLOAT_LEN)
+                rip = self.memory.allocate(FLOAT_LEN, bo)
+                # bo.push_stack(FLOAT_LEN)
                 bo.float_to_int(rip, rp)
             elif r_tal.type_name != "int":
-                rip = self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
+                rip = self.memory.allocate(INT_LEN, bo)
+                # bo.push_stack(INT_LEN)
                 bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
             else:
                 rip = rp
@@ -1349,11 +1401,11 @@ class Compiler:
                 if r_tal.type_name == "int":
                     rip = rp
                 else:
-                    rip = self.memory.allocate(INT_LEN)
-                    bo.push_stack(INT_LEN)
+                    rip = self.memory.allocate(INT_LEN, bo)
+                    # bo.push_stack(INT_LEN)
                     bo.cast_to_int(rip, rp, r_tal.total_len(self.memory))
-                rfp = self.memory.allocate(FLOAT_LEN)
-                bo.push_stack(FLOAT_LEN)
+                rfp = self.memory.allocate(FLOAT_LEN, bo)
+                # bo.push_stack(FLOAT_LEN)
                 bo.int_to_float(rfp, rip)
                 rp = rfp
 
@@ -1364,8 +1416,8 @@ class Compiler:
     def binary_op_float(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
         if op in FLOAT_RESULT_TABLE_FLOAT_FULL:
             if op in FLOAT_RESULT_TABLE_FLOAT:
-                res_pos = self.memory.allocate(FLOAT_LEN)
-                bo.push_stack(FLOAT_LEN)
+                res_pos = self.memory.allocate(FLOAT_LEN, bo)
+                # bo.push_stack(FLOAT_LEN)
 
                 op_code = FLOAT_RESULT_TABLE_FLOAT[op]
                 bo.add_binary_op(op_code, res_pos, lp, rp)
@@ -1375,8 +1427,8 @@ class Compiler:
                 bo.add_binary_op(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_INT_RESULT_TABLE_FLOAT:
-            res_pos = self.memory.allocate(INT_LEN)
-            bo.push_stack(INT_LEN)
+            res_pos = self.memory.allocate(INT_LEN, bo)
+            # bo.push_stack(INT_LEN)
 
             if op in INT_RESULT_TABLE_FLOAT:
                 op_code = INT_RESULT_TABLE_FLOAT[op]
@@ -1384,10 +1436,10 @@ class Compiler:
                 return res_pos
             else:
                 op_tup = EXTENDED_INT_RESULT_TABLE_FLOAT[op]
-                l_res = self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
-                r_res = self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
+                l_res = self.memory.allocate(INT_LEN, bo)
+                # bo.push_stack(INT_LEN)
+                r_res = self.memory.allocate(INT_LEN, bo)
+                # bo.push_stack(INT_LEN)
                 bo.add_binary_op(op_tup[0], l_res, lp, rp)
                 bo.add_binary_op(op_tup[1], r_res, lp, rp)
                 bo.add_binary_op(OR, res_pos, l_res, r_res)
@@ -1396,8 +1448,8 @@ class Compiler:
     def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
         if op in INT_RESULT_TABLE_INT_FULL:
             if op in INT_RESULT_TABLE_INT:
-                res_pos = self.memory.allocate(INT_LEN)
-                bo.push_stack(INT_LEN)
+                res_pos = self.memory.allocate(INT_LEN, bo)
+                # bo.push_stack(INT_LEN)
 
                 op_code = INT_RESULT_TABLE_INT[op]
                 bo.add_binary_op(op_code, res_pos, lp, rp)
@@ -1407,8 +1459,8 @@ class Compiler:
                 bo.add_binary_op(op_code, lp, lp, rp)
                 return lp
         elif op in EXTENDED_INT_RESULT_TABLE_INT:
-            res_pos = self.memory.allocate(INT_LEN)
-            bo.push_stack(INT_LEN)
+            res_pos = self.memory.allocate(INT_LEN, bo)
+            # bo.push_stack(INT_LEN)
 
             # if op in BOOL_RESULT_TABLE_INT:
             #     op_code = BOOL_RESULT_TABLE_INT[op]
@@ -1416,10 +1468,10 @@ class Compiler:
             #     return res_pos
             # else:
             op_tup = EXTENDED_INT_RESULT_TABLE_INT[op]
-            l_res = self.memory.allocate(INT_LEN)
-            bo.push_stack(INT_LEN)
-            r_res = self.memory.allocate(INT_LEN)
-            bo.push_stack(INT_LEN)
+            l_res = self.memory.allocate(INT_LEN, bo)
+            # bo.push_stack(INT_LEN)
+            r_res = self.memory.allocate(INT_LEN, bo)
+            # bo.push_stack(INT_LEN)
             bo.add_binary_op(op_tup[0], l_res, lp, rp)
             bo.add_binary_op(op_tup[1], r_res, lp, rp)
             bo.add_binary_op(OR, res_pos, l_res, r_res)
@@ -1460,8 +1512,8 @@ class Compiler:
         self.memory.store_sp()
         bo.write_one(STORE_SP)  # before loop
 
-        loop_indicator = self.memory.allocate(INT_LEN)
-        bo.push_stack(INT_LEN)
+        loop_indicator = self.memory.allocate(INT_LEN, bo)
+        # bo.push_stack(INT_LEN)
         bo.assign_i(loop_indicator, 1)
 
         title_env = en.LoopEnvironment(env)
@@ -1475,8 +1527,8 @@ class Compiler:
         bo.write_one(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
 
-        real_cond_ptr = self.memory.allocate(INT_LEN)
-        bo.push_stack(INT_LEN)
+        real_cond_ptr = self.memory.allocate(INT_LEN, bo)
+        # bo.push_stack(INT_LEN)
         bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
@@ -1507,8 +1559,8 @@ class Compiler:
         self.memory.store_sp()  # 进loop之前
         bo.write_one(STORE_SP)
 
-        loop_indicator = self.memory.allocate(INT_LEN)
-        bo.push_stack(INT_LEN)
+        loop_indicator = self.memory.allocate(INT_LEN, bo)
+        # bo.push_stack(INT_LEN)
         bo.assign_i(loop_indicator, 1)
 
         init_len = len(bo)
@@ -1520,8 +1572,8 @@ class Compiler:
 
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
 
-        real_cond_ptr = self.memory.allocate(INT_LEN)
-        bo.push_stack(INT_LEN)
+        real_cond_ptr = self.memory.allocate(INT_LEN, bo)
+        # bo.push_stack(INT_LEN)
         bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
@@ -1573,8 +1625,8 @@ class Compiler:
         return 0
 
     def compile_null(self, node, env, bo: ByteOutput):
-        null_ptr = self.memory.allocate(PTR_LEN)
-        bo.push_stack(PTR_LEN)
+        null_ptr = self.memory.allocate(PTR_LEN, bo)
+        # bo.push_stack(PTR_LEN)
         bo.assign_i(null_ptr, 0)
         return null_ptr
 
@@ -1604,15 +1656,15 @@ class Compiler:
         if node.is_post:
             if node.operation == "++":
                 if tal.type_name == "int":
-                    r_ptr = self.memory.allocate(INT_LEN)
-                    bo.push_stack(INT_LEN)
+                    r_ptr = self.memory.allocate(INT_LEN, bo)
+                    # bo.push_stack(INT_LEN)
                     bo.assign(r_ptr, ptr, INT_LEN)
                     bo.op_i(ADD, ptr, 1)
                     return r_ptr
             elif node.operation == "--":
                 if tal.type_name == "int":
-                    r_ptr = self.memory.allocate(INT_LEN)
-                    bo.push_stack(INT_LEN)
+                    r_ptr = self.memory.allocate(INT_LEN, bo)
+                    # bo.push_stack(INT_LEN)
                     bo.assign(r_ptr, ptr, INT_LEN)
                     bo.op_i(SUB, ptr, 1)
                     return r_ptr
@@ -1639,8 +1691,8 @@ class Compiler:
     def call_compile_time_functions(self, func: CompileTimeFunction, arg_node: ast.BlockStmt, env: en.Environment,
                                     bo: ByteOutput):
         r_len = func.r_tal.total_len(self.memory)
-        r_ptr = self.memory.allocate(r_len)
-        bo.push_stack(r_len)
+        r_ptr = self.memory.allocate(r_len, bo)
+        # bo.push_stack(r_len)
 
         return func.func(r_ptr, env, bo, arg_node.lines)
 
@@ -1655,6 +1707,9 @@ class Compiler:
         size = self.memory.get_type_size(arg.name)
         bo.assign_i(r_ptr, size)
         return r_ptr
+
+    def function_char(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+        pass
 
     def function_int(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
         if len(args) != 1:

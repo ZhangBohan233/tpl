@@ -1,9 +1,13 @@
+include "lang"
 include "string"
 
 fn main(argc: int, argv: **char) int {
 
-    var v: float = str_to_float(argv[2]);
-    printf("%f\n", v);
-    return 1;
+    if TRUE {
+        var v: float = str_to_float(argv[2]);
+        printf("%f\n", v);
+    }
+
+    return argc;
 
 }

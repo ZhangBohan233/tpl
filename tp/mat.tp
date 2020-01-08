@@ -1,12 +1,8 @@
-const a: int = 5;
-const g: float = 3.2;
 
-fn test() int {
-    return 1 << a;
-}
 
 fn main() int {
-    var b: int = 77;
-    printf("%d\n", &b);
-    return test();
+    if FALSE {
+        printf("113\n");
+    } else printf("ggg\n");
 }
+

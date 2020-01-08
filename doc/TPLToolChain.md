@@ -4,5 +4,37 @@
 
 ## Introduction
 
-**TPL Tool Chain** is the native compiler-virtual machine set of **Trash Programming Language (TPL)**.
+**TPL Tool Chain** is the native parser-compiler-virtual machine set of **Trash Programming Language (TPL)**.
 
+## Compiler Tool Set
+
+The TPL compiler set is made up by a tokenizer, a parser, an abstract syntax tree optimizer, a compiler, and 
+a code optimizer. The tool set is written in python, with the entry `tpc.py`
+
+Usage of `tpc.py`:
+```
+python tpc.py [FLAGS] SRC_FILE DST_FILE
+```
+
+List of flags:
+
+* `-ast` Prints the abstract syntax tree
+* `-nl`, \
+  `--no-lang` Do not include "lib/lang.tp" automatically
+* `-o0` No optimization
+* `-o1` Level 1 optimization
+* `-o2` Level 2 optimization
+* `-tk`, \
+  `--tokens` Prints the list of tokens
+
+## Virtual Machine
+
+The Trash Program Virtual Machine (TVM) is the virtual runtime environment of TPL program.
+The TVM is written in C.
+
+#### Under Windows:
+
+Usage of `tpl.exe`:
+```
+tpl.exe [VM_FLAGS] FILE [PROGRAM_FLAGS]
+```

@@ -2,7 +2,7 @@ import sys
 import time
 import bin.tpl_compiler as cmp
 import bin.spl_parser as psr
-import bin.spl_lexer as lex
+import bin.tpl_lexer as lex
 import bin.tpl_ast_optimizer as pre
 import bin.tpa_generator as decompiler
 import bin.tpa_optimizer as optimizer
@@ -10,7 +10,7 @@ import script
 
 
 def parse_args():
-    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "optimize": 0,
+    args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "optimize": 0, "no_lang": False,
                  "tokens": False, "ast": False}
     i = 1
     while i < len(sys.argv):
@@ -18,16 +18,16 @@ def parse_args():
         if arg[0] == "-":
             if len(arg) == 1:
                 print("Illegal syntax")
-            # elif arg[1:].lower() == "a":
-            #     i += 1
-            #     args_dict["tpa_file"] = sys.argv[i]
+            elif arg[1:].lower() == "nl" or arg[1:].lower() == "-no-lang":
+                i += 1
+                args_dict["no_lang"] = sys.argv[i]
             elif arg[1].lower() == "o":
                 try:
                     op_level = int(arg[2:])
                     args_dict["optimize"] = op_level
                 except ValueError:
                     print("Illegal optimize level")
-            elif arg[1:].lower() == "tk":
+            elif arg[1:].lower() == "tk" or arg[1:].lower() == "-tokens":
                 args_dict["tokens"] = True
             elif arg[1:].lower() == "ast":
                 args_dict["ast"] = True
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     with open(args["src_file"], "r") as rf:
         lexer = lex.Tokenizer()
-        lexer.setup(script.get_spl_path(), args["src_file"], lex.get_dir(args["py"]))
+        lexer.setup(script.get_spl_path(), args["src_file"], lex.get_dir(args["py"]), not args["no_lang"])
         lexer.tokenize(rf)
 
         tokens = lexer.get_tokens()
