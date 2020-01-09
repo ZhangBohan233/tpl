@@ -12,16 +12,15 @@ PTR_LEN = 8
 CHAR_LEN = 1
 VOID_LEN = 0
 
+PUSH = 1
 STOP = 2  # STOP                                  | stop current process
 ASSIGN = 3  # ASSIGN   TARGET    SOURCE   LENGTH    | copy LENGTH bytes from SOURCE to TARGET
 CALL = 4  # CALL
 RETURN = 5  # RETURN   VALUE_PTR
 GOTO = 6  # JUMP       CODE_PTR
-PUSH = 7  # PUSH
+LOAD_A = 7  # LOAD_A                             | loads addr to register
 LOAD = 8  # LOAD     %DES_REG   $ADDR                   |
 STORE = 9  # STORE   %TEMP   %REG   $DES_ADDR
-# ASSIGN_I = 8  # A      PTR       REAL VALUE         | store the real value in PTR
-# ASSIGN_B = 9
 LOAD_I = 10
 ADD = 11  # ADD     %REG1   %REG2
 SUB = 12
@@ -47,7 +46,7 @@ IF_ZERO_GOTO = 30  # IF0  SKIP  SRC_PTR
 CALL_NAT = 31
 STORE_ADDR = 32
 UNPACK_ADDR = 33
-PTR_ASSIGN = 34  # | assign the addr stored in ptr with the value stored in right
+# PTR_ASSIGN = 34  # | assign the addr stored in ptr with the value stored in right
 STORE_SP = 35
 RES_SP = 36
 MOVE_REG = 37  # | copy between registers
@@ -196,11 +195,11 @@ class ByteOutput:
     def assign(self, tar: int, src: int, length: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg1)
         self.write_int(tar)
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg2)
         self.write_int(src)
 
@@ -354,11 +353,11 @@ class ByteOutput:
     def store_addr_to_des(self, des: int, rel_value: int):
         reg1, reg2 = self.manager.require_regs64(2)
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg1)
         self.write_int(des)
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg2)
         self.write_int(rel_value)
 
@@ -371,7 +370,7 @@ class ByteOutput:
     def unpack_addr(self, des: int, addr_ptr: int, length: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg1)
         self.write_int(des)
 
@@ -397,7 +396,7 @@ class ByteOutput:
         self.write_one(reg1)
         self.write_int(des_ptr)
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg2)
         self.write_int(right)
 
@@ -405,7 +404,7 @@ class ByteOutput:
         self.write_one(reg3)
         self.write_int(length)
 
-        self.write_one(PTR_ASSIGN)
+        self.write_one(UNPACK_ADDR)
         self.write_one(reg1)
         self.write_one(reg2)
         self.write_one(reg3)
@@ -415,11 +414,11 @@ class ByteOutput:
     def cast_to_int(self, tar: int, src: int, src_len: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg1)
         self.write_int(tar)
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg2)
         self.write_int(src)
 
@@ -504,7 +503,7 @@ class ByteOutput:
         if src < 0:
             raise lib.CompileTimeException("Cannot return a register.")
         else:
-            self.write_one(LOAD_I)
+            self.write_one(LOAD_A)
             self.write_one(reg1)  # return ptr
             self.write_int(src)
 

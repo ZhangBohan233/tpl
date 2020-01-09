@@ -25,6 +25,8 @@ class TPAssemblyCompiler:
         self.pc = self.func_code_begins
 
         self.func_begin_pc = 0
+        self.total_function_count = 0
+        self.current_function_count = 0
 
     def compile(self, out_stream):
         length = len(self.codes)
@@ -48,19 +50,22 @@ class TPAssemblyCompiler:
         # self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
         # self.in_func = True
 
-        func_count = self.read_1_int()
+        self.total_function_count = self.read_1_int()
 
         out_stream.write("//FUNCTIONS COUNT:\n")
-        out_stream.write(str(func_count))
+        out_stream.write(str(self.total_function_count))
 
         out_stream.write("\n//FUNCTION POINTERS:\n")
-        for i in range(func_count):
+        for i in range(self.total_function_count):
             out_stream.write(str(self.read_1_int()) + "\n")
 
         out_stream.write("//NATIVE FUNCTIONS COUNT:\n{}\n".format(cpl.NATIVE_FUNCTION_COUNT))
         self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
 
+        self.current_function_count = cpl.NATIVE_FUNCTION_COUNT
+
         out_stream.write("\n//FUNCTIONS: \n")
+        out_stream.write("\n//FUNCTION " + str(self.current_function_count) + ":\n")
         self.func_begin_pc = self.pc
         while self.pc < self.code_begin:  # function codes
             out_stream.write("#{} ".format(self.pc - self.func_begin_pc))
@@ -75,9 +80,14 @@ class TPAssemblyCompiler:
     def one_loop(self, out_stream):
         instruction = self.codes[self.pc]
         self.pc += 1
-        if instruction == cpl.STOP:
+        if instruction == cpl.PUSH:
+            out_stream.write("PUSH            %{}\n".format(self.read_one()))
+        elif instruction == cpl.STOP:
             out_stream.write("STOP\n\n")
             self.func_begin_pc = self.pc
+            self.current_function_count += 1
+            if self.current_function_count < self.total_function_count:
+                out_stream.write("//FUNCTION " + str(self.current_function_count) + ":\n")
         elif instruction == cpl.ASSIGN:
             out_stream.write("ASSIGN          %{}  %{}  %{}\n".format(self.read_one(),
                                                                       self.read_one(),
@@ -85,18 +95,12 @@ class TPAssemblyCompiler:
         elif instruction == cpl.CALL:
             out_stream.write("CALL            %{}  %{}\n".format(self.read_one(),
                                                                  self.read_one()))
-            # i1, i2, i3 = self.read_3_ints()
-            # out_stream.write("CALL            ${}  {}  {}\n".format(i1, i2, i3))
-            # out_stream.write("//ARGS:\n")
-            # for i in range(i3):
-            #     arg_ptr, arg_len = self.read_2_ints()
-            #     out_stream.write("@        ${}  {}\n".format(arg_ptr, arg_len))
         elif instruction == cpl.RETURN:
             out_stream.write("RETURN          %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.GOTO:
             out_stream.write("GOTO            %{}\n".format(self.read_one()))
-        elif instruction == cpl.PUSH:
-            out_stream.write("PUSH            %{}\n".format(self.read_one()))
+        elif instruction == cpl.LOAD_A:
+            out_stream.write("LOAD_A          %{}  ${}\n".format(self.read_one(), self.read_1_int()))
         elif instruction == cpl.LOAD:
             out_stream.write("LOAD            %{}  ${}\n"
                              .format(self.read_one(), self.read_1_int()))
@@ -165,10 +169,10 @@ class TPAssemblyCompiler:
             out_stream.write("UNPACK_ADDR     %{}  %{}  %{}\n".format(self.read_one(),
                                                                       self.read_one(),
                                                                       self.read_one()))
-        elif instruction == cpl.PTR_ASSIGN:
-            out_stream.write("PTR_ASSIGN      %{}  %{}  %{}\n".format(self.read_one(),
-                                                                      self.read_one(),
-                                                                      self.read_one()))
+        # elif instruction == cpl.PTR_ASSIGN:
+        #     out_stream.write("PTR_ASSIGN      %{}  %{}  %{}\n".format(self.read_one(),
+        #                                                               self.read_one(),
+        #                                                               self.read_one()))
         elif instruction == cpl.STORE_SP:
             out_stream.write("STORE_SP\n")
         elif instruction == cpl.RES_SP:

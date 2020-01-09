@@ -1,3 +1,11 @@
+#### Build 1036 ####
+2020/01/08
+
+* Tpa and VM optimization:
+    * New instruction LOAD_A to substitute the combination of true_ptr and LOAD_I
+    * Deleted instruction PTR_ASSIGN
+
+
 #### Build 1035 ####
 2020/01/08
 

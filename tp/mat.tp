@@ -1,11 +1,18 @@
-
+fn fib(n: int) int {
+    if n < 2 {
+        return n;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
 
 fn main() int {
-    var c: char[16];
-    var d: int = 99;
-    var len: int = stringf(c, "qwe %d and x\n", 6);
+    const t0: int = clock();
+    var f: int = fib(20);
+    const t1: int = clock();
 
-    printf("%s", c);
-    return len;
+    printf("fib time %d\n", t1 - t0);
+
+    return f;
 }
 
