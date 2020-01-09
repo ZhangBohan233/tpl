@@ -1,14 +1,10 @@
-fn count(n: int) int {
-    if n > 0 {
-        return count(n - 1);
-    } else {
-        return 0;
-    }
+fn tt() int {
+    return tt() + tt();
 }
 
 
 fn main() int {
-    count(10);
+    tt();
 
     return 0;
 }

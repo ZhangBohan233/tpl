@@ -1370,7 +1370,6 @@ class Compiler:
         rp = self.compile(node.right, env, bo)
 
         if l_tal.type_name == "int" or l_tal.type_name[0] == "*" or en.is_array(l_tal):
-            rp = self.compile(node.right, env, bo)
             if r_tal.type_name == "float":
                 rip = self.memory.allocate(FLOAT_LEN, bo)
                 # bo.push_stack(FLOAT_LEN)

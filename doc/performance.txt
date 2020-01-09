@@ -1,3 +1,11 @@
+#### Build 1037 ####
+=== C vm ===
+
+Under Windows cmd:
+30 fib: 500 ms
+1m for loop with register ++i: 110 ms
+
+
 #### Build 1028 ####
 === C vm ===
 

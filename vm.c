@@ -406,8 +406,6 @@ void vm_run() {
 
     register unsigned char instruction;
 
-    int call_time = 0;
-
     while (PC < HEAP_START) {
         instruction = MEMORY[PC++];
         switch (instruction) {
@@ -442,7 +440,6 @@ void vm_run() {
 //                printf("call %lld\n", SP);
 
                 PC = regs64[reg_p1].int_value;
-                call_time++;
                 break;
             case 31:  // CALL_NAT
                 reg_p1 = MEMORY[PC++];
@@ -469,7 +466,7 @@ void vm_run() {
                 memcpy(MEMORY + ret,
                        MEMORY + regs64[reg_p1].int_value,
                        regs64[reg_p2].int_value);
-                printf("ret %lld\n", ret);
+//                printf("ret %lld\n", ret);
                 exit_func();
                 break;
             case 6:  // GOTO
@@ -747,7 +744,6 @@ void vm_run() {
 //            return;
 //        }
     }
-    printf("calls %d\n", call_time);
 }
 
 void test() {

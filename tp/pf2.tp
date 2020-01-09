@@ -1,6 +1,5 @@
 
 fn fib(n: int) int {
-    printf("%d ", n);
     if n < 2 {
         return n;
     } else {
@@ -9,17 +8,17 @@ fn fib(n: int) int {
 }
 
 fn main() int {
-    //var t0: int = clock();
-    var f: int = fib(3);
-    //var t1: int = clock();
+    var t0: int = clock();
+    var f: int = fib(30);
+    var t1: int = clock();
 
-    //printf("fib time: %d\n", t1 - t0);
+    printf("fib time: %d\n", t1 - t0);
 
-    //for register i: int = 0; i < 1000000; ++i {
-    //}
+    for register i: int = 0; i < 1000000; ++i {
+    }
 
-    //var t2: int = clock();
+    var t2: int = clock();
 
-    //printf("loop time: %d\n", t2 - t1);
+    printf("loop time: %d\n", t2 - t1);
     return f;
 }
