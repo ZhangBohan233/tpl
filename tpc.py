@@ -19,8 +19,7 @@ def parse_args():
             if len(arg) == 1:
                 print("Illegal syntax")
             elif arg[1:].lower() == "nl" or arg[1:].lower() == "-no-lang":
-                i += 1
-                args_dict["no_lang"] = sys.argv[i]
+                args_dict["no_lang"] = True
             elif arg[1].lower() == "o":
                 try:
                     op_level = int(arg[2:])

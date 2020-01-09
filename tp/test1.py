@@ -19,7 +19,13 @@ def get_mul(b, m):
     return b.v
 
 
+count = 0
+
+
 def fib(n):
+    print(n, end=" ")
+    global count
+    count += 1
     if n < 2:
         return n
     else:
@@ -33,9 +39,11 @@ if __name__ == '__main__':
 
     t1 = time.time()
 
-    print(fib(30))
+    print(fib(3))
 
     t2 = time.time()
+
+    print(count)
 
     for i in range(1000000):
         pass

@@ -288,6 +288,7 @@ class ByteOutput:
         i = 0
         for arg in args:
             ptr = self.manager.allocate(arg[1], self)
+            # print(ptr)
             # self.push_stack(arg[1])
 
             if arg[0] < 0:  # register:

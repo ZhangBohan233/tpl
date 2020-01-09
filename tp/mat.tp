@@ -1,18 +1,15 @@
-fn fib(n: int) int {
-    if n < 2 {
-        return n;
+fn count(n: int) int {
+    if n > 0 {
+        return count(n - 1);
     } else {
-        return fib(n - 1) + fib(n - 2);
+        return 0;
     }
 }
 
+
 fn main() int {
-    const t0: int = clock();
-    var f: int = fib(20);
-    const t1: int = clock();
+    count(10);
 
-    printf("fib time %d\n", t1 - t0);
-
-    return f;
+    return 0;
 }
 
