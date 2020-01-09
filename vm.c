@@ -469,6 +469,7 @@ void vm_run() {
                 memcpy(MEMORY + ret,
                        MEMORY + regs64[reg_p1].int_value,
                        regs64[reg_p2].int_value);
+                printf("ret %lld\n", ret);
                 exit_func();
                 break;
             case 6:  // GOTO

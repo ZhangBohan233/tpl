@@ -49,9 +49,9 @@
 #139 LOAD            %0  $0
 #149 LOAD            %1  $1036
 #159 LT              %0  %1
-#162 STORE           %2  %0  $24
+#162 STORE           %2  %0  $8
 #173 LOAD_I          %0  35
-#183 LOAD            %1  $24
+#183 LOAD            %1  $8
 #193 IF_ZERO_GOTO    %0  %1
 #196 LOAD_A          %0  $0
 #206 LOAD_I          %1  8
@@ -63,13 +63,13 @@
 #243 LOAD            %0  $0
 #253 LOAD            %1  $1044
 #263 SUB             %0  %1
-#266 STORE           %2  %0  $32
+#266 STORE           %2  %0  $16
 #277 LOAD_I          %0  8
 #287 PUSH            %0
 #289 LOAD_I          %2  8
 #299 PUSH            %2
-#301 LOAD_A          %2  $48
-#311 LOAD_A          %3  $32
+#301 LOAD_A          %2  $32
+#311 LOAD_A          %3  $16
 #321 LOAD_I          %4  8
 #331 ASSIGN          %2  %3  %4
 #335 LOAD_I          %0  1116
@@ -80,13 +80,13 @@
 #370 LOAD            %0  $0
 #380 LOAD            %1  $1036
 #390 SUB             %0  %1
-#393 STORE           %2  %0  $56
+#393 STORE           %2  %0  $32
 #404 LOAD_I          %0  8
 #414 PUSH            %0
 #416 LOAD_I          %2  8
 #426 PUSH            %2
-#428 LOAD_A          %2  $72
-#438 LOAD_A          %3  $56
+#428 LOAD_A          %2  $48
+#438 LOAD_A          %3  $32
 #448 LOAD_I          %4  8
 #458 ASSIGN          %2  %3  %4
 #462 LOAD_I          %0  1116
@@ -97,13 +97,13 @@
 #497 LOAD            %0  $0
 #507 LOAD            %1  $1036
 #517 SUB             %0  %1
-#520 STORE           %2  %0  $80
+#520 STORE           %2  %0  $48
 #531 LOAD_I          %0  8
 #541 PUSH            %0
 #543 LOAD_I          %2  8
 #553 PUSH            %2
-#555 LOAD_A          %2  $96
-#565 LOAD_A          %3  $80
+#555 LOAD_A          %2  $64
+#565 LOAD_A          %3  $48
 #575 LOAD_I          %4  8
 #585 ASSIGN          %2  %3  %4
 #589 LOAD_I          %0  1116
@@ -111,11 +111,11 @@
 #609 CALL            %0  %1
 #612 LOAD_I          %0  8
 #622 PUSH            %0
-#624 LOAD            %0  $40
-#634 LOAD            %1  $88
+#624 LOAD            %0  $24
+#634 LOAD            %1  $56
 #644 ADD             %0  %1
-#647 STORE           %2  %0  $104
-#658 LOAD_A          %0  $104
+#647 STORE           %2  %0  $64
+#658 LOAD_A          %0  $64
 #668 LOAD_I          %1  8
 #678 RETURN          %0  %1
 #681 STOP
