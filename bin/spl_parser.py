@@ -65,11 +65,11 @@ class Parser:
                         parser.add_break(line)
                     elif sym == "continue":
                         parser.add_continue(line)
-                    elif sym == "true" or sym == "false":
-                        lit_node = self.make_literal_node(line, 1 if sym == "true" else 0, False)
-                        parser.add_number(line, lit_node)
-                    elif sym == "null":
-                        parser.add_null(line)
+                    # elif sym == "true" or sym == "false":
+                    #     lit_node = self.make_literal_node(line, 1 if sym == "true" else 0, False)
+                    #     parser.add_number(line, lit_node)
+                    # elif sym == "null":
+                    #     parser.add_null(line)
                     elif sym == "const":
                         var_level = ast.CONST
                     elif sym == "var":
@@ -351,12 +351,27 @@ class Parser:
             return node
 
 
+def generate_int(v: str):
+    if len(v) < 3 or v[1].isdigit():
+        return int(v)
+    elif v[1] == 'b':
+        return int(v[2:], 2)
+    elif v[1] == 'o':
+        return int(v[2:], 8)
+    elif v[1] == 'd':
+        return int(v[2:], 10)
+    elif v[1] == 'x':
+        return int(v[2:], 16)
+    else:
+        raise TypeError
+
+
 def get_number(line, v: str):
     try:
         if "." in v:
             return float(v)
         else:
-            return int(v)
+            return generate_int(v)
     except TypeError:
         raise stl.ParseException("Unexpected syntax: '{}', at line {}".format(v, line))
 

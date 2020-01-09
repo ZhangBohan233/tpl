@@ -12,6 +12,7 @@ CROSS_CONCATENATE = {
     (8, 9),  # >=
     (20, 9),  # <=
     (1, 0), (0, 12), (12, 0), (15, 9),
+    (0, 1),  # 0b, 0x, 0d, 0o
     (17, 9),  # +=
     (21, 9),  # -=
     (100, 9), (16, 9), (10, 9), (11, 9),
@@ -382,18 +383,45 @@ def char_type(ch):
         return -1
 
 
-def is_integer(num_str: str) -> bool:
-    """
-
-    :param num_str:
-    :return:
-    """
+def is_pure_int(num_str: str) -> bool:
     if len(num_str) == 0:
         return False
     for ch in num_str:
         if not ch.isdigit() and ch != "_":
             return False
     return True
+
+
+def is_integer(num_str: str) -> bool:
+    """
+
+    :param num_str:
+    :return:
+    """
+    if len(num_str) > 2 and num_str[0] == '0':
+        if num_str[1] == 'b':
+            for ch in num_str[2:]:
+                if ch not in "01" and ch != '_':
+                    return False
+            return True
+        elif num_str[1] == 'o':
+            for ch in num_str[2:]:
+                if ch not in "01234567" and ch != '_':
+                    return False
+            return True
+        elif num_str[1] == 'd':
+            for ch in num_str[2:]:
+                if ch not in "0123456789" and ch != '_':
+                    return False
+            return True
+        elif num_str[1] == 'x':
+            for ch in num_str[2:]:
+                if ch not in "0123456789abcdefABCDEF" and ch != '_':
+                    return False
+            return True
+        else:
+            return False
+    return is_pure_int(num_str)
 
 
 def is_float(num_str: str) -> bool:
@@ -406,9 +434,9 @@ def is_float(num_str: str) -> bool:
         front = num_str[:index]
         back = num_str[index + 1:]
         if len(front) > 0:
-            if not is_integer(front):
+            if not is_pure_int(front):
                 return False
-        if is_integer(back):
+        if is_pure_int(back):
             return True
     return False
 

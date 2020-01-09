@@ -113,12 +113,12 @@ INT_RESULT_TABLE_INT_FULL = {
     "*=": MUL,
     "/=": DIV,
     "%=": MOD,
-    ">>": RSHIFT_A,
-    ">>>": RSHIFT_L,
-    "<<": LSHIFT,
-    "&": B_AND,
-    "|": B_OR,
-    "^": B_XOR
+    ">>=": RSHIFT_A,
+    ">>>=": RSHIFT_L,
+    "<<=": LSHIFT,
+    "&=": B_AND,
+    "|=": B_OR,
+    "^=": B_XOR
 }
 
 EXTENDED_INT_RESULT_TABLE_INT = {
@@ -1451,6 +1451,9 @@ class Compiler:
                 bo.add_binary_op(op_tup[1], r_res, lp, rp)
                 bo.add_binary_op(OR, res_pos, l_res, r_res)
                 return res_pos
+        else:
+            raise lib.CompileTimeException("Binary operator '{}' between floats is unsupported"
+                                           .format(op))
 
     def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
         if op in INT_RESULT_TABLE_INT_FULL:
@@ -1483,6 +1486,9 @@ class Compiler:
             bo.add_binary_op(op_tup[1], r_res, lp, rp)
             bo.add_binary_op(OR, res_pos, l_res, r_res)
             return res_pos
+        else:
+            raise lib.CompileTimeException("Binary operator '{}' between ints is unsupported"
+                                           .format(op))
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
         r = self.compile(node.value, env, bo)

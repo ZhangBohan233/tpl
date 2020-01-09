@@ -1,3 +1,11 @@
+#### Build 1038 ####
+2020/01/09
+
+* New syntax:
+    * Binary, octal, decimal, hexadecimal integer literals
+* Bug fixes:
+    * Fixed that binary operators with assignment '>>=', '>>>=', '<<=', '&=', '|=', '^=' did not work
+
 #### Build 1037 ####
 2020/01/09
 

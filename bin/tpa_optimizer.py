@@ -64,7 +64,7 @@ class TpaParser:
         self.stack_size = 0
         self.lit_len = 0
         self.global_len = 0
-        self.call_stack_begins = 0
+        self.function_length = 0
         self.main_takes_arg = 0
         self.func_count = 0
         self.nat_func_count = 0
@@ -75,7 +75,7 @@ class TpaParser:
         self.stack_size = int(self.tokens[0][0])
         self.lit_len = int(self.tokens[1][0])
         self.global_len = int(self.tokens[2][0])
-        self.call_stack_begins = int(self.tokens[3][0])
+        self.function_length = int(self.tokens[3][0])
         self.main_takes_arg = int(self.tokens[4][0])
         self.func_count = int(self.tokens[6][0])
         self.nat_func_count = int(self.tokens[self.func_count + 7][0])
@@ -86,6 +86,8 @@ class TpaParser:
         out.extend(typ.int_to_bytes(self.stack_size))
         out.extend(typ.int_to_bytes(self.lit_len))
         out.extend(typ.int_to_bytes(self.global_len))
+        out.extend(typ.int_to_bytes(self.function_length))
+        out.append(self.main_takes_arg)
 
         literal = self.tokens[5]
         for ch in literal:  # write literal
@@ -94,7 +96,7 @@ class TpaParser:
         out.extend(typ.int_to_bytes(self.func_count))
 
         for i in range(self.func_count):
-            fp = int(self.tokens[i + 5][0])  # function
+            fp = int(self.tokens[i + 7][0])  # function
             out.extend(typ.int_to_bytes(fp))
 
         for i in range(self.nat_func_count):
@@ -234,6 +236,9 @@ class Optimizer:
         new_lst = self.parser.tokens[:self.parser.ins_begins]
         tk_count = len(self.parser.tokens)
         i = self.parser.ins_begins
+
+        seq = ["LOAD_I", "PUSH", ]
+
         while i < tk_count:
             line = self.parser.tokens[i]
 
@@ -260,6 +265,15 @@ class Optimizer:
 
         self.parser.tokens = new_lst
         # print(self.parser.tokens)
+
+    def check_in_sequence(self, i: int, seq: list) -> bool:
+        if i < len(self.parser.tokens):
+            for j in range(len(seq)):
+                if self.parser.tokens[i + j][0] != seq[j]:
+                    return False
+            return True
+        else:
+            return False
 
     # def merge_variables(self):
     #     new_lst = self.parser.tokens[:self.parser.ins_begins]
