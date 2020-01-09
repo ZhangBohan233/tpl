@@ -1,3 +1,19 @@
+"""
+Trash Program Assembly
+
+Every instruction occupies one line
+
+Symbols:
+'//': ignores the next line
+'#': the next integer is the byte position of this instruction
+'%': the next integer is the register number
+'$': the next integer is the memory address
+'&': the next integer is a one-byte integer
+
+otherwise, the next integer is an 8-byte integer
+"""
+
+
 import bin.spl_types as typ
 import bin.tpl_compiler as cpl
 
@@ -156,13 +172,6 @@ class TPAssemblyCompiler:
         elif instruction == cpl.CALL_NAT:
             out_stream.write("CALL_NAT        %{}  %{}\n".format(self.read_one(),
                                                                  self.read_one()))
-        # elif instruction == cpl.CALL_NAT:
-        #     i1, i2, i3, i4 = self.read_4_ints()
-        #     out_stream.write("CALL_NAT        ${}  {}  ${}  {}\n".format(i1, i2, i3, i4))
-        #     out_stream.write("//ARGS:\n")
-        #     for i in range(i4):
-        #         arg_ptr, arg_len = self.read_2_ints()
-        #         out_stream.write("@        ${}  {}\n".format(arg_ptr, arg_len))
         elif instruction == cpl.STORE_ADDR:
             out_stream.write("STORE_ADDR      %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.UNPACK_ADDR:
@@ -185,6 +194,14 @@ class TPAssemblyCompiler:
             out_stream.write("INT_TO_FLOAT    %{}\n".format(self.read_one()))
         elif instruction == cpl.FLOAT_TO_INT:
             out_stream.write("FLOAT_TO_INT    %{}\n".format(self.read_one()))
+        elif instruction == cpl.LOAD_IB:
+            out_stream.write("LOAD_IB         %{}  &{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.STORE_B:
+            out_stream.write("STORE_B         %{}  %{}  ${}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_1_int()))
+        elif instruction == cpl.LOAD_B:
+            out_stream.write("LOAD_B          %{}  ${}\n".format(self.read_one(), self.read_1_int()))
         elif instruction == cpl.ADD_F:
             out_stream.write("ADD_F           %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.SUB_F:

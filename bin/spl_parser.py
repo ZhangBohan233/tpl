@@ -11,10 +11,10 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
 
-        self.literal_bytes = bytearray()
+        self.literal_bytes = bytearray((0, 1))  # false true
         self.string_lengths = {}  # ptr: length
         self.literals = {}  # lit: position
-        self.bool_literals = {}
+        # self.bool_literals = {}
 
     def parse(self):
         """
@@ -66,8 +66,9 @@ class Parser:
                     elif sym == "continue":
                         parser.add_continue(line)
                     elif sym == "true" or sym == "false":
-                        lit_node = self.make_literal_node(line, 1 if sym == "true" else 0, False)
-                        parser.add_number(line, lit_node)
+                        lit_node = self.make_literal_node(line, True if sym == "true" else False, False)
+                        # parser.add_number(line, lit_node)
+                        parser.add_bool(line, lit_node)
                     elif sym == "null":
                         parser.add_null(line)
                     elif sym == "const":
@@ -314,10 +315,10 @@ class Parser:
         :param make_string: True if make string, False if make char
         """
         # print(lit, type(lit))
-        # if isinstance(lit, bool):  # in python, bool is int but int is not bool
-        #     b = typ.boolean_to_bytes(lit)
-        #     lit_type = 2
-        if isinstance(lit, int):
+        if isinstance(lit, bool):  # in python, bool is int but int is not bool
+            b = typ.boolean_to_bytes(lit)
+            lit_type = 2
+        elif isinstance(lit, int):
             b = typ.int_to_bytes(lit)
             lit_type = 0
         elif isinstance(lit, float):

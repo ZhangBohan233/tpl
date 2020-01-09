@@ -1,17 +1,8 @@
-//fn add(x: int, y: int) int {
-//    return x + y;
-//}
-
 
 fn main() int {
-    var g: int;
-    var a: int;
-    g = 0;
-    while g < 10 {
-        a = 3 + 2 * 4;
-        b := 3.5 + 5;
-        //printf("%f ", b);
-        g++;
+    for i := 0; i < 10; ++i {
+        printf("%b\n", i < 10);
     }
-    return -a;
+
+    return 0;
 }

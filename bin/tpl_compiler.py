@@ -8,7 +8,7 @@ STACK_SIZE = 1024
 INT_LEN = 8
 FLOAT_LEN = 8
 PTR_LEN = 8
-# BOOLEAN_LEN = 1
+BOOLEAN_LEN = 1
 CHAR_LEN = 1
 VOID_LEN = 0
 
@@ -58,6 +58,9 @@ FLOAT_TO_INT = 40
 # SUB_I = 41
 # ADD_FI = 42
 # SUB_FI = 43
+LOAD_IB = 41  # load one byte from memory to register
+STORE_B = 42  # store one byte from register to memory
+LOAD_B = 43  # load one byte
 
 ADD_F = 50
 SUB_F = 51
@@ -75,7 +78,7 @@ STORE_LEN = 11
 
 NATIVE_FUNCTION_COUNT = 6
 
-INT_RESULT_TABLE_INT = {
+INT_ARITHMETIC_BIN_TABLE = {
     "+": ADD,
     "-": SUB,
     "*": MUL,
@@ -86,13 +89,42 @@ INT_RESULT_TABLE_INT = {
     "<<": LSHIFT,
     "&": B_AND,
     "|": B_OR,
-    "^": B_XOR,
+    "^": B_XOR
+}
+
+EXTENDED_INT_ARITHMETIC_BIN_TABLE = {
+    **INT_ARITHMETIC_BIN_TABLE,
+    "+=": ADD,
+    "-=": SUB,
+    "*=": MUL,
+    "/=": DIV,
+    "%=": MOD,
+    ">>=": RSHIFT_A,
+    ">>>=": RSHIFT_L,
+    "<<=": LSHIFT,
+    "&=": B_AND,
+    "|=": B_OR,
+    "^=": B_XOR
+}
+
+INT_LOGIC_BIN_TABLE = {
     ">": GT,
     "==": EQ,
     "!=": NE,
-    "<": LT,
+    "<": LT
+}
+
+BOOL_LOGIC_BIN_TABLE = {
     "&&": AND,
-    "||": OR
+    "||": OR,
+    "==": EQ,
+    "!=": NE
+}
+
+EXTENDED_INT_LOGIC_BIN_TABLE = {
+    **INT_LOGIC_BIN_TABLE,
+    ">=": (GT, EQ),
+    "<=": (LT, EQ),
 }
 
 BOOL_RESULT_TABLE = {  # this table only used for getting tal
@@ -106,32 +138,11 @@ BOOL_RESULT_TABLE = {  # this table only used for getting tal
     "<="
 }
 
-INT_RESULT_TABLE_INT_FULL = {
-    **INT_RESULT_TABLE_INT,
-    "+=": ADD,
-    "-=": SUB,
-    "*=": MUL,
-    "/=": DIV,
-    "%=": MOD,
-    ">>": RSHIFT_A,
-    ">>>": RSHIFT_L,
-    "<<": LSHIFT,
-    "&": B_AND,
-    "|": B_OR,
-    "^": B_XOR
-}
-
-EXTENDED_INT_RESULT_TABLE_INT = {
-    **INT_RESULT_TABLE_INT,
-    ">=": (GT, EQ),
-    "<=": (LT, EQ),
-}
-
-OTHER_BOOL_RESULT_UNARY = {
+BOOL_LOGIC_UNARY_TABLE = {
     "!"
 }
 
-FLOAT_RESULT_TABLE_FLOAT = {
+FLOAT_ARITHMETIC_BIN_TABLE = {
     "+": ADD_F,
     "-": SUB_F,
     "*": MUL_F,
@@ -139,8 +150,8 @@ FLOAT_RESULT_TABLE_FLOAT = {
     "%": MOD_F
 }
 
-FLOAT_RESULT_TABLE_FLOAT_FULL = {
-    **FLOAT_RESULT_TABLE_FLOAT,
+EXTENDED_FLOAT_ARITHMETIC_TABLE = {
+    **FLOAT_ARITHMETIC_BIN_TABLE,
     "+=": ADD_F,
     "-=": SUB_F,
     "*=": MUL_F,
@@ -148,15 +159,15 @@ FLOAT_RESULT_TABLE_FLOAT_FULL = {
     "%=": MOD_F
 }
 
-INT_RESULT_TABLE_FLOAT = {
+FLOAT_LOGIC_BIN_TABLE = {
     ">": GT_F,
     "==": EQ_F,
     "!=": NE_F,
     "<": LT_F
 }
 
-EXTENDED_INT_RESULT_TABLE_FLOAT = {
-    **INT_RESULT_TABLE_FLOAT,
+EXTENDED_FLOAT_LOGIC_BIN_TABLE = {
+    **FLOAT_LOGIC_BIN_TABLE,
     ">=": (GT_F, EQ_F),
     "<=": (LT_F, EQ_F),
 }
@@ -230,6 +241,20 @@ class ByteOutput:
         self.write_int(des)
 
         self.manager.append_regs64(temp_reg)
+
+    def assign_b(self, des: int, bool_value: int):
+        reg1, reg2 = self.manager.require_regs64(2)
+
+        self.write_one(LOAD_IB)
+        self.write_one(reg1)
+        self.write_one(bool_value)
+
+        self.write_one(STORE_B)
+        self.write_one(reg2)
+        self.write_one(reg1)
+        self.write_int(des)
+
+        self.manager.append_regs64(reg2, reg1)
 
     def assign_i(self, des: int, real_value: int):
         reg1, reg2 = self.manager.require_regs64(2)
@@ -434,7 +459,7 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
-    def add_binary_op(self, op: int, res: int, left: int, right: int):
+    def add_binary_op_888(self, op: int, res: int, left: int, right: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
         if left < 0:  # left is reg
@@ -465,6 +490,98 @@ class ByteOutput:
             self.write_one(reg1)
         else:
             self.write_one(STORE)
+            self.write_one(reg3)
+            self.write_one(reg1)
+            self.write_int(res)
+
+        self.manager.append_regs64(reg3, reg2, reg1)
+
+    def add_binary_op_881(self, op: int, res: int, left: int, right: int):
+        """
+        Binary operations that takes two 8-byte operands and result in 1-byte value
+
+        :param op:
+        :param res:
+        :param left:
+        :param right:
+        :return:
+        """
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
+
+        if left < 0:  # left is reg
+            self.write_one(MOVE_REG)
+            self.write_one(reg1)
+            self.write_one(-left - 1)
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg1)
+            self.write_int(left)
+
+        if right < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(reg2)
+            self.write_one(-right - 1)
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg2)
+            self.write_int(right)
+
+        self.write_one(op)
+        self.write_one(reg1)
+        self.write_one(reg2)
+
+        if res < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(-res - 1)
+            self.write_one(reg1)
+        else:
+            self.write_one(STORE_B)
+            self.write_one(reg3)
+            self.write_one(reg1)
+            self.write_int(res)
+
+        self.manager.append_regs64(reg3, reg2, reg1)
+
+    def add_binary_op_111(self, op: int, res: int, left: int, right: int):
+        """
+        Binary operations that takes two 1-byte operands and result in 1-byte value
+
+        :param op:
+        :param res:
+        :param left:
+        :param right:
+        :return:
+        """
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
+
+        if left < 0:  # left is reg
+            self.write_one(MOVE_REG)
+            self.write_one(reg1)
+            self.write_one(-left - 1)
+        else:
+            self.write_one(LOAD_B)
+            self.write_one(reg1)
+            self.write_int(left)
+
+        if right < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(reg2)
+            self.write_one(-right - 1)
+        else:
+            self.write_one(LOAD_B)
+            self.write_one(reg2)
+            self.write_int(right)
+
+        self.write_one(op)
+        self.write_one(reg1)
+        self.write_one(reg2)
+
+        if res < 0:
+            self.write_one(MOVE_REG)
+            self.write_one(-res - 1)
+            self.write_one(reg1)
+        else:
+            self.write_one(STORE_B)
             self.write_one(reg3)
             self.write_one(reg1)
             self.write_int(res)
@@ -648,6 +765,7 @@ class MemoryManager:
         self.type_sizes = {
             "int": INT_LEN,
             "float": FLOAT_LEN,
+            "boolean": BOOLEAN_LEN,
             "char": CHAR_LEN,
             "void": VOID_LEN
         }
@@ -1207,8 +1325,8 @@ class Compiler:
         unit_len_ptr = self.memory.allocate(INT_LEN, bo)
         # bo.push_stack(INT_LEN)
         bo.assign_i(unit_len_ptr, length)
-        bo.add_binary_op(MUL, unit_len_ptr, unit_len_ptr, index_num_ptr)
-        bo.add_binary_op(ADD, indexing_addr, indexing_addr, unit_len_ptr)
+        bo.add_binary_op_888(MUL, unit_len_ptr, unit_len_ptr, index_num_ptr)
+        bo.add_binary_op_888(ADD, indexing_addr, indexing_addr, unit_len_ptr)
 
         return indexing_addr, tal, length
 
@@ -1324,10 +1442,10 @@ class Compiler:
             return num_ptr
         elif node.operation == "!":
             v_tal = get_tal_of_evaluated_node(node.value, env)
-            if v_tal.total_len(self.memory) != INT_LEN:
+            if v_tal.total_len(self.memory) != BOOLEAN_LEN:
                 raise lib.CompileTimeException()
             vp = self.compile(node.value, env, bo)
-            res_ptr = self.memory.allocate(INT_LEN, bo)
+            res_ptr = self.memory.allocate(BOOLEAN_LEN, bo)
             # bo.push_stack(INT_LEN)
             bo.add_unary_op(NOT, res_ptr, vp)
             return res_ptr
@@ -1362,6 +1480,9 @@ class Compiler:
         r_tal = get_tal_of_evaluated_node(node.right, env)
         # print(l_tal, r_tal, node.operation)
 
+        if en.is_array(l_tal) or en.is_array(r_tal):
+            raise lib.CompileTimeException()
+
         if node.operation in WITH_ASSIGN:
             # is assignment
             lp = self.compile(node.left, env, bo, assign_const=True)
@@ -1382,6 +1503,10 @@ class Compiler:
                 rp = rip
 
             return self.binary_op_int(node.operation, lp, rp, bo)
+
+        if l_tal.type_name == "boolean":
+            if r_tal.type_name == "boolean":
+                return self.binary_op_boolean(node.operation, lp, rp, bo)
 
         elif l_tal.type_name == "char":
 
@@ -1421,68 +1546,80 @@ class Compiler:
         raise lib.CompileTimeException("Unsupported binary operation '{}'".format(node.operation))
 
     def binary_op_float(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
-        if op in FLOAT_RESULT_TABLE_FLOAT_FULL:
-            if op in FLOAT_RESULT_TABLE_FLOAT:
+        if op in EXTENDED_FLOAT_ARITHMETIC_TABLE:
+            if op in FLOAT_ARITHMETIC_BIN_TABLE:
                 res_pos = self.memory.allocate(FLOAT_LEN, bo)
-                # bo.push_stack(FLOAT_LEN)
 
-                op_code = FLOAT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
+                op_code = FLOAT_ARITHMETIC_BIN_TABLE[op]
+                bo.add_binary_op_888(op_code, res_pos, lp, rp)
                 return res_pos
             else:
-                op_code = FLOAT_RESULT_TABLE_FLOAT_FULL[op]
-                bo.add_binary_op(op_code, lp, lp, rp)
+                op_code = EXTENDED_FLOAT_ARITHMETIC_TABLE[op]
+                bo.add_binary_op_888(op_code, lp, lp, rp)
                 return lp
-        elif op in EXTENDED_INT_RESULT_TABLE_FLOAT:
-            res_pos = self.memory.allocate(INT_LEN, bo)
+        elif op in EXTENDED_FLOAT_LOGIC_BIN_TABLE:
+            res_pos = self.memory.allocate(BOOLEAN_LEN, bo)
             # bo.push_stack(INT_LEN)
 
-            if op in INT_RESULT_TABLE_FLOAT:
-                op_code = INT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
+            if op in FLOAT_LOGIC_BIN_TABLE:
+                op_code = FLOAT_LOGIC_BIN_TABLE[op]
+                bo.add_binary_op_881(op_code, res_pos, lp, rp)
                 return res_pos
             else:
-                op_tup = EXTENDED_INT_RESULT_TABLE_FLOAT[op]
-                l_res = self.memory.allocate(INT_LEN, bo)
+                op_tup = EXTENDED_FLOAT_LOGIC_BIN_TABLE[op]
+                l_res = self.memory.allocate(BOOLEAN_LEN, bo)
                 # bo.push_stack(INT_LEN)
-                r_res = self.memory.allocate(INT_LEN, bo)
+                r_res = self.memory.allocate(BOOLEAN_LEN, bo)
                 # bo.push_stack(INT_LEN)
-                bo.add_binary_op(op_tup[0], l_res, lp, rp)
-                bo.add_binary_op(op_tup[1], r_res, lp, rp)
-                bo.add_binary_op(OR, res_pos, l_res, r_res)
+                bo.add_binary_op_881(op_tup[0], l_res, lp, rp)
+                bo.add_binary_op_881(op_tup[1], r_res, lp, rp)
+                bo.add_binary_op_111(OR, res_pos, l_res, r_res)
                 return res_pos
+        else:
+            raise lib.CompileTimeException("Binary operator '{}' between floats are not supported"
+                                           .format(op))
+
+    def binary_op_boolean(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
+        if op in BOOL_LOGIC_BIN_TABLE:
+            res_ptr = self.memory.allocate(BOOLEAN_LEN, bo)
+            op_code = BOOL_LOGIC_BIN_TABLE[op]
+            bo.add_binary_op_111(op_code, res_ptr, lp, rp)
+            return res_ptr
+        else:
+            raise lib.CompileTimeException("Binary operator '{}' between booleans are not supported"
+                                           .format(op))
 
     def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
-        if op in INT_RESULT_TABLE_INT_FULL:
-            if op in INT_RESULT_TABLE_INT:
+        if op in EXTENDED_INT_ARITHMETIC_BIN_TABLE:
+            if op in INT_ARITHMETIC_BIN_TABLE:
                 res_pos = self.memory.allocate(INT_LEN, bo)
-                # bo.push_stack(INT_LEN)
 
-                op_code = INT_RESULT_TABLE_INT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
+                op_code = INT_ARITHMETIC_BIN_TABLE[op]
+                bo.add_binary_op_888(op_code, res_pos, lp, rp)
                 return res_pos
             else:
-                op_code = INT_RESULT_TABLE_INT_FULL[op]
-                bo.add_binary_op(op_code, lp, lp, rp)
+                op_code = EXTENDED_INT_ARITHMETIC_BIN_TABLE[op]  # with assignment
+                bo.add_binary_op_888(op_code, lp, lp, rp)
                 return lp
-        elif op in EXTENDED_INT_RESULT_TABLE_INT:
-            res_pos = self.memory.allocate(INT_LEN, bo)
-            # bo.push_stack(INT_LEN)
+        elif op in EXTENDED_INT_LOGIC_BIN_TABLE:
+            res_pos = self.memory.allocate(BOOLEAN_LEN, bo)
 
-            # if op in BOOL_RESULT_TABLE_INT:
-            #     op_code = BOOL_RESULT_TABLE_INT[op]
-            #     bo.add_binary_op_int(op_code, res_pos, lp, rp)
-            #     return res_pos
-            # else:
-            op_tup = EXTENDED_INT_RESULT_TABLE_INT[op]
-            l_res = self.memory.allocate(INT_LEN, bo)
-            # bo.push_stack(INT_LEN)
-            r_res = self.memory.allocate(INT_LEN, bo)
-            # bo.push_stack(INT_LEN)
-            bo.add_binary_op(op_tup[0], l_res, lp, rp)
-            bo.add_binary_op(op_tup[1], r_res, lp, rp)
-            bo.add_binary_op(OR, res_pos, l_res, r_res)
-            return res_pos
+            if op in INT_LOGIC_BIN_TABLE:
+                op_code = INT_LOGIC_BIN_TABLE[op]
+                bo.add_binary_op_881(op_code, res_pos, lp, rp)
+                return res_pos
+            else:
+                op_tup = EXTENDED_INT_LOGIC_BIN_TABLE[op]
+                l_res = self.memory.allocate(BOOLEAN_LEN, bo)
+                r_res = self.memory.allocate(BOOLEAN_LEN, bo)
+
+                bo.add_binary_op_881(op_tup[0], l_res, lp, rp)
+                bo.add_binary_op_881(op_tup[1], r_res, lp, rp)
+                bo.add_binary_op_111(OR, res_pos, l_res, r_res)
+                return res_pos
+        else:
+            raise lib.CompileTimeException("Binary operator '{}' between ints are not supported"
+                                           .format(op))
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
         r = self.compile(node.value, env, bo)
@@ -1519,9 +1656,8 @@ class Compiler:
         self.memory.store_sp()
         bo.write_one(STORE_SP)  # before loop
 
-        loop_indicator = self.memory.allocate(INT_LEN, bo)
-        # bo.push_stack(INT_LEN)
-        bo.assign_i(loop_indicator, 1)
+        loop_indicator = self.memory.allocate(BOOLEAN_LEN, bo)
+        bo.assign_b(loop_indicator, 1)
 
         title_env = en.LoopEnvironment(env)
         body_env = en.BlockEnvironment(title_env)
@@ -1534,9 +1670,9 @@ class Compiler:
         bo.write_one(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
 
-        real_cond_ptr = self.memory.allocate(INT_LEN, bo)
+        real_cond_ptr = self.memory.allocate(BOOLEAN_LEN, bo)
         # bo.push_stack(INT_LEN)
-        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.add_binary_op_111(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
@@ -1566,9 +1702,9 @@ class Compiler:
         self.memory.store_sp()  # 进loop之前
         bo.write_one(STORE_SP)
 
-        loop_indicator = self.memory.allocate(INT_LEN, bo)
+        loop_indicator = self.memory.allocate(BOOLEAN_LEN, bo)
         # bo.push_stack(INT_LEN)
-        bo.assign_i(loop_indicator, 1)
+        bo.assign_b(loop_indicator, 1)
 
         init_len = len(bo)
         self.memory.store_sp()  # 循环开始
@@ -1579,9 +1715,9 @@ class Compiler:
 
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
 
-        real_cond_ptr = self.memory.allocate(INT_LEN, bo)
+        real_cond_ptr = self.memory.allocate(BOOLEAN_LEN, bo)
         # bo.push_stack(INT_LEN)
-        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.add_binary_op_111(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
@@ -1606,14 +1742,14 @@ class Compiler:
 
     def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
         tal = get_tal_of_evaluated_node(node, env)
-        if tal.type_name != "int":
+        if tal.type_name != "boolean" or en.is_array(tal):
             raise lib.CompileTimeException("Conditional statement can only have boolean output. Got '{}'."
                                            .format(tal.type_name))
         return self.compile(node, env, bo)
 
     def compile_break(self, node: ast.BreakStmt, env: en.Environment, bo: ByteOutput):
         loop_indicator = bo.get_loop_indicator()
-        bo.assign_i(loop_indicator, 0)
+        bo.assign_b(loop_indicator, 0)
         self.compile_continue(None, env, bo)
 
     def compile_continue(self, node: ast.ContinueStmt, env: en.Environment, bo: ByteOutput):
@@ -1791,6 +1927,7 @@ def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryMan
 LITERAL_TYPE_TABLE = {
     0: en.Type("int"),
     1: en.Type("float"),
+    2: en.Type("boolean"),
     3: en.Type("string"),
     4: en.Type("char")
 }
@@ -1830,14 +1967,14 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
                 raise lib.TypeException("Cannot unpack a non-pointer type")
         elif node.operation == "pack":
             return en.Type("*" + tal.type_name)
-        # elif node.operation in OTHER_BOOL_RESULT_UNARY:
-        #     return en.Type("int")
+        elif node.operation in BOOL_LOGIC_UNARY_TABLE:
+            return en.Type("boolean")
         else:
             return tal
     elif node.node_type == ast.BINARY_OPERATOR:
         node: ast.BinaryOperator
         if node.operation in BOOL_RESULT_TABLE:
-            return en.Type("int")
+            return en.Type("boolean")
         return get_tal_of_evaluated_node(node.left, env)
     elif node.node_type == ast.FUNCTION_CALL:
         node: ast.FuncCall
