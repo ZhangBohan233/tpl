@@ -1,8 +1,11 @@
 
 
 fn main() int {
-    if FALSE {
-        printf("113\n");
-    } else printf("ggg\n");
+    var c: char[16];
+    var d: int = 99;
+    var len: int = stringf(c, "qwe %d and x\n", 6);
+
+    printf("%s", c);
+    return len;
 }
 

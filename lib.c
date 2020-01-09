@@ -60,24 +60,6 @@ void int_to_bytes(unsigned char *b, int_fast64_t i) {
     memcpy(b, i64.arr, 8);
 }
 
-//int_fast64_t bytes_to_uint7(const unsigned char *bytes) {
-//    union {
-//        int_fast64_t value;
-//        unsigned char arr[7];
-//    } ui56;
-//    memcpy(ui56.arr, bytes, 7);
-//    return ui56.value;
-//}
-//
-//void uint7_to_bytes(unsigned char *b, int_fast64_t i) {
-//    union {
-//        int_fast64_t value;
-//        unsigned char arr[7];
-//    } ui56;
-//    ui56.value = i;
-//    memcpy(b, ui56.arr, 7);
-//}
-
 double bytes_to_double(const unsigned char *bytes) {
     union {
         double d;
@@ -122,6 +104,44 @@ void append_list(Int64List *list, int_fast64_t value) {
 void free_list(Int64List *list) {
     free(list->array);
     free(list);
+}
+
+StringBuilder *create_string() {
+    StringBuilder *sb = malloc(sizeof(StringBuilder));
+    sb->capacity = 8;
+    sb->size = 0;
+    sb->array = malloc(sizeof(unsigned char) * sb->capacity);
+    return sb;
+}
+
+void string_expand(StringBuilder *list) {
+    list->capacity *= 2;
+    unsigned char *new_array = malloc(sizeof(unsigned char) * list->capacity);
+    memcpy(new_array, list->array, sizeof(unsigned char) * list->size);
+    free(list->array);
+    list->array = new_array;
+}
+
+void append_string(StringBuilder *list, unsigned char value) {
+    if (list->size == list->capacity) {
+        string_expand(list);
+    }
+    list->array[list->size++] = value;
+}
+
+void append_string_ptr(StringBuilder *list, int length, char *string) {
+    for (int i = 0; i < length; i++) {
+        append_string(list, (unsigned char) string[i]);
+    }
+}
+
+void free_string(StringBuilder *list) {
+    free(list->array);
+    free(list);
+}
+
+void print_string(StringBuilder *list) {
+    for (int i = 0; i < list->size; i++) printf("%c", list->array[i]);
 }
 
 double double_mod(double d1, double d2) {

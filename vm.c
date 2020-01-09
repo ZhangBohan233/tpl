@@ -148,21 +148,19 @@ void exit_func() {
     PC = PC_STACK[PSP--];
 }
 
-void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
-    if (arg_len < 8) {
-        printf("'printf' takes at least 1 argument");
-        ERROR_CODE = 1;
-        return;
-    }
+StringBuilder *str_format(int_fast64_t arg_len, const unsigned char *arg_array) {
     int_fast64_t fmt_ptr = bytes_to_int(arg_array);
-//    for (int j = 0; j < arg_len; j++) printf("%d ", arg_array[j]);
-//    printf("\n");
     int_fast64_t fmt_end = fmt_ptr;
     while (MEMORY[fmt_end] != 0) fmt_end++;
 
     int_fast64_t i = fmt_ptr;
     int arg_ptr = INT_LEN;
     int f = 0;
+
+    StringBuilder *builder = create_string();
+
+    char buffer[100];
+
     for (; i < fmt_end; i++) {
         unsigned char ch = MEMORY[i];
         if (ch == '%') {
@@ -172,29 +170,57 @@ void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
                 f = 0;
                 int_fast64_t value = bytes_to_int(arg_array + arg_ptr);
                 arg_ptr += INT_LEN;
-                printf("%lld", value);
+
+                int buf_len = sprintf(buffer, "%lld", value);
+                append_string_ptr(builder, buf_len, buffer);
             } else if (ch == 'c') {  // char
                 f = 0;
                 unsigned char value = arg_array[arg_ptr++];
-                printf("%c", value);
+                append_string(builder, value);
             } else if (ch == 'f') {  // float
                 f = 0;
                 double value = bytes_to_double(arg_array + arg_ptr);
                 arg_ptr += FLOAT_LEN;
-                printf("%f", value);
+                int buf_len = sprintf(buffer, "%f", value);
+                append_string_ptr(builder, buf_len, buffer);
             } else if (ch == 's') {  // string
                 f = 0;
                 int_fast64_t str_ptr = bytes_to_int(arg_array + arg_ptr);
                 arg_ptr += INT_LEN;
-                for (; MEMORY[str_ptr] != 0; str_ptr++) printf("%c", MEMORY[str_ptr]);
+                for (; MEMORY[str_ptr] != 0; str_ptr++) append_string(builder, MEMORY[str_ptr]);
             } else {
                 fprintf(stderr, "Unknown flag: '%c'\n", ch);
                 f = 0;
             }
         } else {
-            printf("%c", ch);
+            append_string(builder, ch);
         }
     }
+    return builder;
+}
+
+void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
+    if (arg_len < 8) {
+        printf("'printf' takes at least 1 argument");
+        ERROR_CODE = 1;
+        return;
+    }
+    StringBuilder *builder = str_format(arg_len, arg_array);
+    print_string(builder);
+    free_string(builder);
+}
+
+void native_stringf(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned char *arg_array) {
+    if (arg_len < 8) {
+        printf("'stringf' takes at least 1 argument");
+        ERROR_CODE = 1;
+        return;
+    }
+    int_fast64_t buffer_ptr = bytes_to_int(arg_array);
+    StringBuilder *builder = str_format(arg_len, arg_array + PTR_LEN);
+    memcpy(MEMORY + buffer_ptr, builder->array, builder->size);
+    int_to_bytes(MEMORY + ret_ptr, builder->size);
+    free_string(builder);
 }
 
 int_fast64_t find_ava(int length) {
@@ -324,6 +350,10 @@ void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_l
             break;
         case 5:  // free
             native_free(arg_len, args);
+            break;
+        case 6:  // stringf
+            ret_len = PTR_LEN;
+            native_stringf(arg_len, ret_ptr_end - ret_len, args);
             break;
         default:
             printf("Unknown native function %lld", func);

@@ -140,6 +140,9 @@ There are 3 types of conditional statements: `if` statement, `for` statement, an
 * #### For statement:
 
 
+## Structs
+
+
 ## Table of all native primitive types:
 
 | Type name  | Byte length | Signed | Min value | Max value |

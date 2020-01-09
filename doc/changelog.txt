@@ -1,3 +1,9 @@
+#### Build 1035 ####
+2020/01/08
+
+*New native function "stringf": format a string
+
+
 #### Build 1034 ####
 2020/01/08
 

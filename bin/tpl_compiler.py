@@ -74,7 +74,7 @@ NEG_F = 59
 LOAD_LEN = 11
 STORE_LEN = 11
 
-NATIVE_FUNCTION_COUNT = 5
+NATIVE_FUNCTION_COUNT = 6
 
 INT_RESULT_TABLE_INT = {
     "+": ADD,
@@ -812,18 +812,26 @@ class Compiler:
         p1 = self.memory.define_func_ptr()  # 1: clock
         self.memory.implement_func(p1, typ.int_to_bytes(1))
         env.define_function("clock", NativeFunction(en.Type("int"), p1))
+
         p2 = self.memory.define_func_ptr()  # 2: malloc
         self.memory.implement_func(p2, typ.int_to_bytes(2))
         env.define_function("malloc", NativeFunction(en.Type("*void"), p2))
+
         p3 = self.memory.define_func_ptr()  # 3: printf
         self.memory.implement_func(p3, typ.int_to_bytes(3))
         env.define_function("printf", NativeFunction(en.Type("void"), p3))
+
         p4 = self.memory.define_func_ptr()  # 4: mem_copy
         self.memory.implement_func(p4, typ.int_to_bytes(4))
         env.define_function("mem_copy", NativeFunction(en.Type("void"), p4))
+
         p5 = self.memory.define_func_ptr()  # 5: free
         env.define_function("free", NativeFunction(en.Type("void"), p5))
         self.memory.implement_func(p5, typ.int_to_bytes(5))
+
+        p6 = self.memory.define_func_ptr()  # 6: stringf
+        env.define_function("stringf", NativeFunction(en.Type("int"), p6))
+        self.memory.implement_func(p6, typ.int_to_bytes(6))
 
     def add_compile_time_functions(self, env: en.GlobalEnvironment):
         env.define_function("sizeof", CompileTimeFunction(en.Type("int"), self.function_sizeof))
