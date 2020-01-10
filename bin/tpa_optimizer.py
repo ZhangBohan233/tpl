@@ -1,9 +1,12 @@
 import sys
+import math
 import bin.spl_types as typ
 import bin.tpl_compiler as cmp  # used in eval
 
 
-# import bin.tpa_generator as gen
+# Optimization level works:
+MERGE_VARIABLE = 2
+SUBSTITUTE_OPERATORS = 2
 
 
 class Line:
@@ -71,6 +74,8 @@ class TpaParser:
         self.ins_begins = 0
         self.generate_lengths()
 
+        self.lit_loc = 5
+
     def generate_lengths(self):
         self.stack_size = int(self.tokens[0][0])
         self.lit_len = int(self.tokens[1][0])
@@ -89,7 +94,7 @@ class TpaParser:
         out.extend(typ.int_to_bytes(self.function_length))
         out.append(self.main_takes_arg)
 
-        literal = self.tokens[5]
+        literal = self.tokens[self.lit_loc]
         for ch in literal:  # write literal
             out.append(int(ch))
 
@@ -126,10 +131,20 @@ class TpaParser:
 
         return bytes(out)
 
+    def get_literal(self, addr: int, length: int) -> bytes:
+        lit_tk = self.tokens[self.lit_loc]
+        index = addr - self.stack_size
+        ba = bytearray()
+        for i in range(length):
+            ba.append(int(lit_tk[index + i]))
+        return bytes(ba)
 
-BINARY_OP_INS = {
-    "ADD", "SUB", "MUL", "DIV", "MOD",
-    "ADD_F", "SUB_F", "MUL_F", "DIV_F", "MOD_F"
+    def is_lit_addr(self, addr: int) -> bool:
+        return self.stack_size <= addr < self.stack_size + self.lit_len
+
+
+BINARY_OP_SUBSTITUTE = {
+    "MUL", "DIV", "MOD",
 }
 
 # NEED_LESS_PUSH = {
@@ -220,6 +235,10 @@ def _modify_jump(line: Line, modifying_byte_index, length_change):
             line[1] = skip_len - length_change
 
 
+def is_2_power(n):
+    return (n & n - 1) == 0 and n != 0
+
+
 class Optimizer:
     def __init__(self, tpa_psr: TpaParser):
         self.parser = tpa_psr
@@ -229,8 +248,41 @@ class Optimizer:
         self.parser.generate_lengths()
 
     def optimize(self, level: int):
-        if level > 1:
+        if level >= SUBSTITUTE_OPERATORS:
+            self.substitute_operators()
+        if level >= MERGE_VARIABLE:
             self.merge_variables()
+
+    def substitute_operators(self):
+        tk_count = len(self.parser.tokens)
+        i = self.parser.ins_begins
+
+        while i < tk_count:
+            line = self.parser.tokens[i]
+            if line[0] in BINARY_OP_SUBSTITUTE and self.parser.tokens[i - 1][0] == "LOAD":
+                rtk = self.parser.tokens[i - 1]
+                right_operand_addr = int(rtk[2])
+                if self.parser.is_lit_addr(right_operand_addr):
+                    rb = self.parser.get_literal(right_operand_addr, 8)
+                    rv = typ.bytes_to_int(rb)
+                    shift = int(math.log2(rv))
+                    if is_2_power(rv):
+                        rtk[0] = "LOAD_I"
+                        if line[0] == "MOD":
+                            and_er = 0
+                            for bit in range(shift):
+                                and_er <<= 1
+                                and_er |= 1
+                            rtk[2] = and_er
+                            line[0] = "B_AND"
+                        else:
+                            rtk[2] = shift
+                            rtk.pointers.remove(2)
+                            if line[0] == "MUL":
+                                line[0] = "LSHIFT"
+                            else:  # div
+                                line[0] = "RSHIFT_A"
+            i += 1
 
     def merge_variables(self):
         new_lst = self.parser.tokens[:self.parser.ins_begins]

@@ -4,8 +4,9 @@
 
 
 fn main() int {
-    var a: int = 5 + 1;
-    var b: int = 0xff_ff;
-    b <<= 2;
-    return b;
+    a := 65535;
+    for i := 0; i < 10; ++i {
+        a /= 4;
+        printf("%d\n", a);
+    }
 }

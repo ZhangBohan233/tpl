@@ -73,7 +73,12 @@ NEG_F = 59
 LOAD_LEN = 11
 STORE_LEN = 11
 
+# Number of native functions, used for generating tpa
 NATIVE_FUNCTION_COUNT = 6
+
+
+# Optimizations starting level
+OPTIMIZE_LOOP_INDICATOR = 2
 
 INT_RESULT_TABLE_INT = {
     "+": ADD,
@@ -782,6 +787,7 @@ class Compiler:
         self.memory = MemoryManager(literal_bytes)
 
         self.modified_string_poses = set()
+        self.optimize_level = 0
 
         self.node_table = {
             ast.LITERAL: self.compile_literal,
@@ -807,6 +813,10 @@ class Compiler:
             ast.QUICK_ASSIGNMENT: self.compile_quick_assignment,
             ast.IN_DECREMENT_OPERATOR: self.compile_in_decrement
         }
+
+    def configs(self, **kwargs):
+        if "optimize" in kwargs:
+            self.optimize_level = kwargs["optimize"]
 
     def add_native_functions(self, env: en.GlobalEnvironment):
         p1 = self.memory.define_func_ptr()  # 1: clock
@@ -1522,12 +1532,17 @@ class Compiler:
         if len(node.condition.lines) != 3:
             raise lib.CompileTimeException("For loop title must have 3 parts.")
 
+        # if loop body does not contains break, no loop_indicator needed
+        optimize_able = self.optimize_level >= OPTIMIZE_LOOP_INDICATOR and not has_child_node(node.body, ast.BreakStmt)
+
         self.memory.store_sp()
         bo.write_one(STORE_SP)  # before loop
 
-        loop_indicator = self.memory.allocate(INT_LEN, bo)
-        # bo.push_stack(INT_LEN)
-        bo.assign_i(loop_indicator, 1)
+        if optimize_able:
+            loop_indicator = None
+        else:
+            loop_indicator = self.memory.allocate(INT_LEN, bo)
+            bo.assign_i(loop_indicator, 1)
 
         title_env = en.LoopEnvironment(env)
         body_env = en.BlockEnvironment(title_env)
@@ -1540,9 +1555,11 @@ class Compiler:
         bo.write_one(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
 
-        real_cond_ptr = self.memory.allocate(INT_LEN, bo)
-        # bo.push_stack(INT_LEN)
-        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        if optimize_able:
+            real_cond_ptr = cond_ptr
+        else:
+            real_cond_ptr = self.memory.allocate(INT_LEN, bo)
+            bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
@@ -1569,12 +1586,17 @@ class Compiler:
         if len(node.condition.lines) != 1:
             raise lib.CompileTimeException("While loop title must have 1 part.")
 
+        # if loop body does not contains break, no loop_indicator needed
+        optimize_able = self.optimize_level >= OPTIMIZE_LOOP_INDICATOR and not has_child_node(node.body, ast.BreakStmt)
+
         self.memory.store_sp()  # 进loop之前
         bo.write_one(STORE_SP)
 
-        loop_indicator = self.memory.allocate(INT_LEN, bo)
-        # bo.push_stack(INT_LEN)
-        bo.assign_i(loop_indicator, 1)
+        if optimize_able:
+            loop_indicator = None
+        else:
+            loop_indicator = self.memory.allocate(INT_LEN, bo)
+            bo.assign_i(loop_indicator, 1)
 
         init_len = len(bo)
         self.memory.store_sp()  # 循环开始
@@ -1585,9 +1607,11 @@ class Compiler:
 
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
 
-        real_cond_ptr = self.memory.allocate(INT_LEN, bo)
-        # bo.push_stack(INT_LEN)
-        bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        if optimize_able:
+            real_cond_ptr = cond_ptr
+        else:
+            real_cond_ptr = self.memory.allocate(INT_LEN, bo)
+            bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
 
         cond_len = len(bo) - init_len
 
@@ -1883,6 +1907,23 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         return get_tal_of_evaluated_node(node.value, env)
     else:
         raise lib.TypeException("Cannot get type and array length")
+
+
+def has_child_node(node: ast.Node, target: type) -> bool:
+    if isinstance(node, target):
+        return True
+    elif isinstance(node, ast.Node):
+        attr_names = dir(node)
+        for attr_name in attr_names:
+            attr = getattr(node, attr_name)
+            if isinstance(attr, ast.Node):
+                if has_child_node(attr, target):
+                    return True
+            elif isinstance(attr, list):
+                for i in range(len(attr)):
+                    if has_child_node(attr[i], target):
+                        return True
+    return False
 
 
 def pointer_depth(type_name: str) -> int:

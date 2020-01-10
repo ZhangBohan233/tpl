@@ -1,3 +1,11 @@
+#### Build 1039 ####
+2020/01/09
+
+* New compile time optimizations:
+    * Available in -o2 level:
+        * Removes loop indicator if no 'break' in loop
+        * Substitute integer multiplication, division, modulo by a 2-power literal with bitwise operators
+
 #### Build 1038 ####
 2020/01/09
 

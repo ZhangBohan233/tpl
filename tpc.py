@@ -70,7 +70,7 @@ if __name__ == '__main__':
             print("========== End of AST ==========")
 
         compiler = cmp.Compiler(parser.literal_bytes)
-        # compiler.set_optimize(args["optimize"])
+        compiler.configs(optimize=args["optimize"])
         byt = compiler.compile_all(root)
 
         tar_name = args["tar_file"]
