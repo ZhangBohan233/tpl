@@ -14,10 +14,7 @@ fn main() int {
 
     printf("fib time: %d\n", t1 - t0);
 
-    a := 1;
-    var b: int;
     for register i: int = 0; i < 1000000; ++i {
-        b = a * 2;
     }
 
     var t2: int = clock();
