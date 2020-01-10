@@ -4,9 +4,10 @@
 
 
 fn main() int {
-    a := 65535;
     for i := 0; i < 10; ++i {
-        a /= 4;
-        printf("%d\n", a);
+        if i == 6 {
+            break;
+        }
+        printf("%d ", i);
     }
 }
