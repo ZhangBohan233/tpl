@@ -49,7 +49,7 @@ UNPACK_ADDR = 33
 # PTR_ASSIGN = 34  # | assign the addr stored in ptr with the value stored in right
 STORE_SP = 35
 RES_SP = 36
-MOVE_REG = 37  # | copy between registers
+MOVE_REG = 37  # MOVE_REG   %DST  %SRC       | copy between registers
 # TO_REL = 37  # | transform absolute addr to
 # ADD_I = 38       # | add with real value
 CAST_INT = 38  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
@@ -79,6 +79,7 @@ NATIVE_FUNCTION_COUNT = 6
 
 # Optimizations starting level
 OPTIMIZE_LOOP_INDICATOR = 2
+OPTIMIZE_LOOP_REG = 3
 
 INT_RESULT_TABLE_INT = {
     "+": ADD,
@@ -225,6 +226,13 @@ class ByteOutput:
         self.write_one(LOAD)
         self.write_one(reg)
         self.write_int(src)
+
+    def assign_reg_i(self, reg_id, real_value):
+        reg = -reg_id - 1
+
+        self.write_one(LOAD_I)
+        self.write_one(reg)
+        self.write_int(real_value)
 
     def store_from_reg(self, des, reg_id):
         temp_reg = self.manager.require_reg64()
@@ -555,16 +563,30 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
-    def if_zero_goto(self, offset: int, cond_ptr: int):
+    def if_zero_goto(self, offset: int, cond_ptr: int) -> int:
+        """
+        Returns the occupied length
+
+        :param offset:
+        :param cond_ptr:
+        :return:
+        """
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
         self.write_one(LOAD_I)
         self.write_one(reg1)  # reg stores skip len
         self.write_int(offset)
 
-        self.write_one(LOAD)
-        self.write_one(reg2)  # reg stores cond ptr
-        self.write_int(cond_ptr)
+        if cond_ptr < 0:  # cond is register:
+            self.write_one(MOVE_REG)
+            self.write_one(reg2)
+            self.write_one(-cond_ptr - 1)
+            length = 16
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg2)  # reg stores cond ptr
+            self.write_int(cond_ptr)
+            length = 23
 
         self.write_one(IF_ZERO_GOTO)
         self.write_one(reg1)
@@ -572,7 +594,9 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
-    def goto(self, offset: int):
+        return length
+
+    def goto(self, offset: int) -> int:
         reg1, = self.manager.require_regs64(1)
 
         self.write_one(LOAD_I)
@@ -615,7 +639,7 @@ class LoopByteOutput(ByteOutput):
         return self.loop_indicator_pos
 
     def get_loop_length(self):
-        return self.step_node, self.cond_len + len(self) + INT_LEN * 2 + 1
+        return self.step_node, self.cond_len + len(self)
 
 
 class BlockByteOutput(ByteOutput):
@@ -679,6 +703,9 @@ class MemoryManager:
         for reg in regs:
             self.available_regs64.append(reg)
 
+    def has_enough_regs(self):
+        return len(self.available_regs64) > 4
+
     def get_type_size(self, name):
         if name[0] == "*":  # is a pointer
             return self.pointer_length
@@ -706,7 +733,7 @@ class MemoryManager:
         else:  # in call
             ptr = self.sp - self.blocks[-1]
             self.sp += length
-            if bo is not None:
+            if bo is not None and length > 0:
                 bo.push_stack(length)
         return ptr
 
@@ -1540,6 +1567,10 @@ class Compiler:
 
         if optimize_able:
             loop_indicator = None
+        elif self.optimize_level >= OPTIMIZE_LOOP_REG and self.memory.has_enough_regs():
+            reg = self.memory.require_reg64()
+            loop_indicator = -reg - 1
+            bo.assign_reg_i(loop_indicator, 1)
         else:
             loop_indicator = self.memory.allocate(INT_LEN, bo)
             bo.assign_i(loop_indicator, 1)
@@ -1557,6 +1588,10 @@ class Compiler:
 
         if optimize_able:
             real_cond_ptr = cond_ptr
+        elif self.optimize_level >= OPTIMIZE_LOOP_REG and self.memory.has_enough_regs():
+            reg = self.memory.require_reg64()
+            real_cond_ptr = -reg - 1
+            bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
         else:
             real_cond_ptr = self.memory.allocate(INT_LEN, bo)
             bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
@@ -1571,9 +1606,9 @@ class Compiler:
 
         body_len = len(body_bo) + 10 + 2  # load_i(10), goto(2)
 
-        bo.if_zero_goto(body_len, real_cond_ptr)
+        if_len = bo.if_zero_goto(body_len, real_cond_ptr)
 
-        body_bo.goto(-body_len - cond_len - 10 - 10 - 3)  # the length of if_zero_goto(3), load_i(10), load(10)
+        body_bo.goto(-body_len - cond_len - if_len)  # the length of if_zero_goto(3), load_i(10), load(10)
 
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)
@@ -1581,6 +1616,11 @@ class Compiler:
         self.memory.restore_sp()
         bo.write_one(RES_SP)
         self.memory.restore_sp()
+
+        if real_cond_ptr < 0:
+            self.memory.append_regs64(-real_cond_ptr - 1)
+        if loop_indicator is not None and loop_indicator < 0:
+            self.memory.append_regs64(-loop_indicator - 1)
 
     def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: ByteOutput):
         if len(node.condition.lines) != 1:
@@ -1594,6 +1634,10 @@ class Compiler:
 
         if optimize_able:
             loop_indicator = None
+        elif self.optimize_level >= OPTIMIZE_LOOP_REG and self.memory.has_enough_regs():
+            reg = self.memory.require_reg64()
+            loop_indicator = -reg - 1
+            bo.assign_reg_i(loop_indicator, 1)
         else:
             loop_indicator = self.memory.allocate(INT_LEN, bo)
             bo.assign_i(loop_indicator, 1)
@@ -1609,6 +1653,10 @@ class Compiler:
 
         if optimize_able:
             real_cond_ptr = cond_ptr
+        elif self.optimize_level >= OPTIMIZE_LOOP_REG and self.memory.has_enough_regs():
+            reg = self.memory.require_reg64()
+            real_cond_ptr = -reg - 1
+            bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
         else:
             real_cond_ptr = self.memory.allocate(INT_LEN, bo)
             bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
@@ -1622,9 +1670,9 @@ class Compiler:
         body_bo.write_one(RES_SP)
         body_len = len(body_bo) + 10 + 2  # load_i(10), goto(2)
 
-        bo.if_zero_goto(body_len, real_cond_ptr)
+        if_len = bo.if_zero_goto(body_len, real_cond_ptr)
 
-        body_bo.goto(-body_len - cond_len - 10 - 10 - 3)  # the length of if_zero_goto(3), load_i(10), load(10)
+        body_bo.goto(-body_len - cond_len - if_len)  # the length of if_zero_goto(3), load_i(10), load(10)
 
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)
@@ -1633,6 +1681,11 @@ class Compiler:
 
         self.memory.restore_sp()
         bo.write_one(RES_SP)
+
+        if real_cond_ptr < 0:
+            self.memory.append_regs64(-real_cond_ptr - 1)
+        if loop_indicator is not None and loop_indicator < 0:
+            self.memory.append_regs64(-loop_indicator - 1)
 
     def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
         tal = get_tal_of_evaluated_node(node, env)
@@ -1643,7 +1696,10 @@ class Compiler:
 
     def compile_break(self, node: ast.BreakStmt, env: en.Environment, bo: ByteOutput):
         loop_indicator = bo.get_loop_indicator()
-        bo.assign_i(loop_indicator, 0)
+        if loop_indicator < 0:  # is register
+            bo.assign_reg_i(loop_indicator, 0)
+        else:
+            bo.assign_i(loop_indicator, 0)
         self.compile_continue(None, env, bo)
 
     def compile_continue(self, node: ast.ContinueStmt, env: en.Environment, bo: ByteOutput):
@@ -1653,8 +1709,16 @@ class Compiler:
         self.compile(step_node, env, bo)
         len_diff = len(bo) - cur_len
 
+        li = bo.get_loop_indicator()
+        if li is None:
+            back = 42
+        elif li < 0:
+            back = 35
+        else:
+            back = 42
+
         bo.write_one(RES_SP)
-        bo.goto(-length_before - len_diff - 25)
+        bo.goto(-length_before - len_diff - back)
         # bo.write_one(GOTO)
         # bo.write_int(-length_before - len_diff - INT_LEN - 1)
 

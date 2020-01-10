@@ -64,6 +64,7 @@ const int ERR_STACK_OVERFLOW = 1;
 const int ERR_NATIVE_INVOKE = 2;
 const int ERR_VM_OPT = 3;
 const int ERR_HEAP_COLLISION = 4;
+const int ERR_INSTRUCTION = 5;
 
 int ERROR_CODE = 0;
 
@@ -726,7 +727,9 @@ void vm_run() {
                 regs64[reg_p1].double_value = -regs64[reg_p1].double_value;
                 break;
             default:
-                fprintf(stderr, "Unknown instruction %d\n", instruction);
+                fprintf(stderr, "Unknown instruction %d at byte pos %lld\n", instruction, PC);
+                ERROR_CODE = ERR_INSTRUCTION;
+//                break;
                 return;
         }
 //        printf("sp: %lld\n", SP);

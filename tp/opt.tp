@@ -5,9 +5,10 @@
 
 fn main() int {
     for i := 0; i < 10; ++i {
-        if i == 6 {
-            break;
+        if i == 7 {
+            continue;
         }
-        printf("%d ", i);
+        printf("gg%d ", i);
     }
+    printf("\n");
 }

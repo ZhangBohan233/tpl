@@ -1,4 +1,5 @@
-* const
-* Loop conditions in register if enough
-* bitwise operators
-* global variables
+* const     ...done
+* Loop conditions in register if enough     ...done
+* bitwise operators     ...done
+* global variables     ...done
+* tail call optimization

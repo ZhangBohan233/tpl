@@ -1,3 +1,15 @@
+#### Build 1040 ####
+2020/01/10
+
+* New compile time optimizations:
+    * Stores loop indicator and loop condition in -o3
+    * Do not compile push 0
+* Bug fixes:
+    * Fixed that 'continue' causes error under -o2
+* Known bug:
+    * Loop step in i++ causes bug if loop contains 'break' or 'continue'
+
+
 #### Build 1039 ####
 2020/01/09
 
