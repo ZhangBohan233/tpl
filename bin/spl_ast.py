@@ -442,7 +442,7 @@ class WhileStmt(CondStmt):
 
 
 class ForLoopStmt(CondStmt):
-    body = None
+    body: BlockStmt = None
 
     def __init__(self, line):
         CondStmt.__init__(self, line)
@@ -1037,6 +1037,19 @@ class AbstractSyntaxTree:
             cond_stmt.condition = expr
             # print(cond_stmt)
             self.stack.append(cond_stmt)
+    #
+    # def build_for_loop(self):
+    #     if self.inner.inner:
+    #         self.inner.build_for_loop()
+    #     else:
+    #         block = BlockStmt((0, "Parser"))
+    #         block.lines = self.inner.stack.copy()
+    #
+    #         self.invalidate_inner()
+    #         cond_stmt: ForLoopStmt = self.stack.pop()
+    #         cond_stmt.condition = block
+    #         # print(cond_stmt)
+    #         self.stack.append(cond_stmt)
 
     def build_import(self):
         if self.inner:
@@ -1110,14 +1123,15 @@ class AbstractSyntaxTree:
             self.inner.build_line()
             block = self.inner.get_as_block()
             self.invalidate_inner()
-            if len(block.lines) != 1:
-                if len(block.lines) == 0:
-                    raise stl.ParseException("Empty parenthesis")
-                else:
-                    raise stl.ParseException("Too many elements in parenthesis, in file '{}', at line {}".format(
-                        block.lines[-1].file, block.lines[-1].line_num
-                    ))
-            self.stack.append(block.lines[0])
+            if len(block.lines) == 0:
+                raise stl.ParseException("Empty parenthesis")
+            elif len(block.lines) == 1:
+                self.stack.append(block.lines[0])
+            else:
+                self.stack.append(block)
+                # raise stl.ParseException("Too many elements in parenthesis, in file '{}', at line {}".format(
+                #     block.lines[-1].file, block.lines[-1].line_num
+                # ))
 
     def build_lambda_parameters(self):
         if self.inner.inner:
@@ -1242,7 +1256,13 @@ class AbstractSyntaxTree:
                                                      .format(node.file, node.line_num))
                         lst.clear()
                         lst.append(node)
-                    elif isinstance(node, WhileStmt) or isinstance(node, ForLoopStmt):
+                    elif isinstance(node, WhileStmt):
+                        if len(lst) == 1:
+                            node.body = lst.pop()
+                            lst.append(node)
+                        elif len(lst) != 0:
+                            raise stl.ParseException("Unexpected token")
+                    elif isinstance(node, ForLoopStmt):
                         if len(lst) == 1:
                             node.body = lst.pop()
                             lst.append(node)

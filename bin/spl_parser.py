@@ -125,7 +125,7 @@ class Parser:
                         par_count += 1
                     elif sym == ")":
                         par_count -= 1
-                        next_sig_token = self.find_next_significant_token(i)
+                        # next_sig_token = self.find_next_significant_token(i)
                         if is_this_list(call_nest_list, par_count):
                             parser.build_line()
                             parser.build_call()
@@ -136,8 +136,8 @@ class Parser:
                             parser.begin_type_param(line)
                             is_type_param = True
                             # i += 1  # omit the next ':' symbol
-                        elif next_sig_token.is_identifier() and next_sig_token.symbol == "->":
-                            parser.build_lambda_parameters()
+                        # elif next_sig_token.is_identifier() and next_sig_token.symbol == "->":
+                        #     parser.build_lambda_parameters()
                         else:
                             parser.build_parenthesis()
                     elif sym == "[":

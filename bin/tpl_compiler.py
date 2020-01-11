@@ -596,7 +596,7 @@ class ByteOutput:
 
         return length
 
-    def goto(self, offset: int) -> int:
+    def goto(self, offset: int):
         reg1, = self.manager.require_regs64(1)
 
         self.write_one(LOAD_I)
@@ -1121,7 +1121,8 @@ class Compiler:
 
     def create_array(self, tal: en.Type, bo: ByteOutput, assign_right: bool, env=None, right_node=None) -> int:
         # print(tal)
-        # if len(tal.array_lengths) == 1:
+        if len(tal.array_lengths) != 1:
+            raise lib.CompileTimeException("High dimensional local array not supported. Use pointer array instead.")
         total_len = tal.total_len(self.memory)
         ptr = self.memory.allocate(PTR_LEN, bo)
         # bo.push_stack(PTR_LEN)
@@ -1166,7 +1167,15 @@ class Compiler:
 
         bo.ptr_assign(attr_addr, value_ptr, length)
 
-    def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput):
+    def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput, assign_const=False):
+        """
+
+        :param node:
+        :param env:
+        :param bo:
+        :param assign_const: must be false since struct does not support constant attributes
+        :return:
+        """
         attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
 
         res_ptr = self.memory.allocate(length, bo)
@@ -1257,7 +1266,7 @@ class Compiler:
 
         ltn = left_tal.type_name[ptr_depth:]
         # attr_tal = get_tal_of_evaluated_node(node, env)
-        struct_ptr = self.compile(node.left, env, bo)
+        left_ptr = self.compile(node.left, env, bo)
         struct = env.get_struct(ltn)
         attr_tal = struct.get_attr_tal(node.right.name)
 
@@ -1268,16 +1277,20 @@ class Compiler:
 
         if node.dot_count == 1:  # self
             addr_ptr = self.memory.allocate(PTR_LEN, bo)
-            # bo.push_stack(PTR_LEN)
-            bo.store_addr_to_des(addr_ptr, struct_ptr + attr_pos)
+            bo.store_addr_to_des(addr_ptr, left_ptr + attr_pos)
             return addr_ptr, attr_len
         elif node.dot_count == 2:
-            # print(struct_ptr)
             real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
-            # bo.push_stack(PTR_LEN)
-            bo.assign(real_addr_ptr, struct_ptr, attr_len)
+            bo.assign(real_addr_ptr, left_ptr, attr_len)
             bo.op_i(ADD, real_addr_ptr, attr_pos)
             return real_addr_ptr, attr_len
+        elif node.dot_count == 3:
+            real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
+            bo.unpack_addr(real_addr_ptr, left_ptr, attr_len)
+            bo.op_i(ADD, real_addr_ptr, attr_pos)
+            return real_addr_ptr, attr_len
+        else:
+            raise lib.CompileTimeException("Pointer too deep.")
 
     def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
         assert isinstance(node.call_obj, ast.NameNode)
@@ -1345,18 +1358,13 @@ class Compiler:
             if num_ptr < 0:
                 raise lib.CompileTimeException("Register has no memory address")
             ptr_ptr = self.memory.allocate(PTR_LEN, bo)
-            # bo.push_stack(PTR_LEN)
-            # bo.assign_i(ptr_ptr, num_ptr)
             bo.store_addr_to_des(ptr_ptr, num_ptr)
             return ptr_ptr
         elif node.operation == "unpack":
             orig_tal = get_tal_of_evaluated_node(node, env)
             total_len = orig_tal.total_len(self.memory)
             ptr_ptr = self.compile(node.value, env, bo)
-            # print(total_len)
             num_ptr = self.memory.allocate(total_len, bo)
-            # print(num_ptr)
-            # bo.push_stack(total_len)
             bo.unpack_addr(num_ptr, ptr_ptr, total_len)
             return num_ptr
         elif node.operation == "!":
@@ -1557,7 +1565,7 @@ class Compiler:
 
     def compile_for_loop(self, node: ast.ForLoopStmt, env: en.Environment, bo: ByteOutput):
         if len(node.condition.lines) != 3:
-            raise lib.CompileTimeException("For loop title must have 3 parts.")
+            raise lib.CompileTimeException("For loop title must have 3 parts, got {}".format(len(node.condition.lines)))
 
         # if loop body does not contains break, no loop_indicator needed
         optimize_able = self.optimize_level >= OPTIMIZE_LOOP_INDICATOR and not has_child_node(node.body, ast.BreakStmt)
@@ -1960,7 +1968,7 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:
             raise lib.TypeException()
-        real_l_tal = en.Type(left_tal.type_name[ptr_depth], left_tal.array_lengths)
+        real_l_tal = en.Type(left_tal.type_name[ptr_depth:], left_tal.array_lengths)
         if env.is_struct(real_l_tal.type_name):
             struct = env.get_struct(real_l_tal.type_name)
             return struct.get_attr_tal(node.right.name)

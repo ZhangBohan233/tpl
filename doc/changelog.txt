@@ -1,3 +1,14 @@
+#### Build 1041 ####
+2020/01/10
+
+* New syntax:
+    * Parenthesis inside for loop title to support multiple conditions
+* Added support of access to pointer to pointer to structs
+* New library:
+    * util.tp
+* Bug fixes:
+    * Dot causes error
+
 #### Build 1040 ####
 2020/01/10
 
