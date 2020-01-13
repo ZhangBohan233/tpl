@@ -1,6 +1,5 @@
 
 fn main() int {
-    //var c: char[] = "1234";
-    var a: int[] = {'1', '2', 'c', '\0'};
+    var a: int[] = {3, 4, 5, 6};
     printf("%d %d\n", a[2], a[3]);
 }

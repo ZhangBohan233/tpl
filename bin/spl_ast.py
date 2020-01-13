@@ -648,8 +648,8 @@ class AbstractSyntaxTree:
     :type inner: AbstractSyntaxTree
     """
 
-    def __init__(self):
-        self.elements: BlockStmt = BlockStmt((0, "parser"))
+    def __init__(self, lf=(0, "parser")):
+        self.elements: BlockStmt = BlockStmt(lf)
         self.stack = []
         self.inner = None
         self.in_expr = False
@@ -1065,11 +1065,11 @@ class AbstractSyntaxTree:
         else:
             self.inner = AbstractSyntaxTree()
 
-    def add_dict(self):
+    def add_dict(self, lf):
         if self.inner:
-            self.inner.add_dict()
+            self.inner.add_dict(lf)
         else:
-            inner = AbstractSyntaxTree()
+            inner = AbstractSyntaxTree(lf)
             inner.elements.standalone = True
             self.inner = inner
 

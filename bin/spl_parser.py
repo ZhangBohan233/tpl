@@ -101,7 +101,7 @@ class Parser:
                                      is_identifier_before_block(last_token.symbol)):  # is a class or a dotted import
                                 parser.new_block()
                             else:
-                                parser.add_dict()
+                                parser.add_dict(line)
                     elif sym == "}":
                         brace_count -= 1
                         parser.build_block()

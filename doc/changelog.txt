@@ -1,3 +1,9 @@
+#### Build 1044 ####
+2020/01/13
+
+* Added length check of preset array
+* Error trace for standalone block
+
 #### Build 1043 ####
 2020/01/13
 

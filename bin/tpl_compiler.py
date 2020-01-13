@@ -1057,6 +1057,8 @@ class Compiler:
                 else:
                     bo.assign(ptr, r, total_len)
 
+                return ptr
+
         elif node.left.node_type == ast.TYPE_NODE:  # define
             type_node: ast.TypeNode = node.left
             if node.level == ast.VAR or node.level == ast.CONST:
@@ -1094,6 +1096,8 @@ class Compiler:
                 else:
                     env.define_var(type_node.left.name, tal, ptr)
 
+                return ptr
+
             elif node.level == ast.REGISTER:
                 tal = get_tal_of_defining_node(type_node.right, env, self.memory)
                 total_len = tal.total_len(self.memory)
@@ -1111,6 +1115,8 @@ class Compiler:
                 env.define_var(type_node.left.name, tal, reg)
                 env.add_register(reg)
 
+                return reg
+
         elif node.left.node_type == ast.INDEXING_NODE:  # set item
             left_node: ast.IndexingNode = node.left
             r = self.compile(node.right, env, bo)
@@ -1125,6 +1131,8 @@ class Compiler:
                 right_tal = get_tal_of_evaluated_node(node.right, env)
                 # orig_tal = get_tal_of_evaluated_node(left_node, env)
                 bo.ptr_assign(res_ptr, r, right_tal.total_len(self.memory))
+
+                return res_ptr
 
         elif isinstance(node.left, ast.Dot):
             r = self.compile(node.right, env, bo)
@@ -1149,6 +1157,11 @@ class Compiler:
         if assign_right:
             r = self.compile(right_node, env, bo)
             if r != 0:  # preset array
+                r_tal = get_tal_of_evaluated_node(right_node, env)
+                if r_tal.array_lengths[0] > tal.array_lengths[0]:
+                    raise lib.CompileTimeException(
+                        "Preset array has length longer than its definition. " + generate_lf(right_node))
+
                 bo.unpack_addr(arr_addr, r, total_len)
 
         return ptr
