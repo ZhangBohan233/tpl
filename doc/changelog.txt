@@ -1,3 +1,10 @@
+#### Build 1042 ####
+2020/01/13
+
+* Rebuilt tpa optimizer:
+    * Uses instruction set
+* Function pointers are now stored in one line in TPA
+
 #### Build 1041 ####
 2020/01/10
 

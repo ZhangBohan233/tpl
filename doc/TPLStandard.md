@@ -21,6 +21,10 @@ There are 3 native primitive types which are directly stored in local memory. Ea
 
 Note that the byteorder of `int` is depend on the platform.
 
+## Pointers:
+
+Pointers stores an address of a variable. A pointer of any type occupies the length of `int`.
+
 ## Literals:
 
 There are 4 types of literals.
@@ -113,6 +117,29 @@ The implementation should have the same name, return type, and parameter types.
 
 ## Function call:
 
+## Binary operators:
+
+There are binary operators in TPL
+
+#### Binary operators table:
+
+Operator  | Left type  | Right type | Return type | Description
+--------- | ---------- | ---------- | ----------- | -----
++         | int, float | int, float | int, float  | Addition
+-         | int, float | int, float | int, float  | Subtraction
+*         | int, float | int, float | int, float  | Multiplication
+/         | int, float | int, float | int, float  | Division
+%         | int, float | int, float | int, float  | Modulo
+&&        | int        | int        | int         | Logical and
+&#124;&#124;| int      | int        | int         | Logical or
+==        | int, float | int, float | int         | Equivalent
+!=        |
+\>>       | int        | int        | int         | Arithmetic right shift
+\>>>      | int        | int        | int         | Logical right shift
+<<        | 
+
+## Unary operators:
+
 ## Conditional statements:
 
 There are 3 types of conditional statements: `if` statement, `for` statement, and `while` statement.
@@ -143,6 +170,12 @@ There are 3 types of conditional statements: `if` statement, `for` statement, an
 ## Structs
 
 
+## Compile time functions
+
+
+## Native invoke functions
+
+
 ## Table of all native primitive types:
 
 | Type name  | Byte length | Signed | Min value | Max value |
@@ -150,6 +183,14 @@ There are 3 types of conditional statements: `if` statement, `for` statement, an
 | char       | 1           | False  | 0         | 255       |
 | float      | 8           | True   | -2^1023   | 2^1023    |
 | int        | 8           | True   | -2^63     | 2^63      |
+
+## Table of operator precedences:
+
+|
+|
+|
+|
+|
 
 ## List of all keywords:
 

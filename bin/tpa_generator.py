@@ -57,9 +57,9 @@ class TPAssemblyCompiler:
 
         out_stream.write("\n//FUNCTION POINTERS:\n")
         for i in range(self.total_function_count):
-            out_stream.write(str(self.read_1_int()) + "\n")
+            out_stream.write(str(self.read_1_int()) + " ")
 
-        out_stream.write("//NATIVE FUNCTIONS COUNT:\n{}\n".format(cpl.NATIVE_FUNCTION_COUNT))
+        out_stream.write("\n//NATIVE FUNCTIONS COUNT:\n{}\n".format(cpl.NATIVE_FUNCTION_COUNT))
         self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
 
         self.current_function_count = cpl.NATIVE_FUNCTION_COUNT

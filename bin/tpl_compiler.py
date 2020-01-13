@@ -733,7 +733,7 @@ class MemoryManager:
         else:  # in call
             ptr = self.sp - self.blocks[-1]
             self.sp += length
-            if bo is not None and length > 0:
+            if bo is not None:
                 bo.push_stack(length)
         return ptr
 

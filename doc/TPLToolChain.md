@@ -24,8 +24,23 @@ List of flags:
 * `-o0` No optimization
 * `-o1` Level 1 optimization
 * `-o2` Level 2 optimization
+* `-o3` Level 3 optimization
 * `-tk`, \
   `--tokens` Prints the list of tokens
+  
+### Optimization levels:
+
+`-o1`: Abstract syntax tree optimization:
+* Constant pre-calculation
+
+`-o2`: Redundancy clearance:
+* Removes noneffective TPA instructions
+* Removes empty assignment
+* Removes loop indicator if there is no `break` in loop body
+
+`-o3`: CPU friendly optimizations:
+* Substitute `*`, `/`, `%` with `<<`, `>>`, `&` if applicable
+* Stores loop invariant in register if applicable
 
 ## Virtual Machine
 
