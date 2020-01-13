@@ -1,12 +1,6 @@
 
 fn main() int {
-    for i := 0; i < 10; ++i {
-        if i == 6 {
-            continue;
-        }
-        printf("%d ", i % 8);
-        if i % 2 == 0 {
-            printf("is even ");
-        }
-    }
+    //var c: char[] = "1234";
+    var a: int[] = {'1', '2', 'c', '\0'};
+    printf("%d %d\n", a[2], a[3]);
 }

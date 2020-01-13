@@ -330,8 +330,8 @@ class Optimizer:
                 if right_operand[1] == "$" and self.parser.is_lit_addr(right_operand[0]):
                     rb = self.parser.get_literal(right_operand[0], 8)
                     rv = typ.bytes_to_int(rb)
-                    shift = int(math.log2(rv))
                     if is_2_power(rv):
+                        shift = int(math.log2(rv))
                         rtk.lines[0][0] = ("LOAD_I", "ins")
                         if line.lines[0][0][0] == "MOD":
                             and_er = 0

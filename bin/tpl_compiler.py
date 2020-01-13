@@ -940,8 +940,25 @@ class Compiler:
         return cmp_ftn(node, env, bo, **kwargs)
 
     def compile_block_stmt(self, node: ast.BlockStmt, env: en.Environment, bo: ByteOutput):
-        for line in node.lines:
-            self.compile(line, env, bo)
+        if node.standalone:
+            return self.compile_preset_array(node, env, bo)
+        else:
+            for line in node.lines:
+                self.compile(line, env, bo)
+
+    def compile_preset_array(self, node: ast.BlockStmt, env: en.Environment, bo: ByteOutput):
+        first = None
+        ptr = self.memory.allocate(PTR_LEN, bo)
+        for i in range(len(node.lines)):
+            p = self.memory.allocate(INT_LEN, bo)
+            if first is None:
+                first = p
+            lit_pos = self.compile(node.lines[i], env, bo)
+            bo.assign(p, lit_pos, INT_LEN)
+        if first is None:
+            raise lib.CompileTimeException("Preset array must have at least one element.")
+        bo.store_addr_to_des(ptr, first)
+        return ptr
 
     def compile_literal(self, node: ast.Literal, env: en.Environment, bo: ByteOutput):
         return self.memory.calculate_lit_ptr(node.lit_pos)
@@ -1049,7 +1066,6 @@ class Compiler:
                 if total_len == 0:  # pull the right
                     tal = get_tal_of_evaluated_node(node.right, env)
                     total_len = tal.total_len(self.memory)
-                    # print(total_len)
 
                 if en.is_pointer(tal):
                     assert total_len == PTR_LEN
@@ -1203,16 +1219,6 @@ class Compiler:
     #     return indexing_ptr, unit_len
 
     def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
-        # node_depth = index_node_depth(node)
-        #
-        # tal_depth = len(tal.array_lengths) + pointer_depth(tal.type_name)
-        #
-        # if node_depth == tal_depth:
-        #     length = tal.unit_len(self.memory)
-        # elif node_depth > tal_depth:
-        #     raise lib.CompileTimeException()
-        # else:
-        #     length = PTR_LEN
 
         indexing_addr, tal, length = self.indexing_ptr(node, env, bo)
         # print(length)
@@ -1977,6 +1983,9 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
     elif node.node_type == ast.IN_DECREMENT_OPERATOR:
         node: ast.InDecrementOperator
         return get_tal_of_evaluated_node(node.value, env)
+    elif isinstance(node, ast.BlockStmt) and node.standalone:
+        ele_tal = get_tal_of_evaluated_node(node.lines[0], env)
+        return en.Type(ele_tal.type_name, len(node.lines))
     else:
         raise lib.TypeException("Cannot get type and array length")
 
