@@ -8,7 +8,7 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "=": 1, "+=": 3, "-=": 3, "*=": 3, "/=": 3, "%=": 3,
               "&=": 3, "^=": 3, "|=": 3, "<<=": 3, ">>=": 3, ">>>=": 3,
               "===": 20, "!==": 20, "instanceof": 25, "subclassof": 25, "assert": 0,
-              "?": 4, "++": 300, "--": 300, ":": 3, "->": 2, "<-": 2, ":=": 1}
+              "?": 4, "++": 300, "--": 300, ":": 3, "->": 4, "<-": 2, ":=": 1}
 
 MULTIPLIER = 1000
 
@@ -33,6 +33,7 @@ FUNCTION_CALL = 21
 CLASS_STMT = 22
 NULL_STMT = 23
 QUICK_ASSIGNMENT = 24
+FUNC_OBJ = 25
 # ABSTRACT = 25
 # TRY_STMT = 27
 # CATCH_STMT = 28
@@ -315,7 +316,15 @@ class AssignmentNode(BinaryExpr):
         self.level = level
 
     def __str__(self):
-        return "{} = {}".format(self.left, self.right)
+        if self.level == VAR:
+            t = "var"
+        elif self.level == CONST:
+            t = "const"
+        elif self.level == REGISTER:
+            t = "register"
+        else:
+            t = ""
+        return "{} {} = {}".format(t, self.left, self.right)
 
 
 class InDecrementOperator(Expr):
@@ -536,6 +545,21 @@ class IndexingNode(Node):
 
     def fulfilled(self):
         return self.arg is not None
+
+
+class FuncObj(Expr):
+    def __init__(self, line, expr):
+        Expr.__init__(self, line)
+
+        self.expr: BlockStmt = expr
+
+        self.node_type = FUNC_OBJ
+
+    def __str__(self):
+        return "fn_obj({})".format(self.expr)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class ImportNode(Node):
@@ -901,6 +925,24 @@ class AbstractSyntaxTree:
             struct_node.block = node
             self.stack.append(struct_node)
 
+    def add_func_obj(self, line):
+        if self.inner:
+            self.inner.add_func_obj(line)
+        else:
+            inner = AbstractSyntaxTree(line)
+            inner.elements.standalone = True
+            self.inner = inner
+
+    def build_func_obj(self, line):
+        if self.inner.inner:
+            self.inner.build_func_obj(line)
+        else:
+            self.inner.build_line()
+            root = self.inner.get_as_block()
+            self.invalidate_inner()
+            node = FuncObj(line, root)
+            self.stack.append(node)
+
     # def add_try(self, line):
     #     if self.inner:
     #         self.inner.add_try(line)
@@ -1133,15 +1175,15 @@ class AbstractSyntaxTree:
                 #     block.lines[-1].file, block.lines[-1].line_num
                 # ))
 
-    def build_lambda_parameters(self):
-        if self.inner.inner:
-            self.inner.build_lambda_parameters()
-        else:
-            self.inner.build_line()
-            block = self.inner.get_as_block()
-            self.invalidate_inner()
-            block.standalone = True
-            self.stack.append(block)
+    # def build_lambda_parameters(self):
+    #     if self.inner.inner:
+    #         self.inner.build_lambda_parameters()
+    #     else:
+    #         self.inner.build_line()
+    #         block = self.inner.get_as_block()
+    #         self.invalidate_inner()
+    #         block.standalone = True
+    #         self.stack.append(block)
 
     def build_extends(self):
         if self.inner.inner:

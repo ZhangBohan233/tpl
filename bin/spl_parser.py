@@ -31,6 +31,7 @@ class Parser:
         cond_nest_list = []
         call_nest_list = []
         param_nest_list = []
+        func_obj_nest_list = []
         square_nest_list = []
         # is_abstract = False
         is_extending = False
@@ -138,6 +139,9 @@ class Parser:
                             # i += 1  # omit the next ':' symbol
                         # elif next_sig_token.is_identifier() and next_sig_token.symbol == "->":
                         #     parser.build_lambda_parameters()
+                        elif is_this_list(func_obj_nest_list, par_count):
+                            # parser.build_expr()
+                            parser.build_func_obj(line)
                         else:
                             parser.build_parenthesis()
                     elif sym == "[":
@@ -170,6 +174,8 @@ class Parser:
                     elif sym == ",":
                         if var_level == ast.ASSIGN:  # the normal level
                             parser.build_line()
+                        elif len(func_obj_nest_list) > 0:
+                            parser.build_line()
                     elif sym == "~":  # a special mark
                         pass
                     elif sym == "fn":
@@ -187,9 +193,13 @@ class Parser:
                         # else:
                         #     raise stl.ParseException("Illegal function name '{}', in file '{}', at line {}"
                         #                              .format(f_name, line[1], line[0]))
-                        parser.add_function(line, f_name)
-                        i += push_back
-                        param_nest_list.append(par_count)
+                        if f_name == "(":
+                            func_obj_nest_list.append(par_count)
+                            parser.new_block()
+                        else:
+                            parser.add_function(line, f_name)
+                            i += push_back
+                            param_nest_list.append(par_count)
                         par_count += 1
                         # is_abstract = False
                     elif sym == "struct":

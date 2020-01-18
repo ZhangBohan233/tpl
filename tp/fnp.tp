@@ -1,0 +1,12 @@
+fn test(a: int, b: int) int {
+    return a * b;
+}
+
+fn main() int {
+    //var y: float = 5.5;
+    var x: fn(int, int)->int = test;
+
+    var z: int = x(1, 3);
+
+    return 0;
+}

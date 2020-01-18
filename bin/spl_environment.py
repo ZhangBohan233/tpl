@@ -33,17 +33,24 @@ class Type:
             arr_len *= x
         return mm.get_type_size(self.type_name) * arr_len
 
-    def unit_len(self, mm):
-        if self.type_name[0] == "*":
-            return mm.get_type_size(self.type_name[self.type_name.rfind("*") + 1:])
-        return mm.get_type_size(self.type_name)
+    # def unit_len(self, mm):
+    #     if self.type_name[0] == "*":
+    #         return mm.get_type_size(self.type_name[self.type_name.rfind("*") + 1:])
+    #     return mm.get_type_size(self.type_name)
 
 
-def type_total_len(t: Type) -> int:
-    arr_len = 1
-    for x in t.array_lengths:
-        arr_len *= x
-    return mem.MEMORY.get_type_size(t.type_name) * arr_len
+class FuncType(Type):
+    def __init__(self, params_types: list, r_type: Type):
+        Type.__init__(self, "*")
+
+        self.param_types = params_types
+        self.r_type = r_type
+
+    def __str__(self):
+        return "fn(" + str(self.param_types) + ") -> " + str(self.r_type)
+
+    def total_len(self, mm):
+        return mm.get_type_size("*")
 
 
 def type_to_readable(t: Type) -> str:
@@ -180,6 +187,7 @@ class GlobalEnvironment(MainAbstractEnvironment):
 
     def define_function(self, name: str, func):
         self.functions[name] = func
+        self.var_types[name] = func.tal
 
     def contains_function(self, name: str):
         return name in self.functions
@@ -214,6 +222,8 @@ class GlobalEnvironment(MainAbstractEnvironment):
             return self.variables[name]
         if name in self.structs:
             return self.structs[name]
+        if name in self.functions:
+            return self.functions[name].ptr
         raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
                                 .format(name, lf[1], lf[0]))
 

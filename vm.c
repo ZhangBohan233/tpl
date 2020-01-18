@@ -758,12 +758,7 @@ void test() {
     float c = (int) 6.6;
 }
 
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        printf("Usage: tpl.exe [VM_FLAGS] FILE [PROGRAM_FLAGS]");
-        exit(1);
-    }
-
+int run(int argc, char **argv) {
     int p_memory = 0;
     int p_exit = 0;
     char *file_name = argv[1];
@@ -815,5 +810,14 @@ int main(int argc, char **argv) {
     vm_shutdown();
     free(vm_argv);
 
-    exit(0);
+    return 0;
+}
+
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        printf("Usage: tpl.exe [VM_FLAGS] FILE [PROGRAM_FLAGS]");
+        exit(1);
+    }
+
+    return run(argc, argv);
 }
