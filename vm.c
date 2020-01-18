@@ -434,6 +434,9 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
 
+
+//                printf("ftn_ptr %lld\n", regs64[reg_p1].int_value);
+
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
 
                 PC_STACK[++PSP] = PC;

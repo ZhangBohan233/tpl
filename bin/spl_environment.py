@@ -1,5 +1,3 @@
-import bin.spl_memory as mem
-
 
 class EnvironmentException(Exception):
     def __init__(self, msg=""):
@@ -40,11 +38,12 @@ class Type:
 
 
 class FuncType(Type):
-    def __init__(self, params_types: list, r_type: Type):
+    def __init__(self, params_types: list, r_type: Type, func_type="f"):
         Type.__init__(self, "*")
 
         self.param_types = params_types
         self.r_type = r_type
+        self.func_type = func_type  # 'f' for function, 'n' for native function, 'c' for compile time function
 
     def __str__(self):
         return "fn(" + str(self.param_types) + ") -> " + str(self.r_type)
@@ -125,15 +124,15 @@ class Environment:
     #         raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
     #                                 .format(name, lf[1], lf[0]))
 
-    def define_function(self, name: str, func):
-        raise EnvironmentException("Function must be declared in global scope")
-        # self.functions[name] = func
-
-    def contains_function(self, name: str):
-        return self.outer.contains_function(name)
-
-    def get_function(self, name: str, lf):
-        return self.outer.get_function(name, lf)
+    # def define_function(self, name: str, func):
+    #     raise EnvironmentException("Function must be declared in global scope")
+    #     # self.functions[name] = func
+    #
+    # def contains_function(self, name: str):
+    #     return self.outer.contains_function(name)
+    #
+    # def get_function(self, name: str, lf):
+    #     return self.outer.get_function(name, lf)
 
     def get(self, name: str, lf, assign_const: bool):
         if name in self.constants:
@@ -185,18 +184,18 @@ class GlobalEnvironment(MainAbstractEnvironment):
         raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
                                 .format(name, lf[1], lf[0]))
 
-    def define_function(self, name: str, func):
-        self.functions[name] = func
-        self.var_types[name] = func.tal
-
-    def contains_function(self, name: str):
-        return name in self.functions
-
-    def get_function(self, name: str, lf):
-        if name in self.functions:
-            return self.functions[name]
-        else:
-            raise EnvironmentException("Function '{}' not defined".format(name))
+    # def define_function(self, name: str, func):
+    #     self.variables[name] = func
+    #     self.var_types[name] = func.tal
+    #
+    # def contains_function(self, name: str):
+    #     return name in self.functions
+    #
+    # def get_function(self, name: str, lf):
+    #     if name in self.functions:
+    #         return self.functions[name]
+    #     else:
+    #         raise EnvironmentException("Function '{}' not defined".format(name))
 
     def is_global(self):
         return True

@@ -5,11 +5,11 @@
 //GLOBAL MEMORY LENGTH:
 0
 //FUNCTIONS LENGTH:
-433
+387
 //MAIN TAKES ARG:
 %0
 //LITERALS:
-1 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+1 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 
 //FUNCTIONS COUNT:
 8
 //FUNCTION POINTERS:
@@ -24,7 +24,7 @@
 #10 PUSH            %0
 #12 LOAD            %0  $0
 #22 LOAD            %1  $8
-#32 MUL             %0  %1
+#32 ADD             %0  %1
 #35 STORE           %2  %0  $16
 #46 LOAD_A          %0  $16
 #56 LOAD_I          %1  8
@@ -34,40 +34,31 @@
 //FUNCTION 7:
 #0 LOAD_I          %0  8
 #10 PUSH            %0
-#12 LOAD_A          %0  $0
-#22 LOAD_A          %1  $1104
-#32 LOAD_I          %2  8
-#42 ASSIGN          %0  %1  %2
-#46 LOAD_I          %0  8
-#56 PUSH            %0
-#58 LOAD_I          %0  8
-#68 PUSH            %0
+#12 LOAD_I          %0  8
+#22 PUSH            %0
+#24 LOAD_I          %2  8
+#34 PUSH            %2
+#36 LOAD_A          %2  $16
+#46 LOAD_A          %3  $1024
+#56 LOAD_I          %4  8
+#66 ASSIGN          %2  %3  %4
 #70 LOAD_I          %2  8
 #80 PUSH            %2
 #82 LOAD_A          %2  $24
-#92 LOAD_A          %3  $1024
+#92 LOAD_A          %3  $1032
 #102 LOAD_I          %4  8
 #112 ASSIGN          %2  %3  %4
-#116 LOAD_I          %2  8
-#126 PUSH            %2
-#128 LOAD_A          %2  $32
-#138 LOAD_A          %3  $1032
-#148 LOAD_I          %4  8
-#158 ASSIGN          %2  %3  %4
-#162 LOAD_I          %0  1104
-#172 LOAD_I          %1  16
-#182 CALL            %0  %1
-#185 LOAD_A          %0  $8
-#195 LOAD_A          %1  $16
-#205 LOAD_I          %2  8
-#215 ASSIGN          %0  %1  %2
-#219 LOAD_A          %0  $1040
-#229 LOAD_I          %1  8
-#239 RETURN          %0  %1
-#242 STOP
+#116 LOAD_A          %0  $1104
+#126 LOAD_I          %1  16
+#136 CALL            %0  %1
+#139 LOAD_A          %0  $0
+#149 LOAD_A          %1  $8
+#159 LOAD_I          %2  8
+#169 ASSIGN          %0  %1  %2
+#173 LOAD_A          %0  $1040
+#183 LOAD_I          %1  8
+#193 RETURN          %0  %1
+#196 STOP
 
 
 //MAIN:
-LOAD_I          %0  1112
-LOAD_I          %1  0
-CALL            %0  %1

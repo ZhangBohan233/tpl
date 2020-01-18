@@ -1,3 +1,15 @@
+#### Build 1045 ####
+2020/01/18
+
+* New syntax:
+    * 'fn(arg_types...)->rtype' as the type parameter of function pointer
+    * Functional programming is now possible
+* Changed the mechanism of storing function in compiler:
+    * Functions are now same as any pointer type
+    * FuncType object to record the function parameter and return types
+* Unimplemented:
+    * Compile time functions
+
 #### Build 1044 ####
 2020/01/13
 

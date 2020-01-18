@@ -76,7 +76,6 @@ STORE_LEN = 11
 # Number of native functions, used for generating tpa
 NATIVE_FUNCTION_COUNT = 6
 
-
 # Optimizations starting level
 OPTIMIZE_LOOP_INDICATOR = 2
 OPTIMIZE_LOOP_REG = 3
@@ -273,7 +272,7 @@ class ByteOutput:
 
         self.manager.sp = spb
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg1)  # ftn ptr
         self.write_int(ftn_ptr)
 
@@ -313,7 +312,7 @@ class ByteOutput:
 
         self.manager.sp = spb
 
-        self.write_one(LOAD_I)
+        self.write_one(LOAD_A)
         self.write_one(reg1)  # ftn ptr
         self.write_int(ftn_ptr)
 
@@ -775,23 +774,23 @@ class ParameterPair:
         return self.__str__()
 
 
-class Function:
-    def __init__(self, params, tal: en.FuncType, ptr: int):
-        self.params: [ParameterPair] = params
-        self.tal = tal
-        self.ptr = ptr
+# class Function:
+#     def __init__(self, params, tal: en.FuncType, ptr: int):
+#         self.params: [ParameterPair] = params
+#         self.tal = tal
+#         self.ptr = ptr
 
 
-class NativeFunction:
-    def __init__(self, tal: en.FuncType, ptr: int):
-        self.tal = tal
-        self.ptr = ptr
-
-
-class CompileTimeFunction:
-    def __init__(self, tal: en.FuncType, func):
-        self.tal = tal
-        self.func = func
+# class NativeFunction:
+#     def __init__(self, tal: en.FuncType, ptr: int):
+#         self.tal = tal
+#         self.ptr = ptr
+#
+#
+# class CompileTimeFunction:
+#     def __init__(self, tal: en.FuncType, func):
+#         self.tal = tal
+#         self.func = func
 
 
 class Struct:
@@ -848,34 +847,49 @@ class Compiler:
     def add_native_functions(self, env: en.GlobalEnvironment):
         p1 = self.memory.define_func_ptr()  # 1: clock
         self.memory.implement_func(p1, typ.int_to_bytes(1))
-        env.define_function("clock", NativeFunction(en.FuncType([], en.Type("int")), p1))
+        # env.define_function("clock", NativeFunction(en.FuncType([], en.Type("int")), p1))
+        ft1 = en.FuncType([], en.Type("int"), 'n')
+        env.define_var("clock", ft1, p1)
 
         p2 = self.memory.define_func_ptr()  # 2: malloc
         self.memory.implement_func(p2, typ.int_to_bytes(2))
-        env.define_function("malloc", NativeFunction(en.FuncType([en.Type("int")], en.Type("*void")), p2))
+        # env.define_function("malloc", NativeFunction(en.FuncType([en.Type("int")], en.Type("*void")), p2))
+        ft2 = en.FuncType([en.Type("int")], en.Type("*void"), 'n')
+        env.define_var("malloc", ft2, p2)
 
         p3 = self.memory.define_func_ptr()  # 3: printf
         self.memory.implement_func(p3, typ.int_to_bytes(3))
-        env.define_function("printf", NativeFunction(en.FuncType([en.Type("*void")], en.Type("void")), p3))
+        # env.define_function("printf", NativeFunction(en.FuncType([en.Type("*void")], en.Type("void")), p3))
+        ft3 = en.FuncType([en.Type("*void...")], en.Type("void"), 'n')
+        env.define_var("printf", ft3, p3)
 
         p4 = self.memory.define_func_ptr()  # 4: mem_copy
         self.memory.implement_func(p4, typ.int_to_bytes(4))
-        env.define_function("mem_copy", NativeFunction(
-            en.FuncType([en.Type("*char"), en.Type("*char"), en.Type("int")], en.Type("void")), p4))
+        # env.define_function("mem_copy", NativeFunction(
+        #     en.FuncType([en.Type("*char"), en.Type("*char"), en.Type("int")], en.Type("void")), p4))
+        ft4 = en.FuncType([en.Type("*char"), en.Type("*char"), en.Type("int")], en.Type("void"), 'n')
+        env.define_var("mem_copy", ft4, p4)
 
         p5 = self.memory.define_func_ptr()  # 5: free
-        env.define_function("free", NativeFunction(en.FuncType([en.Type("*void")], en.Type("void")), p5))
+        # env.define_function("free", NativeFunction(en.FuncType([en.Type("*void")], en.Type("void")), p5))
         self.memory.implement_func(p5, typ.int_to_bytes(5))
 
+        ft5 = en.FuncType([en.Type("*void")], en.Type("void"), 'n')
+        env.define_var("free", ft5, p5)
+
         p6 = self.memory.define_func_ptr()  # 6: stringf
-        env.define_function("stringf", NativeFunction(en.FuncType([en.Type("*void")], en.Type("int")), p6))
+        # env.define_function("stringf", NativeFunction(en.FuncType([en.Type("*void")], en.Type("int")), p6))
         self.memory.implement_func(p6, typ.int_to_bytes(6))
 
+        ft6 = en.FuncType([en.Type("*void")], en.Type("int"), 'n')
+        env.define_var("stringf", ft6, p6)
+
     def add_compile_time_functions(self, env: en.GlobalEnvironment):
-        env.define_function("sizeof", CompileTimeFunction(en.FuncType([], en.Type("int")), self.function_sizeof))
-        env.define_function("char", CompileTimeFunction(en.FuncType([], en.Type("char")), self.function_char))
-        env.define_function("int", CompileTimeFunction(en.FuncType([], en.Type("int")), self.function_int))
-        env.define_function("float", CompileTimeFunction(en.FuncType([], en.Type("float")), self.function_float))
+        pass
+        # env.define_function("sizeof", CompileTimeFunction(en.FuncType([], en.Type("int")), self.function_sizeof))
+        # env.define_function("char", CompileTimeFunction(en.FuncType([], en.Type("char")), self.function_char))
+        # env.define_function("int", CompileTimeFunction(en.FuncType([], en.Type("int")), self.function_int))
+        # env.define_function("float", CompileTimeFunction(en.FuncType([], en.Type("float")), self.function_float))
 
     def calculate_global_len(self, root: ast.Node, is_child: bool):
         if is_child:
@@ -905,14 +919,17 @@ class Compiler:
 
         global_ends = self.memory.functions_begin
 
+        lf = (0, "system")
+
         main_take_arg = 0
-        if "main" in env.functions:
-            main_ptr: Function = env.functions["main"]
-            if len(main_ptr.params) == 0:
+        if env.contains_ptr("main"):
+            main_ptr: int = env.get("main", lf, False)
+            main_tal: en.FuncType = env.get_type_arr_len("main", lf)
+            if len(main_tal.param_types) == 0:
                 self.call_main(main_ptr, [], bo)
-            elif len(main_ptr.params) == 2 and \
-                    main_ptr.params[0].tal.type_name == "int" and \
-                    main_ptr.params[1].tal.type_name == "**char":
+            elif len(main_tal.param_types) == 2 and \
+                    main_tal.param_types[0].type_name == "int" and \
+                    main_tal.param_types[1].tal.type_name == "**char":
                 main_take_arg = 1
                 # self.memory.allocate(INT_LEN + PTR_LEN, None)
                 # bo.push_stack(INT_LEN + PTR_LEN)
@@ -1011,18 +1028,17 @@ class Compiler:
             param_pair = ParameterPair(name_node.name, tal)
             param_pairs.append(param_pair)
 
-        fun_tal = en.FuncType(param_types, r_tal)
+        func_tal = en.FuncType(param_types, r_tal)
 
-        if env.contains_function(node.name):  # is implementing
-            func = env.get_function(node.name, (node.line_num, node.file))
-            if func.tal != fun_tal:
+        if env.contains_ptr(node.name):  # is implementing
+            ftn_ptr: int = env.get(node.name, (node.line_num, node.file), False)
+            prev_func_tal = env.get_type_arr_len(node.name, (node.line_num, node.file))
+            if prev_func_tal != func_tal:
                 raise lib.CompileTimeException("Incompatible parameter or return types")
-            ftn_ptr = func.ptr
         else:
             ftn_ptr = self.memory.define_func_ptr()  # pre-defined for recursion
             # print("allocated to", fake_ftn_ptr, self.memory.global_bytes)
-            ftn = Function(param_pairs, fun_tal, ftn_ptr)
-            env.define_function(node.name, ftn)
+            env.define_var(node.name, func_tal, ftn_ptr)
 
         if node.body is not None:  # implementing
             inner_bo = ByteOutput(self.memory)
@@ -1325,10 +1341,18 @@ class Compiler:
 
         lf = node.line_num, node.file
 
-        ftn = env.get_function(node.call_obj.name, lf)
+        # ftn = env.get_function(node.call_obj.name, lf)
+        ftn = env.get(node.call_obj.name, lf, False)
+        ftn_tal: en.FuncType = env.get_type_arr_len(node.call_obj.name, lf)
 
-        if isinstance(ftn, CompileTimeFunction):
-            return self.call_compile_time_functions(ftn, node.args, env, bo)
+        if not isinstance(ftn_tal, en.FuncType):
+            raise lib.CompileTimeException("Object is not callable")
+
+        if ftn_tal.func_type == "c":
+            return self.call_compile_time_functions(ftn, ftn_tal, node.args, env, bo)
+
+        # if isinstance(ftn, CompileTimeFunction):
+        #     return self.call_compile_time_functions(ftn, node.args, env, bo)
 
         args = []  # args tuple
         for arg_node in node.args.lines:
@@ -1343,40 +1367,40 @@ class Compiler:
             args.append(tup)
 
         # print(args)
-        if isinstance(ftn, Function):
-            return self.function_call(ftn, args, env, bo)
-        elif isinstance(ftn, NativeFunction):
-            return self.native_function_call(ftn, args, env, bo)
+        if ftn_tal.func_type == "f":
+            return self.function_call(ftn, ftn_tal, args, env, bo)
+        elif ftn_tal.func_type == "n":
+            return self.native_function_call(ftn, ftn_tal, args, env, bo)
         else:
             raise lib.CompileTimeException("Unexpected function type")
 
-    def call_main(self, func: Function, args: list, bo: ByteOutput):
+    def call_main(self, func_ptr: int, args: list, bo: ByteOutput):
         # self.memory.push_stack()
         r_ptr = self.memory.allocate(INT_LEN, bo)
-        bo.call_main(func.ptr, args)
+        bo.call_main(func_ptr, args)
         # self.memory.restore_stack()
 
-    def function_call(self, func: Function, args: list, call_env: en.Environment, bo: ByteOutput):
-        if len(args) != len(func.params):
+    def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list, call_env: en.Environment, bo: ByteOutput):
+        if len(args) != len(func_tal.param_types):
             raise lib.CompileTimeException("Function requires {} arguments, {} given"
-                                           .format(len(func.params), len(args)))
+                                           .format(len(func_tal.param_types), len(args)))
 
-        r_len = func.tal.r_type.total_len(self.memory)
+        r_len = func_tal.r_type.total_len(self.memory)
 
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        bo.call(False, func.ptr, args)
+        bo.call(False, func_ptr, args)
 
         return r_ptr
 
-    def native_function_call(self, func: NativeFunction, args: list, call_env, bo: ByteOutput):
-        r_len = func.tal.r_type.total_len(self.memory)
+    def native_function_call(self, func: int, func_tal: en.FuncType, args: list, call_env, bo: ByteOutput):
+        r_len = func_tal.r_type.total_len(self.memory)
 
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        bo.call(True, func.ptr, args)
+        bo.call(True, func, args)
 
         return r_ptr
 
@@ -1825,9 +1849,9 @@ class Compiler:
         else:
             raise lib.CompileTimeException()
 
-    def call_compile_time_functions(self, func: CompileTimeFunction, arg_node: ast.BlockStmt, env: en.Environment,
-                                    bo: ByteOutput):
-        r_len = func.tal.r_type.total_len(self.memory)
+    def call_compile_time_functions(self, func: int, func_tal: en.FuncType, arg_node: ast.BlockStmt,
+                                    env: en.Environment, bo: ByteOutput):
+        r_len = func_tal.r_type.total_len(self.memory)
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
@@ -1983,8 +2007,9 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         node: ast.FuncCall
         call_obj = node.call_obj
         if call_obj.node_type == ast.NAME_NODE:
-            func: Function = env.get_function(call_obj.name, (node.line_num, node.file))
-            return func.tal.r_type
+            # func: Function = env.get_function(call_obj.name, (node.line_num, node.file))
+            func_tal: en.FuncType = env.get_type_arr_len(call_obj.name, (node.line_num, node.file))
+            return func_tal.r_type
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
         # return get_tal_of_ordinary_node(node.call_obj, env)
@@ -2048,7 +2073,6 @@ def pointer_depth(type_name: str) -> int:
 
 def generate_lf(node: ast.Node) -> str:
     return "In file '{}', at line {}.".format(node.file, node.line_num)
-
 
 # def indexing_remain_depth(node: ast.IndexingNode, tal: en.Type):
 #     i = 0
