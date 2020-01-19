@@ -31,10 +31,10 @@ class Type:
             arr_len *= x
         return mm.get_type_size(self.type_name) * arr_len
 
-    # def unit_len(self, mm):
-    #     if self.type_name[0] == "*":
-    #         return mm.get_type_size(self.type_name[self.type_name.rfind("*") + 1:])
-    #     return mm.get_type_size(self.type_name)
+    def unit_len(self, mm):
+        if self.type_name[0] == "*":
+            return mm.get_type_size(self.type_name[self.type_name.rfind("*") + 1:])
+        return mm.get_type_size(self.type_name)
 
 
 class FuncType(Type):

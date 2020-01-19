@@ -926,7 +926,7 @@ class Compiler:
                 self.call_main(main_ptr, [], bo)
             elif len(main_tal.param_types) == 2 and \
                     main_tal.param_types[0].type_name == "int" and \
-                    main_tal.param_types[1].tal.type_name == "**char":
+                    main_tal.param_types[1].type_name == "**char":
                 main_take_arg = 1
                 # self.memory.allocate(INT_LEN + PTR_LEN, None)
                 # bo.push_stack(INT_LEN + PTR_LEN)
@@ -1067,9 +1067,10 @@ class Compiler:
     def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
         lf = node.line_num, node.file
 
-        right_tal = get_tal_of_evaluated_node(node.right, env)
-        if right_tal.type_name == "void":
-            raise lib.CompileTimeException("Cannot assign variable with value type 'void'. " + generate_lf(node))
+        if not isinstance(node.right, ast.UndefinedNode):
+            right_tal = get_tal_of_evaluated_node(node.right, env)
+            if right_tal.type_name == "void":
+                raise lib.CompileTimeException("Cannot assign variable with value type 'void'. " + generate_lf(node))
 
         if node.left.node_type == ast.NAME_NODE:  # assign
             r = self.compile(node.right, env, bo)
@@ -1180,9 +1181,7 @@ class Compiler:
             raise lib.CompileTimeException("High dimensional local array not supported. Use pointer array instead.")
         total_len = tal.total_len(self.memory)
         ptr = self.memory.allocate(PTR_LEN, bo)
-        # bo.push_stack(PTR_LEN)
         arr_addr = self.memory.allocate(total_len, bo)
-        # bo.push_stack(total_len)
         bo.store_addr_to_des(ptr, arr_addr)
 
         if assign_right:
@@ -1355,6 +1354,7 @@ class Compiler:
             raise lib.CompileTimeException("Object is not callable")
 
         if ftn_tal.func_type == "c":
+            ftn_tal: CompileTimeFunctionType
             return self.call_compile_time_functions(ftn, ftn_tal, node.args, env, bo)
 
         # if isinstance(ftn, CompileTimeFunction):

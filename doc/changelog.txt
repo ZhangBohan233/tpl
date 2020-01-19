@@ -1,3 +1,11 @@
+#### Build 1047 ####
+2020/01/19
+
+* Bug fixes:
+    * Array creation without preset array caused compile error
+    * Arguments of main function caused compile error
+
+
 #### Build 1046 ####
 2020/01/19
 

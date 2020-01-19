@@ -1,13 +1,10 @@
-include "lang"
-include "string"
 
-fn main(argc: int, argv: **char) int {
+fn main() int {
 
-    if TRUE {
-        var v: float = str_to_float(argv[2]);
-        printf("%f\n", v);
+    for i := 0; i < 10; i++ {
+                if i == 6 {
+                    i += 2;
+                }
+        printf("%d\n", i);
     }
-
-    return argc;
-
 }
