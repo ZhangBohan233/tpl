@@ -1,3 +1,10 @@
+#### Build 1046 ####
+2020/01/19
+
+* More compile time type check
+* Compile time functions are now available
+* Print line terminator at the end of some error message in vm.c
+
 #### Build 1045 ####
 2020/01/18
 

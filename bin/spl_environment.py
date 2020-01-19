@@ -38,15 +38,15 @@ class Type:
 
 
 class FuncType(Type):
-    def __init__(self, params_types: list, r_type: Type, func_type="f"):
+    def __init__(self, param_types: list, rtype: Type, func_type="f"):
         Type.__init__(self, "*")
 
-        self.param_types = params_types
-        self.r_type = r_type
+        self.param_types = param_types
+        self.rtype = rtype
         self.func_type = func_type  # 'f' for function, 'n' for native function, 'c' for compile time function
 
     def __str__(self):
-        return "fn(" + str(self.param_types) + ") -> " + str(self.r_type)
+        return "fn(" + str(self.param_types) + ") -> " + str(self.rtype)
 
     def total_len(self, mm):
         return mm.get_type_size("*")
@@ -176,7 +176,6 @@ class GlobalEnvironment(MainAbstractEnvironment):
         MainAbstractEnvironment.__init__(self, None)
 
         self.structs = {}
-        self.functions: dict = {}
 
     def get_type_arr_len(self, name: str, lf) -> (str, int):
         if name in self.var_types:
@@ -221,8 +220,6 @@ class GlobalEnvironment(MainAbstractEnvironment):
             return self.variables[name]
         if name in self.structs:
             return self.structs[name]
-        if name in self.functions:
-            return self.functions[name].ptr
         raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
                                 .format(name, lf[1], lf[0]))
 

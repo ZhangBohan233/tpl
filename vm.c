@@ -208,7 +208,7 @@ StringBuilder *str_format(int_fast64_t arg_len, const unsigned char *arg_array) 
 
 void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
     if (arg_len < 8) {
-        printf("'printf' takes at least 1 argument");
+        printf("'printf' takes at least 1 argument\n");
         ERROR_CODE = ERR_NATIVE_INVOKE;
         return;
     }
@@ -219,7 +219,7 @@ void native_printf(int_fast64_t arg_len, const unsigned char *arg_array) {
 
 void native_stringf(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned char *arg_array) {
     if (arg_len < 8) {
-        printf("'stringf' takes at least 1 argument");
+        printf("'stringf' takes at least 1 argument\n");
         ERROR_CODE = ERR_NATIVE_INVOKE;
         return;
     }
@@ -280,7 +280,7 @@ void _native_malloc(int_fast64_t ret_ptr, int_fast64_t asked_len) {
 
 void native_malloc(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned char *args) {
     if (arg_len != INT_LEN) {
-        printf("Unmatched arg length or return length");
+        printf("Unmatched arg length or return length\n");
         ERROR_CODE = ERR_NATIVE_INVOKE;
         return;
     }
@@ -291,7 +291,7 @@ void native_malloc(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned ch
 
 void native_clock(int_fast64_t arg_len, int_fast64_t ret_ptr) {
     if (arg_len != 0) {
-        printf("Unmatched arg length or return length");
+        printf("Unmatched arg length or return length\n");
         ERROR_CODE = ERR_NATIVE_INVOKE;
         return;
     }
@@ -301,7 +301,7 @@ void native_clock(int_fast64_t arg_len, int_fast64_t ret_ptr) {
 
 void native_free(int_fast64_t arg_len, const unsigned char *args) {
     if (arg_len != PTR_LEN) {
-        printf("Unmatched arg length or return length");
+        printf("Unmatched arg length or return length\n");
         ERROR_CODE = ERR_NATIVE_INVOKE;
         return;
     }
@@ -363,7 +363,7 @@ void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_l
             native_stringf(arg_len, ret_ptr_end - ret_len, args);
             break;
         default:
-            printf("Unknown native function %lld", func);
+            printf("Unknown native function %lld\n", func);
             return;
     }
 }

@@ -793,6 +793,13 @@ class ParameterPair:
 #         self.func = func
 
 
+class CompileTimeFunctionType(en.FuncType):
+    def __init__(self, param_types: list, rtype: en.Type, func):
+        en.FuncType.__init__(self, param_types, rtype, "c")
+
+        self.func = func
+
+
 class Struct:
     def __init__(self, name: str):
         self.name = name
@@ -847,49 +854,39 @@ class Compiler:
     def add_native_functions(self, env: en.GlobalEnvironment):
         p1 = self.memory.define_func_ptr()  # 1: clock
         self.memory.implement_func(p1, typ.int_to_bytes(1))
-        # env.define_function("clock", NativeFunction(en.FuncType([], en.Type("int")), p1))
         ft1 = en.FuncType([], en.Type("int"), 'n')
         env.define_var("clock", ft1, p1)
 
         p2 = self.memory.define_func_ptr()  # 2: malloc
         self.memory.implement_func(p2, typ.int_to_bytes(2))
-        # env.define_function("malloc", NativeFunction(en.FuncType([en.Type("int")], en.Type("*void")), p2))
         ft2 = en.FuncType([en.Type("int")], en.Type("*void"), 'n')
         env.define_var("malloc", ft2, p2)
 
         p3 = self.memory.define_func_ptr()  # 3: printf
         self.memory.implement_func(p3, typ.int_to_bytes(3))
-        # env.define_function("printf", NativeFunction(en.FuncType([en.Type("*void")], en.Type("void")), p3))
-        ft3 = en.FuncType([en.Type("*void...")], en.Type("void"), 'n')
+        ft3 = en.FuncType([en.Type("*void")], en.Type("void"), 'n')
         env.define_var("printf", ft3, p3)
 
         p4 = self.memory.define_func_ptr()  # 4: mem_copy
         self.memory.implement_func(p4, typ.int_to_bytes(4))
-        # env.define_function("mem_copy", NativeFunction(
-        #     en.FuncType([en.Type("*char"), en.Type("*char"), en.Type("int")], en.Type("void")), p4))
         ft4 = en.FuncType([en.Type("*char"), en.Type("*char"), en.Type("int")], en.Type("void"), 'n')
         env.define_var("mem_copy", ft4, p4)
 
         p5 = self.memory.define_func_ptr()  # 5: free
-        # env.define_function("free", NativeFunction(en.FuncType([en.Type("*void")], en.Type("void")), p5))
         self.memory.implement_func(p5, typ.int_to_bytes(5))
-
         ft5 = en.FuncType([en.Type("*void")], en.Type("void"), 'n')
         env.define_var("free", ft5, p5)
 
         p6 = self.memory.define_func_ptr()  # 6: stringf
-        # env.define_function("stringf", NativeFunction(en.FuncType([en.Type("*void")], en.Type("int")), p6))
         self.memory.implement_func(p6, typ.int_to_bytes(6))
-
         ft6 = en.FuncType([en.Type("*void")], en.Type("int"), 'n')
         env.define_var("stringf", ft6, p6)
 
     def add_compile_time_functions(self, env: en.GlobalEnvironment):
-        pass
-        # env.define_function("sizeof", CompileTimeFunction(en.FuncType([], en.Type("int")), self.function_sizeof))
-        # env.define_function("char", CompileTimeFunction(en.FuncType([], en.Type("char")), self.function_char))
-        # env.define_function("int", CompileTimeFunction(en.FuncType([], en.Type("int")), self.function_int))
-        # env.define_function("float", CompileTimeFunction(en.FuncType([], en.Type("float")), self.function_float))
+        env.define_const("sizeof", CompileTimeFunctionType([], en.Type("int"), self.function_sizeof), 0)
+        env.define_const("char", CompileTimeFunctionType([], en.Type("char"), self.function_char), 0)
+        env.define_const("int", CompileTimeFunctionType([], en.Type("int"), self.function_int), 0)
+        env.define_const("float", CompileTimeFunctionType([], en.Type("float"), self.function_float), 0)
 
     def calculate_global_len(self, root: ast.Node, is_child: bool):
         if is_child:
@@ -1070,6 +1067,10 @@ class Compiler:
     def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
         lf = node.line_num, node.file
 
+        right_tal = get_tal_of_evaluated_node(node.right, env)
+        if right_tal.type_name == "void":
+            raise lib.CompileTimeException("Cannot assign variable with value type 'void'. " + generate_lf(node))
+
         if node.left.node_type == ast.NAME_NODE:  # assign
             r = self.compile(node.right, env, bo)
             if node.level == ast.ASSIGN:
@@ -1147,6 +1148,8 @@ class Compiler:
             r = self.compile(node.right, env, bo)
             self.compile_setitem(left_node, r, env, bo)
 
+            return r
+
         elif node.left.node_type == ast.UNARY_OPERATOR:
             left_node: ast.UnaryOperator = node.left
             r = self.compile(node.right, env, bo)
@@ -1162,6 +1165,9 @@ class Compiler:
         elif isinstance(node.left, ast.Dot):
             r = self.compile(node.right, env, bo)
             self.compile_attr_assign(node.left, r, env, bo)
+            return r
+
+        raise lib.CompileTimeException("Cannot assign to type {}.".format(type(node.left).__name__) + generate_lf(node))
 
     def compile_array_creation(self, right_node, env, tal: en.Type, bo: ByteOutput) -> int:
         ptr = self.create_array(tal, bo, True, env, right_node)
@@ -1385,7 +1391,7 @@ class Compiler:
             raise lib.CompileTimeException("Function requires {} arguments, {} given"
                                            .format(len(func_tal.param_types), len(args)))
 
-        r_len = func_tal.r_type.total_len(self.memory)
+        r_len = func_tal.rtype.total_len(self.memory)
 
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
@@ -1395,7 +1401,7 @@ class Compiler:
         return r_ptr
 
     def native_function_call(self, func: int, func_tal: en.FuncType, args: list, call_env, bo: ByteOutput):
-        r_len = func_tal.r_type.total_len(self.memory)
+        r_len = func_tal.rtype.total_len(self.memory)
 
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
@@ -1849,13 +1855,13 @@ class Compiler:
         else:
             raise lib.CompileTimeException()
 
-    def call_compile_time_functions(self, func: int, func_tal: en.FuncType, arg_node: ast.BlockStmt,
+    def call_compile_time_functions(self, func: int, func_tal: CompileTimeFunctionType, arg_node: ast.BlockStmt,
                                     env: en.Environment, bo: ByteOutput):
-        r_len = func_tal.r_type.total_len(self.memory)
+        r_len = func_tal.rtype.total_len(self.memory)
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        return func.func(r_ptr, env, bo, arg_node.lines)
+        return func_tal.func(r_ptr, env, bo, arg_node.lines)
 
     def function_sizeof(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
         if len(args) != 1:
@@ -2009,7 +2015,7 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         if call_obj.node_type == ast.NAME_NODE:
             # func: Function = env.get_function(call_obj.name, (node.line_num, node.file))
             func_tal: en.FuncType = env.get_type_arr_len(call_obj.name, (node.line_num, node.file))
-            return func_tal.r_type
+            return func_tal.rtype
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
         # return get_tal_of_ordinary_node(node.call_obj, env)
