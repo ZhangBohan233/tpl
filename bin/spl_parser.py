@@ -207,8 +207,10 @@ class Parser:
                         name_token: stl.IdToken = self.tokens[i]
                         parser.add_struct(line, name_token.symbol)
                         struct_braces.append(brace_count)
-                    elif sym == "assert":
-                        parser.add_unary(line, "assert")
+                    elif sym == "goto":
+                        pass
+                    # elif sym == "assert":
+                    #     parser.add_unary(line, "assert")
                     elif sym == "++" or sym == "--":
                         parser.add_increment_decrement(line, sym)
                     elif sym == ":=":

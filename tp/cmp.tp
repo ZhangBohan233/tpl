@@ -1,10 +1,5 @@
 
 fn main() int {
 
-    for i := 0; i < 10; i++ {
-                if i == 6 {
-                    i += 2;
-                }
-        printf("%d\n", i);
-    }
+    var a: int = 1;
 }

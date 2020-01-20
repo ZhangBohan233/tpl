@@ -71,15 +71,16 @@ if __name__ == '__main__':
 
         compiler = cmp.Compiler(parser.literal_bytes)
         compiler.configs(optimize=args["optimize"])
-        byt = compiler.compile_all(root)
+        tpa = compiler.compile_all(root)
 
         tar_name = args["tar_file"]
         pure_name = tar_name[:tar_name.rfind(".")]
         tpa_name = pure_name + ".tpa"
 
         with open(tpa_name, "w") as wf:
-            dec = decompiler.TPAssemblyCompiler(byt)
-            dec.compile(wf)
+            wf.write(tpa)
+            # dec = decompiler.TPAssemblyCompiler(byt)
+            # dec.compile(wf)
 
         if args["optimize"] > 1:
             # print("Optimization currently unavailable")
@@ -96,8 +97,8 @@ if __name__ == '__main__':
                     dec2 = decompiler.TPAssemblyCompiler(byt)
                     dec2.compile(wf2)
 
-        with open(tar_name, "wb") as wf:
-            wf.write(byt)
+        # with open(tar_name, "wb") as wf:
+        #     wf.write(byt)
 
     t1 = time.time()
     print("Compilation finished in {} seconds.".format(t1 - t0))

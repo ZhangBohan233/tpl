@@ -55,6 +55,8 @@ MOVE_REG = 37  # MOVE_REG   %DST  %SRC       | copy between registers
 CAST_INT = 38  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
+LABEL = 41
+FN = 42
 # SUB_I = 41
 # ADD_FI = 42
 # SUB_FI = 43
@@ -171,10 +173,13 @@ WITH_ASSIGN = {
 }
 
 
-class ByteOutput:
+class TpaOutput:
     def __init__(self, manager):
         self.manager: MemoryManager = manager
-        self.codes = bytearray()
+        self.codes = []
+
+    def build(self):
+        pass
 
     def __len__(self):
         return len(self.codes)
@@ -182,63 +187,75 @@ class ByteOutput:
     def __bytes__(self):
         return bytes(self.codes)
 
-    def write_one(self, b):
+    def write_comment(self, c: str):
+        self.codes.append('//' + c + '\n')
+
+    def write_byte(self, b: int):
+        self.codes.append("%" + str(b))
+
+    def write_ins(self, b: str):
         self.codes.append(b)
+
+    def write_reg(self, reg: int):
+        self.codes.append("%" + str(reg))
+
+    def finish_line(self):
+        self.codes.append("\n")
 
     def push_stack(self, value: int):
         reg1 = self.manager.require_regs64(1)[0]
 
-        self.write_one(LOAD_I)
-        self.write_one(reg1)
+        self.write_ins('LOAD_I')
+        self.write_reg(reg1)
         self.write_int(value)
 
-        self.write_one(PUSH)
-        self.write_one(reg1)
+        self.write_ins('PUSH')
+        self.write_reg(reg1)
 
         self.manager.append_regs64(reg1)
 
     def assign(self, tar: int, src: int, length: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD_A)
-        self.write_one(reg1)
-        self.write_int(tar)
+        self.write_ins('LOAD_A')
+        self.write_reg(reg1)
+        self.write_addr(tar)
 
-        self.write_one(LOAD_A)
-        self.write_one(reg2)
-        self.write_int(src)
+        self.write_ins('LOAD_A')
+        self.write_reg(reg2)
+        self.write_addr(src)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg3)
+        self.write_ins('LOAD_I')
+        self.write_reg(reg3)
         self.write_int(length)
 
-        self.write_one(ASSIGN)
-        self.write_one(reg1)
-        self.write_one(reg2)
-        self.write_one(reg3)
+        self.write_ins('ASSIGN')
+        self.write_reg(reg1)
+        self.write_reg(reg2)
+        self.write_reg(reg3)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
     def assign_reg(self, reg_id, src):
         reg = -reg_id - 1
 
-        self.write_one(LOAD)
-        self.write_one(reg)
-        self.write_int(src)
+        self.write_ins('LOAD')
+        self.write_reg(reg)
+        self.write_addr(src)
 
     def assign_reg_i(self, reg_id, real_value):
         reg = -reg_id - 1
 
-        self.write_one(LOAD_I)
-        self.write_one(reg)
+        self.write_ins('LOAD_I')
+        self.write_reg(reg)
         self.write_int(real_value)
 
     def store_from_reg(self, des, reg_id):
         temp_reg = self.manager.require_reg64()
 
-        self.write_one(STORE)
-        self.write_one(temp_reg)
-        self.write_one(-reg_id - 1)
+        self.write_ins(STORE)
+        self.write_ins(temp_reg)
+        self.write_ins(-reg_id - 1)
         self.write_int(des)
 
         self.manager.append_regs64(temp_reg)
@@ -246,14 +263,14 @@ class ByteOutput:
     def assign_i(self, des: int, real_value: int):
         reg1, reg2 = self.manager.require_regs64(2)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg1)
+        self.write_ins('LOAD_I')
+        self.write_reg(reg1)
         self.write_int(real_value)
 
-        self.write_one(STORE)
-        self.write_one(reg2)
-        self.write_one(reg1)
-        self.write_int(des)
+        self.write_ins('STORE')
+        self.write_reg(reg2)
+        self.write_reg(reg1)
+        self.write_addr(des)
 
         self.manager.append_regs64(reg2, reg1)
 
@@ -272,17 +289,17 @@ class ByteOutput:
 
         self.manager.sp = spb
 
-        self.write_one(LOAD_A)
-        self.write_one(reg1)  # ftn ptr
-        self.write_int(ftn_ptr)
+        self.write_ins('LOAD_A')
+        self.write_reg(reg1)  # ftn ptr
+        self.write_addr(ftn_ptr)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg2)  # args length
+        self.write_ins('LOAD_I')
+        self.write_reg(reg2)  # args length
         self.write_int(i)
 
-        self.write_one(CALL)
-        self.write_one(reg1)
-        self.write_one(reg2)
+        self.write_ins('CALL')
+        self.write_reg(reg1)
+        self.write_reg(reg2)
 
         self.manager.append_regs64(reg2, reg1)
 
@@ -312,36 +329,36 @@ class ByteOutput:
 
         self.manager.sp = spb
 
-        self.write_one(LOAD_A)
-        self.write_one(reg1)  # ftn ptr
+        self.write_ins(LOAD_A)
+        self.write_ins(reg1)  # ftn ptr
         self.write_int(ftn_ptr)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg2)  # args length
+        self.write_ins(LOAD_I)
+        self.write_ins(reg2)  # args length
         self.write_int(i)
 
         if is_native:
-            self.write_one(CALL_NAT)
+            self.write_ins(CALL_NAT)
         else:
-            self.write_one(CALL)
-        self.write_one(reg1)
-        self.write_one(reg2)
+            self.write_ins(CALL)
+        self.write_ins(reg1)
+        self.write_ins(reg2)
 
         self.manager.append_regs64(reg2, reg1)
 
     def int_to_float(self, des: int, src: int):
         reg1, reg2 = self.manager.require_regs64(2)
 
-        self.write_one(LOAD)
-        self.write_one(reg1)
+        self.write_ins(LOAD)
+        self.write_ins(reg1)
         self.write_int(src)
 
-        self.write_one(INT_TO_FLOAT)
-        self.write_one(reg1)
+        self.write_ins(INT_TO_FLOAT)
+        self.write_ins(reg1)
 
-        self.write_one(STORE)
-        self.write_one(reg2)
-        self.write_one(reg1)
+        self.write_ins(STORE)
+        self.write_ins(reg2)
+        self.write_ins(reg1)
         self.write_int(des)
 
         self.manager.append_regs64(reg2, reg1)
@@ -349,16 +366,16 @@ class ByteOutput:
     def float_to_int(self, des: int, src: int):
         reg1, reg2 = self.manager.require_regs64(2)
 
-        self.write_one(LOAD)
-        self.write_one(reg1)
+        self.write_ins(LOAD)
+        self.write_ins(reg1)
         self.write_int(src)
 
-        self.write_one(FLOAT_TO_INT)
-        self.write_one(reg1)
+        self.write_ins(FLOAT_TO_INT)
+        self.write_ins(reg1)
 
-        self.write_one(STORE)
-        self.write_one(reg2)
-        self.write_one(reg1)
+        self.write_ins(STORE)
+        self.write_ins(reg2)
+        self.write_ins(reg1)
         self.write_int(des)
 
         self.manager.append_regs64(reg2, reg1)
@@ -366,83 +383,83 @@ class ByteOutput:
     def store_addr_to_des(self, des: int, rel_value: int):
         reg1, reg2 = self.manager.require_regs64(2)
 
-        self.write_one(LOAD_A)
-        self.write_one(reg1)
+        self.write_ins(LOAD_A)
+        self.write_ins(reg1)
         self.write_int(des)
 
-        self.write_one(LOAD_A)
-        self.write_one(reg2)
+        self.write_ins(LOAD_A)
+        self.write_ins(reg2)
         self.write_int(rel_value)
 
-        self.write_one(STORE_ADDR)
-        self.write_one(reg1)
-        self.write_one(reg2)
+        self.write_ins(STORE_ADDR)
+        self.write_ins(reg1)
+        self.write_ins(reg2)
 
         self.manager.append_regs64(reg2, reg1)
 
     def unpack_addr(self, des: int, addr_ptr: int, length: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD_A)
-        self.write_one(reg1)
+        self.write_ins(LOAD_A)
+        self.write_ins(reg1)
         self.write_int(des)
 
-        self.write_one(LOAD)
-        self.write_one(reg2)
+        self.write_ins(LOAD)
+        self.write_ins(reg2)
         self.write_int(addr_ptr)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg3)
+        self.write_ins(LOAD_I)
+        self.write_ins(reg3)
         self.write_int(length)
 
-        self.write_one(UNPACK_ADDR)
-        self.write_one(reg1)
-        self.write_one(reg2)
-        self.write_one(reg3)
+        self.write_ins(UNPACK_ADDR)
+        self.write_ins(reg1)
+        self.write_ins(reg2)
+        self.write_ins(reg3)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
     def ptr_assign(self, des_ptr: int, right: int, length: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD)
-        self.write_one(reg1)
+        self.write_ins(LOAD)
+        self.write_ins(reg1)
         self.write_int(des_ptr)
 
-        self.write_one(LOAD_A)
-        self.write_one(reg2)
+        self.write_ins(LOAD_A)
+        self.write_ins(reg2)
         self.write_int(right)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg3)
+        self.write_ins(LOAD_I)
+        self.write_ins(reg3)
         self.write_int(length)
 
-        self.write_one(UNPACK_ADDR)
-        self.write_one(reg1)
-        self.write_one(reg2)
-        self.write_one(reg3)
+        self.write_ins(UNPACK_ADDR)
+        self.write_ins(reg1)
+        self.write_ins(reg2)
+        self.write_ins(reg3)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
     def cast_to_int(self, tar: int, src: int, src_len: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD_A)
-        self.write_one(reg1)
+        self.write_ins(LOAD_A)
+        self.write_ins(reg1)
         self.write_int(tar)
 
-        self.write_one(LOAD_A)
-        self.write_one(reg2)
+        self.write_ins(LOAD_A)
+        self.write_ins(reg2)
         self.write_int(src)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg3)
+        self.write_ins(LOAD_I)
+        self.write_ins(reg3)
         self.write_int(src_len)
 
-        self.write_one(CAST_INT)
-        self.write_one(reg1)
-        self.write_one(reg2)
-        self.write_one(reg3)
+        self.write_ins(CAST_INT)
+        self.write_ins(reg1)
+        self.write_ins(reg2)
+        self.write_ins(reg3)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
@@ -450,35 +467,35 @@ class ByteOutput:
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
         if left < 0:  # left is reg
-            self.write_one(MOVE_REG)
-            self.write_one(reg1)
-            self.write_one(-left - 1)
+            self.write_ins(MOVE_REG)
+            self.write_ins(reg1)
+            self.write_ins(-left - 1)
         else:
-            self.write_one(LOAD)
-            self.write_one(reg1)
+            self.write_ins(LOAD)
+            self.write_ins(reg1)
             self.write_int(left)
 
         if right < 0:
-            self.write_one(MOVE_REG)
-            self.write_one(reg2)
-            self.write_one(-right - 1)
+            self.write_ins(MOVE_REG)
+            self.write_ins(reg2)
+            self.write_ins(-right - 1)
         else:
-            self.write_one(LOAD)
-            self.write_one(reg2)
+            self.write_ins(LOAD)
+            self.write_ins(reg2)
             self.write_int(right)
 
-        self.write_one(op)
-        self.write_one(reg1)
-        self.write_one(reg2)
+        self.write_ins(op)
+        self.write_ins(reg1)
+        self.write_ins(reg2)
 
         if res < 0:
-            self.write_one(MOVE_REG)
-            self.write_one(-res - 1)
-            self.write_one(reg1)
+            self.write_ins(MOVE_REG)
+            self.write_ins(-res - 1)
+            self.write_ins(reg1)
         else:
-            self.write_one(STORE)
-            self.write_one(reg3)
-            self.write_one(reg1)
+            self.write_ins(STORE)
+            self.write_ins(reg3)
+            self.write_ins(reg1)
             self.write_int(res)
 
         self.manager.append_regs64(reg3, reg2, reg1)
@@ -487,25 +504,25 @@ class ByteOutput:
         reg1, reg2 = self.manager.require_regs64(2)
 
         if value < 0:  # value is reg
-            self.write_one(MOVE_REG)
-            self.write_one(reg1)
-            self.write_one(-value - 1)
+            self.write_ins(MOVE_REG)
+            self.write_ins(reg1)
+            self.write_ins(-value - 1)
         else:
-            self.write_one(LOAD)
-            self.write_one(reg1)
+            self.write_ins(LOAD)
+            self.write_ins(reg1)
             self.write_int(value)
 
-        self.write_one(op)
-        self.write_one(reg1)
+        self.write_ins(op)
+        self.write_ins(reg1)
 
         if res < 0:
-            self.write_one(MOVE_REG)
-            self.write_one(-res - 1)
-            self.write_one(reg1)
+            self.write_ins(MOVE_REG)
+            self.write_ins(-res - 1)
+            self.write_ins(reg1)
         else:
-            self.write_one(STORE)
-            self.write_one(reg2)
-            self.write_one(reg1)
+            self.write_ins(STORE)
+            self.write_ins(reg2)
+            self.write_ins(reg1)
             self.write_int(res)
 
         self.manager.append_regs64(reg2, reg1)
@@ -516,51 +533,54 @@ class ByteOutput:
         if src < 0:
             raise lib.CompileTimeException("Cannot return a register.")
         else:
-            self.write_one(LOAD_A)
-            self.write_one(reg1)  # return ptr
+            self.write_ins(LOAD_A)
+            self.write_ins(reg1)  # return ptr
             self.write_int(src)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg2)  # return length
+        self.write_ins(LOAD_I)
+        self.write_ins(reg2)  # return length
         self.write_int(total_len)
 
-        self.write_one(RETURN)
-        self.write_one(reg1)
-        self.write_one(reg2)
+        self.write_ins(RETURN)
+        self.write_ins(reg1)
+        self.write_ins(reg2)
 
         self.manager.append_regs64(reg2, reg1)
 
     def op_i(self, op_code, operand_addr, adder_value: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg1)  # right
+        self.write_ins(LOAD_I)
+        self.write_ins(reg1)  # right
         self.write_int(adder_value)
 
         if operand_addr < 0:
-            self.write_one(MOVE_REG)
-            self.write_one(reg2)
-            self.write_one(-operand_addr - 1)
+            self.write_ins(MOVE_REG)
+            self.write_ins(reg2)
+            self.write_ins(-operand_addr - 1)
         else:
-            self.write_one(LOAD)
-            self.write_one(reg2)  # left
+            self.write_ins(LOAD)
+            self.write_ins(reg2)  # left
             self.write_int(operand_addr)
 
-        self.write_one(op_code)
-        self.write_one(reg2)
-        self.write_one(reg1)
+        self.write_ins(op_code)
+        self.write_ins(reg2)
+        self.write_ins(reg1)
 
         if operand_addr < 0:
-            self.write_one(MOVE_REG)
-            self.write_one(-operand_addr - 1)
-            self.write_one(reg2)
+            self.write_ins(MOVE_REG)
+            self.write_ins(-operand_addr - 1)
+            self.write_ins(reg2)
         else:
-            self.write_one(STORE)
-            self.write_one(reg3)
-            self.write_one(reg2)
+            self.write_ins(STORE)
+            self.write_ins(reg3)
+            self.write_ins(reg2)
             self.write_int(operand_addr)
 
         self.manager.append_regs64(reg3, reg2, reg1)
+
+    def label(self, name):
+        pass
 
     def if_zero_goto(self, offset: int, cond_ptr: int) -> int:
         """
@@ -572,24 +592,24 @@ class ByteOutput:
         """
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg1)  # reg stores skip len
+        self.write_ins(LOAD_I)
+        self.write_ins(reg1)  # reg stores skip len
         self.write_int(offset)
 
         if cond_ptr < 0:  # cond is register:
-            self.write_one(MOVE_REG)
-            self.write_one(reg2)
-            self.write_one(-cond_ptr - 1)
+            self.write_ins(MOVE_REG)
+            self.write_ins(reg2)
+            self.write_ins(-cond_ptr - 1)
             length = 16
         else:
-            self.write_one(LOAD)
-            self.write_one(reg2)  # reg stores cond ptr
+            self.write_ins(LOAD)
+            self.write_ins(reg2)  # reg stores cond ptr
             self.write_int(cond_ptr)
             length = 23
 
-        self.write_one(IF_ZERO_GOTO)
-        self.write_one(reg1)
-        self.write_one(reg2)
+        self.write_ins(IF_ZERO_GOTO)
+        self.write_ins(reg1)
+        self.write_ins(reg2)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
@@ -598,17 +618,20 @@ class ByteOutput:
     def goto(self, offset: int):
         reg1, = self.manager.require_regs64(1)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg1)
+        self.write_ins(LOAD_I)
+        self.write_ins(reg1)
         self.write_int(offset)
 
-        self.write_one(GOTO)
-        self.write_one(reg1)
+        self.write_ins(GOTO)
+        self.write_ins(reg1)
 
         self.manager.append_regs64(reg1)
 
+    def write_addr(self, addr: int):
+        self.codes.append("$" + str(addr))
+
     def write_int(self, i):
-        self.codes.extend(typ.int_to_bytes(i))
+        self.codes.append(str(i))
 
     def reserve_space(self, n) -> int:
         i = len(self.codes)
@@ -625,9 +648,9 @@ class ByteOutput:
         raise lib.CompileTimeException("Continue outside loop")
 
 
-class LoopByteOutput(ByteOutput):
+class LoopByteOutput(TpaOutput):
     def __init__(self, manager, loop_indicator_pos, cond_len, step_node):
-        ByteOutput.__init__(self, manager)
+        TpaOutput.__init__(self, manager)
 
         # self.outer = outer
         self.loop_indicator_pos = loop_indicator_pos
@@ -641,11 +664,11 @@ class LoopByteOutput(ByteOutput):
         return self.step_node, self.cond_len + len(self)
 
 
-class BlockByteOutput(ByteOutput):
+class BlockByteOutput(TpaOutput):
     def __init__(self, manager, outer):
-        ByteOutput.__init__(self, manager)
+        TpaOutput.__init__(self, manager)
 
-        self.outer: ByteOutput = outer
+        self.outer: TpaOutput = outer
 
     def get_loop_indicator(self):
         return self.outer.get_loop_indicator()
@@ -891,7 +914,7 @@ class Compiler:
     def calculate_global_len(self, root: ast.Node, is_child: bool):
         if is_child:
             test_env = en.GlobalEnvironment()
-            test_bo = ByteOutput(self.memory)
+            test_bo = TpaOutput(self.memory)
 
             self.compile(root, test_env, test_bo)
             return self.memory.gp - self.memory.global_begins
@@ -899,11 +922,11 @@ class Compiler:
             child = Compiler(self.memory.literal.copy())
             return child.calculate_global_len(root, True)
 
-    def compile_all(self, root: ast.Node) -> bytes:
-        global_len = self.calculate_global_len(root, False)
+    def compile_all(self, root: ast.Node) -> str:
+        # global_len = self.calculate_global_len(root, False)
 
-        self.memory.set_global_length(global_len)
-        bo = ByteOutput(self.memory)
+        # self.memory.set_global_length(global_len)
+        bo = TpaOutput(self.memory)
 
         env = en.GlobalEnvironment()
         self.add_native_functions(env)
@@ -935,33 +958,58 @@ class Compiler:
                 raise lib.CompileTimeException("Function main must either have zero parameters or two parameters "
                                                "arg count(int) and arg array(**char).")
 
-        # print(self.memory.global_bytes)
-        final_result = ByteOutput(self.memory)
-        final_result.write_int(STACK_SIZE)
-        final_result.write_int(len(self.memory.literal))
-        final_result.write_int(self.memory.get_global_len())
-        final_result.write_int(len(self.memory.functions_bytes))
-        final_result.write_one(main_take_arg)
-        final_result.codes.extend(self.memory.literal)
-        final_result.codes.extend(self.memory.functions_bytes)
-        final_result.codes.extend(bo.codes)
-        return bytes(final_result)
+        head_list = [
+            "//STACK SIZE:",
+            str(STACK_SIZE),
+            "//LITERAL LENGTH:",
+            str(len(self.memory.literal)),
+            "//GLOBAL LENGTH:",
+            str(self.memory.get_global_len()),
+            "//FUNCTIONS LENGTH:",
+            str(len(self.memory.functions_bytes)),
+            "//MAIN TAKES ARGS:",
+            "%" + str(main_take_arg),
+            "//LITERALS:",
+            " ".join([str(b) for b in self.memory.literal])
+        ]
 
-    def compile(self, node: ast.Node, env: en.Environment, bo: ByteOutput, **kwargs):
+        head_str = "\n".join(head_list)
+        return head_str
+
+        # print(self.memory.global_bytes)
+        # final_result = ByteOutput(self.memory)
+        # final_result.write_comment("STACK SIZE")
+        # final_result.write_int(STACK_SIZE)
+        # final_result.write_comment("LITERAL LENGTH")
+        # final_result.write_int(len(self.memory.literal))
+        # final_result.write_comment("GLOBAL LENGTH")
+        # final_result.write_int(self.memory.get_global_len())
+        # final_result.write_comment("FUNCTIONS LENGTH")
+        # final_result.write_int(len(self.memory.functions_bytes))
+        # final_result.write_comment("MAIN TAKES ARGS")
+        # final_result.write_byte(main_take_arg)
+        # final_result.write_comment("LITERALS")
+        # final_result.codes.extend(self.memory.literal)
+        # # final_result.write_comment("")
+        # final_result.codes.extend(self.memory.functions_bytes)
+        # final_result.codes.extend(bo.codes)
+        # return final_result
+
+    def compile(self, node: ast.Node, env: en.Environment, bo: TpaOutput, **kwargs):
         if node is None:
             return 0
         nt = node.node_type
         cmp_ftn = self.node_table[nt]
         return cmp_ftn(node, env, bo, **kwargs)
 
-    def compile_block_stmt(self, node: ast.BlockStmt, env: en.Environment, bo: ByteOutput):
+    def compile_block_stmt(self, node: ast.BlockStmt, env: en.Environment, bo: TpaOutput):
         if node.standalone:
             return self.compile_preset_array(node, env, bo)
         else:
             for line in node.lines:
                 self.compile(line, env, bo)
 
-    def compile_preset_array(self, node: ast.BlockStmt, env: en.Environment, bo: ByteOutput):
+    def compile_preset_array(self, node: ast.BlockStmt, env: en.Environment, bo: TpaOutput):
         first = None
         ptr = self.memory.allocate(PTR_LEN, bo)
         for i in range(len(node.lines)):
@@ -975,10 +1023,10 @@ class Compiler:
         bo.store_addr_to_des(ptr, first)
         return ptr
 
-    def compile_literal(self, node: ast.Literal, env: en.Environment, bo: ByteOutput):
+    def compile_literal(self, node: ast.Literal, env: en.Environment, bo: TpaOutput):
         return self.memory.calculate_lit_ptr(node.lit_pos)
 
-    def compile_string_literal(self, node: ast.StringLiteralNode, env: en.Environment, bo: ByteOutput):
+    def compile_string_literal(self, node: ast.StringLiteralNode, env: en.Environment, bo: TpaOutput):
         lit_pos = node.literal.lit_pos
         if lit_pos not in self.modified_string_poses:
             self.modified_string_poses.add(lit_pos)
@@ -987,21 +1035,21 @@ class Compiler:
             self.memory.literal[lit_pos: lit_pos + PTR_LEN] = typ.int_to_bytes(new_string_ptr)
         return self.compile(node.literal, env, bo)
 
-    def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
-        if self.memory.functions_begin == 0:  # not set. 第一次遍历ast获取global长度时用
-            if node.name == "main":
-                if len(node.params.lines) == 2:
-                    argc: ast.TypeNode = node.params.lines[0]
-                    argv: ast.TypeNode = node.params.lines[1]
-                    if argc.right.name == "int":
-                        if isinstance(argv.right, ast.UnaryOperator) and \
-                                argv.right.operation == "unpack" and \
-                                isinstance(argv.right.value, ast.UnaryOperator) and \
-                                argv.right.value.operation == "unpack":
-                            argv_type: ast.NameNode = argv.right.value.value
-                            if argv_type.name == "char":
-                                self.memory.gp += INT_LEN + PTR_LEN
-            return 0
+    def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: TpaOutput):
+        # if self.memory.functions_begin == 0:  # not set. 第一次遍历ast获取global长度时用
+        #     if node.name == "main":
+        #         if len(node.params.lines) == 2:
+        #             argc: ast.TypeNode = node.params.lines[0]
+        #             argv: ast.TypeNode = node.params.lines[1]
+        #             if argc.right.name == "int":
+        #                 if isinstance(argv.right, ast.UnaryOperator) and \
+        #                         argv.right.operation == "unpack" and \
+        #                         isinstance(argv.right.value, ast.UnaryOperator) and \
+        #                         argv.right.value.operation == "unpack":
+        #                     argv_type: ast.NameNode = argv.right.value.value
+        #                     if argv_type.name == "char":
+        #                         self.memory.gp += INT_LEN + PTR_LEN
+        #     return 0
 
         r_tal = get_tal_of_defining_node(node.r_type, env, self.memory)
 
@@ -1038,9 +1086,9 @@ class Compiler:
             env.define_var(node.name, func_tal, ftn_ptr)
 
         if node.body is not None:  # implementing
-            inner_bo = ByteOutput(self.memory)
+            inner_bo = TpaOutput(self.memory)
             self.compile(node.body, scope, inner_bo)
-            inner_bo.write_one(STOP)
+            inner_bo.write_ins('STOP')
             self.memory.implement_func(ftn_ptr, bytes(inner_bo))
 
             for reg_id_neg in scope.registers:  # return back registers
@@ -1048,12 +1096,12 @@ class Compiler:
 
         self.memory.restore_stack()
 
-    def compile_name_node(self, node: ast.NameNode, env: en.Environment, bo: ByteOutput, assign_const: bool = False):
+    def compile_name_node(self, node: ast.NameNode, env: en.Environment, bo: TpaOutput, assign_const: bool = False):
         lf = node.line_num, node.file
         ptr = env.get(node.name, lf, assign_const)
         return ptr
 
-    def compile_quick_assignment(self, node: ast.QuickAssignmentNode, env: en.Environment, bo: ByteOutput):
+    def compile_quick_assignment(self, node: ast.QuickAssignmentNode, env: en.Environment, bo: TpaOutput):
         name: str = node.left.name
         tal = get_tal_of_evaluated_node(node.right, env)
         length = tal.total_len(self.memory)
@@ -1064,7 +1112,7 @@ class Compiler:
         bo.assign(r_ptr, r, length)
         return r_ptr
 
-    def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
+    def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: TpaOutput):
         lf = node.line_num, node.file
 
         if not isinstance(node.right, ast.UndefinedNode):
@@ -1170,12 +1218,12 @@ class Compiler:
 
         raise lib.CompileTimeException("Cannot assign to type {}.".format(type(node.left).__name__) + generate_lf(node))
 
-    def compile_array_creation(self, right_node, env, tal: en.Type, bo: ByteOutput) -> int:
+    def compile_array_creation(self, right_node, env, tal: en.Type, bo: TpaOutput) -> int:
         ptr = self.create_array(tal, bo, True, env, right_node)
 
         return ptr
 
-    def create_array(self, tal: en.Type, bo: ByteOutput, assign_right: bool, env=None, right_node=None) -> int:
+    def create_array(self, tal: en.Type, bo: TpaOutput, assign_right: bool, env=None, right_node=None) -> int:
         # print(tal)
         if len(tal.array_lengths) != 1:
             raise lib.CompileTimeException("High dimensional local array not supported. Use pointer array instead.")
@@ -1208,12 +1256,12 @@ class Compiler:
         #     # bo.store_addr_to_des(ptr, ptr_arr_addr)
         #     return ptr_arr_addr
 
-    def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, env: en.Environment, bo: ByteOutput):
+    def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, env: en.Environment, bo: TpaOutput):
         indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
 
         bo.ptr_assign(indexing_ptr, value_ptr, unit_len)
 
-    def compile_getitem(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
+    def compile_getitem(self, node: ast.IndexingNode, env: en.Environment, bo: TpaOutput):
         indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
 
         result_ptr = self.memory.allocate(unit_len, bo)
@@ -1221,12 +1269,12 @@ class Compiler:
         bo.unpack_addr(result_ptr, indexing_ptr, unit_len)
         return result_ptr
 
-    def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: ByteOutput):
+    def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: TpaOutput):
         attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
 
         bo.ptr_assign(attr_addr, value_ptr, length)
 
-    def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput, assign_const=False):
+    def compile_dot(self, node: ast.Dot, env: en.Environment, bo: TpaOutput, assign_const=False):
         """
 
         :param node:
@@ -1261,14 +1309,14 @@ class Compiler:
     #
     #     return indexing_ptr, unit_len
 
-    def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
+    def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: TpaOutput):
 
         indexing_addr, tal, length = self.indexing_ptr(node, env, bo)
         # print(length)
 
         return indexing_addr, length
 
-    def indexing_ptr(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
+    def indexing_ptr(self, node: ast.IndexingNode, env: en.Environment, bo: TpaOutput):
         if isinstance(node.call_obj, ast.IndexingNode):  # call obj is array
             arr_addr_ptr, tal, lll = self.indexing_ptr(node.call_obj, env, bo)
         elif isinstance(node.call_obj, ast.NameNode):
@@ -1307,7 +1355,7 @@ class Compiler:
 
         return indexing_addr, tal, length
 
-    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, int):
+    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: TpaOutput) -> (int, int):
         left_tal = get_tal_of_evaluated_node(node.left, env)
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:
@@ -1341,7 +1389,7 @@ class Compiler:
         else:
             raise lib.CompileTimeException("Pointer too deep.")
 
-    def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
+    def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: TpaOutput):
         assert isinstance(node.call_obj, ast.NameNode)
 
         lf = node.line_num, node.file
@@ -1380,13 +1428,13 @@ class Compiler:
         else:
             raise lib.CompileTimeException("Unexpected function type")
 
-    def call_main(self, func_ptr: int, args: list, bo: ByteOutput):
+    def call_main(self, func_ptr: int, args: list, bo: TpaOutput):
         # self.memory.push_stack()
         r_ptr = self.memory.allocate(INT_LEN, bo)
         bo.call_main(func_ptr, args)
         # self.memory.restore_stack()
 
-    def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list, call_env: en.Environment, bo: ByteOutput):
+    def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list, call_env: en.Environment, bo: TpaOutput):
         if len(args) != len(func_tal.param_types):
             raise lib.CompileTimeException("Function requires {} arguments, {} given"
                                            .format(len(func_tal.param_types), len(args)))
@@ -1400,7 +1448,7 @@ class Compiler:
 
         return r_ptr
 
-    def native_function_call(self, func: int, func_tal: en.FuncType, args: list, call_env, bo: ByteOutput):
+    def native_function_call(self, func: int, func_tal: en.FuncType, args: list, call_env, bo: TpaOutput):
         r_len = func_tal.rtype.total_len(self.memory)
 
         r_ptr = self.memory.allocate(r_len, bo)
@@ -1410,7 +1458,7 @@ class Compiler:
 
         return r_ptr
 
-    def compile_unary_op(self, node: ast.UnaryOperator, env: en.Environment, bo: ByteOutput):
+    def compile_unary_op(self, node: ast.UnaryOperator, env: en.Environment, bo: TpaOutput):
         if node.operation == "pack":
             num_ptr = self.compile(node.value, env, bo)
             if num_ptr < 0:
@@ -1460,7 +1508,7 @@ class Compiler:
         else:  # normal unary operators
             raise lib.CompileTimeException("Not implemented")
 
-    def compile_binary_op(self, node: ast.BinaryOperator, env: en.Environment, bo: ByteOutput):
+    def compile_binary_op(self, node: ast.BinaryOperator, env: en.Environment, bo: TpaOutput):
         l_tal = get_tal_of_evaluated_node(node.left, env)
         r_tal = get_tal_of_evaluated_node(node.right, env)
         # print(l_tal, r_tal, node.operation)
@@ -1523,7 +1571,7 @@ class Compiler:
 
         raise lib.CompileTimeException("Unsupported binary operation '{}'".format(node.operation))
 
-    def binary_op_float(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
+    def binary_op_float(self, op: str, lp: int, rp: int, bo: TpaOutput) -> int:
         if op in FLOAT_RESULT_TABLE_FLOAT_FULL:
             if op in FLOAT_RESULT_TABLE_FLOAT:
                 res_pos = self.memory.allocate(FLOAT_LEN, bo)
@@ -1558,7 +1606,7 @@ class Compiler:
             raise lib.CompileTimeException("Binary operator '{}' between floats is unsupported"
                                            .format(op))
 
-    def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
+    def binary_op_int(self, op: str, lp: int, rp: int, bo: TpaOutput) -> int:
         if op in INT_RESULT_TABLE_INT_FULL:
             if op in INT_RESULT_TABLE_INT:
                 res_pos = self.memory.allocate(INT_LEN, bo)
@@ -1593,13 +1641,13 @@ class Compiler:
             raise lib.CompileTimeException("Binary operator '{}' between ints is unsupported"
                                            .format(op))
 
-    def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
+    def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: TpaOutput):
         r = self.compile(node.value, env, bo)
         tal = get_tal_of_evaluated_node(node.value, env)
         bo.add_return(r, tal.total_len(self.memory))
         return r
 
-    def compile_if(self, node: ast.IfStmt, env: en.Environment, bo: ByteOutput):
+    def compile_if(self, node: ast.IfStmt, env: en.Environment, bo: TpaOutput):
         # print(node.condition.lines[0])
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
         # print(cond_ptr)
@@ -1621,7 +1669,7 @@ class Compiler:
         bo.codes.extend(else_bo.codes)
         # bo.add_if_zero_goto(, cond_ptr)
 
-    def compile_for_loop(self, node: ast.ForLoopStmt, env: en.Environment, bo: ByteOutput):
+    def compile_for_loop(self, node: ast.ForLoopStmt, env: en.Environment, bo: TpaOutput):
         if len(node.condition.lines) != 3:
             raise lib.CompileTimeException("For loop title must have 3 parts, got {}".format(len(node.condition.lines)))
 
@@ -1629,7 +1677,7 @@ class Compiler:
         optimize_able = self.optimize_level >= OPTIMIZE_LOOP_INDICATOR and not has_child_node(node.body, ast.BreakStmt)
 
         self.memory.store_sp()
-        bo.write_one(STORE_SP)  # before loop
+        bo.write_ins(STORE_SP)  # before loop
 
         if optimize_able:
             loop_indicator = None
@@ -1649,7 +1697,7 @@ class Compiler:
         init_len = len(bo)
 
         self.memory.store_sp()
-        bo.write_one(STORE_SP)
+        bo.write_ins(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
 
         if optimize_able:
@@ -1668,7 +1716,7 @@ class Compiler:
 
         self.compile(node.body, body_env, body_bo)
         self.compile(node.condition.lines[2], title_env, body_bo)  # step
-        body_bo.write_one(RES_SP)
+        body_bo.write_ins(RES_SP)
 
         body_len = len(body_bo) + 10 + 2  # load_i(10), goto(2)
 
@@ -1678,9 +1726,9 @@ class Compiler:
 
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)
-        bo.write_one(RES_SP)
+        bo.write_ins(RES_SP)
         self.memory.restore_sp()
-        bo.write_one(RES_SP)
+        bo.write_ins(RES_SP)
         self.memory.restore_sp()
 
         if real_cond_ptr < 0:
@@ -1688,7 +1736,7 @@ class Compiler:
         if loop_indicator is not None and loop_indicator < 0:
             self.memory.append_regs64(-loop_indicator - 1)
 
-    def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: ByteOutput):
+    def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: TpaOutput):
         if len(node.condition.lines) != 1:
             raise lib.CompileTimeException("While loop title must have 1 part.")
 
@@ -1696,7 +1744,7 @@ class Compiler:
         optimize_able = self.optimize_level >= OPTIMIZE_LOOP_INDICATOR and not has_child_node(node.body, ast.BreakStmt)
 
         self.memory.store_sp()  # 进loop之前
-        bo.write_one(STORE_SP)
+        bo.write_ins(STORE_SP)
 
         if optimize_able:
             loop_indicator = None
@@ -1710,7 +1758,7 @@ class Compiler:
 
         init_len = len(bo)
         self.memory.store_sp()  # 循环开始
-        bo.write_one(STORE_SP)
+        bo.write_ins(STORE_SP)
 
         title_env = en.LoopEnvironment(env)
         body_env = en.BlockEnvironment(title_env)
@@ -1733,7 +1781,7 @@ class Compiler:
 
         self.compile(node.body, body_env, body_bo)
         # self.memory.restore_sp()
-        body_bo.write_one(RES_SP)
+        body_bo.write_ins(RES_SP)
         body_len = len(body_bo) + 10 + 2  # load_i(10), goto(2)
 
         if_len = bo.if_zero_goto(body_len, real_cond_ptr)
@@ -1743,24 +1791,24 @@ class Compiler:
         bo.codes.extend(body_bo.codes)
         # print(len(bo) - body_len - cond_len, init_len)
         self.memory.restore_sp()
-        bo.write_one(RES_SP)
+        bo.write_ins(RES_SP)
 
         self.memory.restore_sp()
-        bo.write_one(RES_SP)
+        bo.write_ins(RES_SP)
 
         if real_cond_ptr < 0:
             self.memory.append_regs64(-real_cond_ptr - 1)
         if loop_indicator is not None and loop_indicator < 0:
             self.memory.append_regs64(-loop_indicator - 1)
 
-    def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
+    def compile_condition(self, node: ast.Expr, env: en.Environment, bo: TpaOutput):
         tal = get_tal_of_evaluated_node(node, env)
         if tal.type_name != "int":
             raise lib.CompileTimeException("Conditional statement can only have boolean output. Got '{}'."
                                            .format(tal.type_name))
         return self.compile(node, env, bo)
 
-    def compile_break(self, node: ast.BreakStmt, env: en.Environment, bo: ByteOutput):
+    def compile_break(self, node: ast.BreakStmt, env: en.Environment, bo: TpaOutput):
         loop_indicator = bo.get_loop_indicator()
         if loop_indicator < 0:  # is register
             bo.assign_reg_i(loop_indicator, 0)
@@ -1768,7 +1816,7 @@ class Compiler:
             bo.assign_i(loop_indicator, 0)
         self.compile_continue(None, env, bo)
 
-    def compile_continue(self, node: ast.ContinueStmt, env: en.Environment, bo: ByteOutput):
+    def compile_continue(self, node: ast.ContinueStmt, env: en.Environment, bo: TpaOutput):
         step_node, length_before = bo.get_loop_length()
 
         cur_len = len(bo)
@@ -1783,21 +1831,21 @@ class Compiler:
         else:
             back = 42
 
-        bo.write_one(RES_SP)
+        bo.write_ins(RES_SP)
         bo.goto(-length_before - len_diff - back)
         # bo.write_one(GOTO)
         # bo.write_int(-length_before - len_diff - INT_LEN - 1)
 
-    def compile_undefined(self, node: ast.UndefinedNode, env: en.Environment, bo: ByteOutput):
+    def compile_undefined(self, node: ast.UndefinedNode, env: en.Environment, bo: TpaOutput):
         return 0
 
-    def compile_null(self, node, env, bo: ByteOutput):
+    def compile_null(self, node, env, bo: TpaOutput):
         null_ptr = self.memory.allocate(PTR_LEN, bo)
         # bo.push_stack(PTR_LEN)
         bo.assign_i(null_ptr, 0)
         return null_ptr
 
-    def compile_struct(self, node: ast.StructNode, env: en.Environment, bo: ByteOutput):
+    def compile_struct(self, node: ast.StructNode, env: en.Environment, bo: TpaOutput):
         struct = Struct(node.name)
         pos = 0
         for line in node.block.lines:
@@ -1817,7 +1865,7 @@ class Compiler:
         self.memory.add_type(node.name, pos)
         env.add_struct(node.name, struct)
 
-    def compile_in_decrement(self, node: ast.InDecrementOperator, env: en.Environment, bo: ByteOutput):
+    def compile_in_decrement(self, node: ast.InDecrementOperator, env: en.Environment, bo: TpaOutput):
         ptr = self.compile(node.value, env, bo, assign_const=True)
         tal = get_tal_of_evaluated_node(node.value, env)
         if node.is_post:
@@ -1856,14 +1904,14 @@ class Compiler:
             raise lib.CompileTimeException()
 
     def call_compile_time_functions(self, func: int, func_tal: CompileTimeFunctionType, arg_node: ast.BlockStmt,
-                                    env: en.Environment, bo: ByteOutput):
+                                    env: en.Environment, bo: TpaOutput):
         r_len = func_tal.rtype.total_len(self.memory)
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
         return func_tal.func(r_ptr, env, bo, arg_node.lines)
 
-    def function_sizeof(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+    def function_sizeof(self, r_ptr: int, env: en.Environment, bo: TpaOutput, args: list):
         if len(args) != 1:
             raise lib.CompileTimeException("Function 'sizeof' takes exactly 1 argument, {} given."
                                            .format(len(args)))
@@ -1875,10 +1923,10 @@ class Compiler:
         bo.assign_i(r_ptr, size)
         return r_ptr
 
-    def function_char(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+    def function_char(self, r_ptr: int, env: en.Environment, bo: TpaOutput, args: list):
         pass
 
-    def function_int(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+    def function_int(self, r_ptr: int, env: en.Environment, bo: TpaOutput, args: list):
         if len(args) != 1:
             raise lib.CompileTimeException("Function 'int' takes exactly 1 argument, {} given."
                                            .format(len(args)))
@@ -1897,7 +1945,7 @@ class Compiler:
         else:
             raise lib.CompileTimeException("Cannot cast '{}' to int".format(arg_tal.type_name))
 
-    def function_float(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+    def function_float(self, r_ptr: int, env: en.Environment, bo: TpaOutput, args: list):
         if len(args) != 1:
             raise lib.CompileTimeException("Function 'float' takes exactly 1 argument, {} given."
                                            .format(len(args)))
