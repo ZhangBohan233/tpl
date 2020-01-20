@@ -689,8 +689,9 @@ class MemoryManager:
         self.gp = self.global_begins
 
         self.literal: bytearray = literal_bytes
-        self.global_bytes = bytearray()
-        self.functions_bytes = bytearray(INT_LEN)  # function counts
+        self.global_instructions = []
+        self.function_instructions = []
+        self.function_pointers = []
         self.functions = {}
 
         self.blocks = []
