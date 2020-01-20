@@ -4,3 +4,4 @@
 * global variables     ...done
 * tail call optimization      ...discarded
 * label and goto
+* fp: frame pointer

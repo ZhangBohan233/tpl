@@ -1,3 +1,14 @@
+#### Build 1049 ####
+2020/01/20
+
+* New syntax:
+    * goto, label
+    * Still bug
+* Not implemented:
+    * Frame pointer
+* Currently unavailable:
+    * TPA Optimizer
+
 #### Build 1048 ####
 2020/01/20
 

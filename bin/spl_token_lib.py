@@ -24,7 +24,7 @@ ALL = [SYMBOLS, UNARY_OPERATORS, BINARY_OPERATORS, TERNARY_OPERATORS, OTHERS, MI
 #             "true", "false", "null", "operator", "while", "for", "import", "namespace", "throw", "try", "catch",
 #             "finally", "abstract", "const", "var", "assert", "as", "struct"}
 RESERVED = {"fn", "if", "else", "return", "break", "continue", "true", "false", "null", "while", "for",
-            "const", "var", "assert", "struct", "include", "register"}
+            "const", "var", "assert", "struct", "include", "register", "goto", "label"}
 RESERVED_FOR_BRACE = {"return"}
 LAZY = {"&&", "||"}
 OMITS = {"\n", "\r", "\t", " "}

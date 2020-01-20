@@ -34,6 +34,8 @@ CLASS_STMT = 22
 NULL_STMT = 23
 QUICK_ASSIGNMENT = 24
 FUNC_OBJ = 25
+GOTO = 26
+LABEL = 27
 # ABSTRACT = 25
 # TRY_STMT = 27
 # CATCH_STMT = 28
@@ -619,6 +621,32 @@ class Dot(BinaryOperator):
         return "."
 
 
+class GotoStmt(Node):
+
+    def __init__(self, line, label):
+        Node.__init__(self, line)
+
+        self.label: str = label
+
+        self.node_type = GOTO
+
+    def __str__(self):
+        return "goto " + self.label
+
+
+class LabelStmt(Node):
+
+    def __init__(self, line, label):
+        Node.__init__(self, line)
+
+        self.label: str = label
+
+        self.node_type = LABEL
+
+    def __str__(self):
+        return "label " + self.label
+
+
 # class CatchStmt(CondStmt):
 #     then: BlockStmt = None
 #
@@ -998,6 +1026,18 @@ class AbstractSyntaxTree:
             self.stack.append(fc)
             self.inner = AbstractSyntaxTree()
 
+    def add_goto(self, line, label):
+        if self.inner:
+            self.inner.add_goto(line, label)
+        else:
+            self.stack.append(GotoStmt(line, label))
+
+    def add_label(self, line, label):
+        if self.inner:
+            self.inner.add_label(line, label)
+        else:
+            self.stack.append(LabelStmt(line, label))
+
     def add_getitem(self, line):
         if self.inner:
             self.inner.add_getitem(line)
@@ -1079,6 +1119,7 @@ class AbstractSyntaxTree:
             cond_stmt.condition = expr
             # print(cond_stmt)
             self.stack.append(cond_stmt)
+
     #
     # def build_for_loop(self):
     #     if self.inner.inner:
@@ -1275,9 +1316,9 @@ class AbstractSyntaxTree:
                     # elif isinstance(node, AnnotationNode) and len(lst) > 0 and node.body is None:
                     #     node.body = lst[0]
                     #     lst[0] = node
-                        # last: AssignmentNode = lst[0]
-                        # func: DefStmt = last.right
-                        # func.tags = node
+                    # last: AssignmentNode = lst[0]
+                    # func: DefStmt = last.right
+                    # func.tags = node
                     # elif isinstance(node, TernaryOperator) and len(lst) > 0:
                     #     node.right = lst[0]
                     #     lst[0] = node

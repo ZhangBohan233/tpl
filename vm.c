@@ -620,7 +620,7 @@ void vm_run() {
             case 30:  // IF ZERO GOTO
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-//                printf("%lld ", regs64[reg_p2]);
+                printf("%lld\n", regs64[reg_p2].int_value);
                 if (regs64[reg_p2].int_value == 0) {
                     PC += regs64[reg_p1].int_value;
                 }

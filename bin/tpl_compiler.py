@@ -80,10 +80,6 @@ STORE_LEN = 11
 # Number of native functions, used for generating tpa
 NATIVE_FUNCTION_COUNT = 6
 
-# Optimizations starting level
-OPTIMIZE_LOOP_INDICATOR = 2
-OPTIMIZE_LOOP_REG = 3
-
 INT_RESULT_TABLE_INT = {
     "+": ADD,
     "-": SUB,
@@ -678,36 +674,6 @@ class ByteOutput:
         raise lib.CompileTimeException("Continue outside loop")
 
 
-# class LoopByteOutput(ByteOutput):
-#     def __init__(self, manager, loop_indicator_pos, cond_len, step_node):
-#         ByteOutput.__init__(self, manager)
-#
-#         # self.outer = outer
-#         self.loop_indicator_pos = loop_indicator_pos
-#         self.cond_len = cond_len
-#         self.step_node = step_node
-#
-#     def get_loop_indicator(self):
-#         return self.loop_indicator_pos
-#
-#     def get_loop_length(self):
-#         return self.step_node, self.cond_len + len(self)
-#
-#
-# class BlockByteOutput(ByteOutput):
-#     def __init__(self, manager, outer):
-#         ByteOutput.__init__(self, manager)
-#
-#         self.outer: ByteOutput = outer
-#
-#     def get_loop_indicator(self):
-#         return self.outer.get_loop_indicator()
-#
-#     def get_loop_length(self):
-#         out_res = self.outer.get_loop_length()
-#         return out_res[0], out_res[1] + len(self) + INT_LEN * 2 + 1
-
-
 class MemoryManager:
     def __init__(self, literal_bytes):
         self.stack_begin = 1
@@ -726,7 +692,8 @@ class MemoryManager:
         self.blocks = []
         self.loop_sp_stack = []
 
-        self.label = 0
+        self.label_accumulator = 0
+        self.text_labels = {}
 
         self.type_sizes = {
             "int": INT_LEN,
@@ -761,8 +728,8 @@ class MemoryManager:
         return len(self.available_regs64) > 4
 
     def generate_label(self):
-        label = self.label
-        self.label += 1
+        label = self.label_accumulator
+        self.label_accumulator += 1
         return label
 
     def get_type_size(self, name):
@@ -834,25 +801,6 @@ class ParameterPair:
         return self.__str__()
 
 
-# class Function:
-#     def __init__(self, params, tal: en.FuncType, ptr: int):
-#         self.params: [ParameterPair] = params
-#         self.tal = tal
-#         self.ptr = ptr
-
-
-# class NativeFunction:
-#     def __init__(self, tal: en.FuncType, ptr: int):
-#         self.tal = tal
-#         self.ptr = ptr
-#
-#
-# class CompileTimeFunction:
-#     def __init__(self, tal: en.FuncType, func):
-#         self.tal = tal
-#         self.func = func
-
-
 class CompileTimeFunctionType(en.FuncType):
     def __init__(self, param_types: list, rtype: en.Type, func):
         en.FuncType.__init__(self, param_types, rtype, "c")
@@ -904,7 +852,9 @@ class Compiler:
             ast.STRUCT_NODE: self.compile_struct,
             ast.DOT: self.compile_dot,
             ast.QUICK_ASSIGNMENT: self.compile_quick_assignment,
-            ast.IN_DECREMENT_OPERATOR: self.compile_in_decrement
+            ast.IN_DECREMENT_OPERATOR: self.compile_in_decrement,
+            ast.LABEL: self.compile_label,
+            ast.GOTO: self.compile_goto
         }
 
     def configs(self, **kwargs):
@@ -1098,6 +1048,8 @@ class Compiler:
             env.define_var(node.name, func_tal, ftn_ptr)
 
         if node.body is not None:  # implementing
+            self.generate_labels(node.body)  # preprocess the labels to make sure future-pointing goto's work
+
             inner_bo = ByteOutput(self.memory)
             self.compile(node.body, scope, inner_bo)
             inner_bo.write_one(STOP)
@@ -1819,6 +1771,14 @@ class Compiler:
                     bo.op_i(SUB, ptr, 1)
                     return ptr
 
+    def compile_goto(self, node: ast.GotoStmt, env: en.Environment, bo: ByteOutput):
+        label_id = self.memory.text_labels[node.label]
+        bo.goto_l(label_id)
+
+    def compile_label(self, node: ast.LabelStmt, env: en.Environment, bo: ByteOutput):
+        label_id = self.memory.text_labels[node.label]
+        bo.add_label(label_id)
+
     def get_unpack_final_pos(self, node: ast.UnaryOperator, env: en.Environment, bo):
         if isinstance(node, ast.UnaryOperator) and node.operation == "unpack":
             return self.get_unpack_final_pos(node.value, env, bo)
@@ -1886,6 +1846,21 @@ class Compiler:
             return r_ptr
         else:
             raise lib.CompileTimeException("Cannot cast '{}' to float".format(arg_tal.type_name))
+
+    def generate_labels(self, node: ast.Node):
+        if isinstance(node, ast.LabelStmt):
+            if node.label not in self.memory.text_labels:
+                label_id = self.memory.generate_label()
+                self.memory.text_labels[node.label] = label_id
+        elif isinstance(node, ast.Node):
+            attr_names = dir(node)
+            for attr_name in attr_names:
+                attr = getattr(node, attr_name)
+                if isinstance(attr, ast.Node):
+                    self.generate_labels(attr)
+                elif isinstance(attr, list):
+                    for item in attr:
+                        self.generate_labels(item)
 
 
 def index_node_depth(node: ast.IndexingNode):

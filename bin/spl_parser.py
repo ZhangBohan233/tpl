@@ -41,6 +41,7 @@ class Parser:
         brace_count = 0
         struct_braces = []
         # import_braces = []
+        labels = set()
 
         while True:
             try:
@@ -193,13 +194,14 @@ class Parser:
                         # else:
                         #     raise stl.ParseException("Illegal function name '{}', in file '{}', at line {}"
                         #                              .format(f_name, line[1], line[0]))
-                        if f_name == "(":
+                        if f_name == "(":  # func-obj type
                             func_obj_nest_list.append(par_count)
                             parser.new_block()
-                        else:
+                        else:  # function declaration
                             parser.add_function(line, f_name)
                             i += push_back
                             param_nest_list.append(par_count)
+                            labels.clear()
                         par_count += 1
                         # is_abstract = False
                     elif sym == "struct":
@@ -207,8 +209,23 @@ class Parser:
                         name_token: stl.IdToken = self.tokens[i]
                         parser.add_struct(line, name_token.symbol)
                         struct_braces.append(brace_count)
-                    elif sym == "assert":
-                        parser.add_unary(line, "assert")
+                    # elif sym == "assert":
+                    #     parser.add_unary(line, "assert")
+                    elif sym == "label":
+                        i += 1
+                        label = self.tokens[i]
+                        if not isinstance(label, stl.IdToken):
+                            raise stl.ParseException("Label must be identifier")
+                        if label.symbol in labels:
+                            raise stl.ParseException("Duplicate label '{}'".format(label.symbol))
+                        labels.add(label.symbol)
+                        parser.add_label(line, label.symbol)
+                    elif sym == "goto":
+                        i += 1
+                        label = self.tokens[i]
+                        if not isinstance(label, stl.IdToken):
+                            raise stl.ParseException("Label must be identifier")
+                        parser.add_goto(line, label.symbol)
                     elif sym == "++" or sym == "--":
                         parser.add_increment_decrement(line, sym)
                     elif sym == ":=":

@@ -1,12 +1,12 @@
 
 fn main() int {
-
-    for i := -10; i < 10; i++ {
-        printf("%d ", i);
-        if i == -2 {
-
-            i += 3;
-            continue;
-        }
+    i := 0;
+    label begin;
+    i += 1;
+    printf("hh %d\n", i);
+    if i < 10 {
+        goto begin;
+    } else {
+        printf("finished\n");
     }
 }

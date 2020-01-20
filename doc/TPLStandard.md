@@ -176,6 +176,33 @@ There are 3 types of conditional statements: `if` statement, `for` statement, an
 ## Native invoke functions
 
 
+## Label and goto
+
+A label can be defined as
+```
+label lab;
+```
+Where the `lab` is the name of label. Labels must be unique in the same function.
+
+The syntax of goto statement is
+```
+goto lab;
+```
+Which directs the program to the defined label `lab`. Note that the label `lab` must be in the same function scope 
+with the `goto` statement.
+
+Example:
+```
+i := 0;
+label begin;
+printf("%d ", i);
+i++;
+if i < 10 {
+    goto begin;
+}
+```
+
+
 ## Table of all native primitive types:
 
 | Type name  | Byte length | Signed | Min value | Max value |
@@ -201,9 +228,11 @@ There are 3 types of conditional statements: `if` statement, `for` statement, an
 * `float`
 * `fn`
 * `for`
+* `goto`
 * `int`
 * `if`
 * `include`
+* `label`
 * `register`
 * `return`
 * `sizeof`
