@@ -10,7 +10,7 @@ BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mo
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
                     "<<": "lshift", ">>": "rshift_a", ">>>": "rshift_l", "===": "", "!==": "", "instanceof": "",
-                    "subclassof": "", ":": "", "->": "lambda", "<-": "extendedby"}
+                    "subclassof": "", ":": "", "->": "lambda", "<-": "extendedby", ":=": "quickass"}
 UNARY_OPERATORS = {"!": "not"}
 OTHERS = {"=", "@", ":", ":="}
 ALL = [SYMBOLS, UNARY_OPERATORS, BINARY_OPERATORS, TERNARY_OPERATORS, OTHERS, MIDDLE]

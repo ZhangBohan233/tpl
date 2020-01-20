@@ -1,3 +1,16 @@
+#### Build 1048 ####
+2020/01/20
+
+* Redesigned the mechanism of conditional statements:
+    * Uses label to direct goto and if_zero_goto
+    * Compile labels in tpa compiler
+    * Changed the executable to '*.tpe'. Compile assembly is now '*.tpc'.
+* Bug fixes:
+    * Fixed that quick assignment ':=' causes error when the right hand side is an operator. Example: `x := -1;`
+* Currently unavailable:
+    * TPA Optimizer
+
+
 #### Build 1047 ####
 2020/01/19
 

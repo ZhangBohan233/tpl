@@ -1,3 +1,13 @@
+"""
+tpl -> bytearray -> tpa -> tpc -> tpe
+
+tpl: Trash Program Source File
+tpa: Trash Program Assembly (Readable)
+tpc: Trash Program Compiled Assembly
+tpe: Trash Program Executable
+"""
+
+
 import sys
 import time
 import bin.tpl_compiler as cmp
@@ -81,20 +91,21 @@ if __name__ == '__main__':
             dec = decompiler.TPAssemblyCompiler(byt)
             dec.compile(wf)
 
+        with open(tpa_name, "r") as tpa_f:
+            tpa_text = tpa_f.read()
+            tpa_cmp = optimizer.TpaParser(tpa_text)
+
         if args["optimize"] > 1:
             # print("Optimization currently unavailable")
             # exit(1)
-            with open(tpa_name, "r") as tpa_f:
-                tpa_text = tpa_f.read()
-                opt_par = optimizer.TpaParser(tpa_text)
-                opt = optimizer.Optimizer(opt_par)
-                opt.optimize(args["optimize"])
+            opt = optimizer.Optimizer(tpa_cmp)
+            opt.optimize(args["optimize"])
 
-                byt = opt_par.to_byte_code()
-                opt_tpa_name = pure_name + ".o.tpa"
-                with open(opt_tpa_name, "w") as wf2:
-                    dec2 = decompiler.TPAssemblyCompiler(byt)
-                    dec2.compile(wf2)
+        byt = tpa_cmp.to_byte_code()
+        opt_tpa_name = pure_name + ".tpc"
+        with open(opt_tpa_name, "w") as wf2:
+            dec2 = decompiler.TPAssemblyCompiler(byt)
+            dec2.compile(wf2)
 
         with open(tar_name, "wb") as wf:
             wf.write(byt)

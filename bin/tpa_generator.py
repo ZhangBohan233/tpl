@@ -156,31 +156,18 @@ class TPAssemblyCompiler:
         elif instruction == cpl.CALL_NAT:
             out_stream.write("CALL_NAT        %{}  %{}\n".format(self.read_one(),
                                                                  self.read_one()))
-        # elif instruction == cpl.CALL_NAT:
-        #     i1, i2, i3, i4 = self.read_4_ints()
-        #     out_stream.write("CALL_NAT        ${}  {}  ${}  {}\n".format(i1, i2, i3, i4))
-        #     out_stream.write("//ARGS:\n")
-        #     for i in range(i4):
-        #         arg_ptr, arg_len = self.read_2_ints()
-        #         out_stream.write("@        ${}  {}\n".format(arg_ptr, arg_len))
         elif instruction == cpl.STORE_ADDR:
             out_stream.write("STORE_ADDR      %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.UNPACK_ADDR:
             out_stream.write("UNPACK_ADDR     %{}  %{}  %{}\n".format(self.read_one(),
                                                                       self.read_one(),
                                                                       self.read_one()))
-        # elif instruction == cpl.PTR_ASSIGN:
-        #     out_stream.write("PTR_ASSIGN      %{}  %{}  %{}\n".format(self.read_one(),
-        #                                                               self.read_one(),
-        #                                                               self.read_one()))
         elif instruction == cpl.STORE_SP:
             out_stream.write("STORE_SP\n")
         elif instruction == cpl.RES_SP:
             out_stream.write("RES_SP\n")
         elif instruction == cpl.MOVE_REG:
             out_stream.write("MOVE_REG        %{}  %{}\n".format(self.read_one(), self.read_one()))
-        # elif instruction == cpl.TO_REL:
-        #     out_stream.write("TO_REL          ${}\n".format(self.read_1_int()))
         elif instruction == cpl.INT_TO_FLOAT:
             out_stream.write("INT_TO_FLOAT    %{}\n".format(self.read_one()))
         elif instruction == cpl.FLOAT_TO_INT:
@@ -205,6 +192,12 @@ class TPAssemblyCompiler:
             out_stream.write("NE_F            %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.NEG_F:
             out_stream.write("NEG_F           %{}\n".format(self.read_one()))
+        elif instruction == cpl.LABEL:
+            out_stream.write("LABEL           {}\n".format(self.read_1_int()))
+        elif instruction == cpl.GOTO_L:
+            out_stream.write("GOTO_L          %{}\n".format(self.read_one()))
+        elif instruction == cpl.IF_ZERO_GOTO_L:
+            out_stream.write("IF_ZERO_GOTO_L  %{}  %{}\n".format(self.read_one(), self.read_one()))
         else:
             print("Unknown instruction: {}".format(instruction))
             raise Exception

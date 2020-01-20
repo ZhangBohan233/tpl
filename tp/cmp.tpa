@@ -5,11 +5,11 @@
 //GLOBAL MEMORY LENGTH:
 24
 //FUNCTIONS LENGTH:
-646
+694
 //MAIN TAKES ARG:
 %0
 //LITERALS:
-1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 10 0 0 0 0 0 0 0 6 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 48 4 0 0 0 0 0 0 37 100 10 0 
+1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 10 0 0 0 0 0 0 0 32 4 0 0 0 0 0 0 37 100 32 0 2 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 
 //FUNCTIONS COUNT:
 7
 //FUNCTION POINTERS:
@@ -23,78 +23,85 @@
 #0 STORE_SP
 #1 LOAD_I          %0  8
 #11 PUSH            %0
-#13 LOAD_I          %0  1
-#23 STORE           %1  %0  $0
-#34 LOAD_I          %0  8
-#44 PUSH            %0
-#46 LOAD_A          %0  $8
-#56 LOAD_A          %1  $1032
-#66 LOAD_I          %2  8
-#76 ASSIGN          %0  %1  %2
-#80 STORE_SP
-#81 LOAD_I          %0  8
-#91 PUSH            %0
-#93 LOAD            %0  $8
-#103 LOAD            %1  $1040
-#113 LT              %0  %1
-#116 STORE           %2  %0  $16
-#127 LOAD_I          %0  8
-#137 PUSH            %0
-#139 LOAD            %0  $16
-#149 LOAD            %1  $0
-#159 AND             %0  %1
-#162 STORE           %2  %0  $24
-#173 LOAD_I          %0  335
-#183 LOAD            %1  $24
-#193 IF_ZERO_GOTO    %0  %1
-#196 LOAD_I          %0  8
-#206 PUSH            %0
-#208 LOAD            %0  $8
-#218 LOAD            %1  $1048
-#228 EQ              %0  %1
-#231 STORE           %2  %0  $32
-#242 LOAD_I          %0  46
-#252 LOAD            %1  $32
-#262 IF_ZERO_GOTO    %0  %1
-#265 LOAD            %0  $8
-#275 LOAD            %1  $1056
-#285 ADD             %0  %1
-#288 STORE           %2  %0  $8
-#299 LOAD_I          %0  0
-#309 GOTO            %0
-#311 LOAD_I          %0  0
-#321 PUSH            %0
-#323 LOAD_I          %2  8
-#333 PUSH            %2
-#335 LOAD_A          %2  $40
-#345 LOAD_A          %3  $1064
-#355 LOAD_I          %4  8
-#365 ASSIGN          %2  %3  %4
-#369 LOAD_I          %2  8
-#379 PUSH            %2
-#381 LOAD_A          %2  $48
-#391 LOAD_A          %3  $8
-#401 LOAD_I          %4  8
-#411 ASSIGN          %2  %3  %4
-#415 LOAD_A          %0  $1124
-#425 LOAD_I          %1  16
-#435 CALL_NAT        %0  %1
-#438 LOAD_I          %0  8
-#448 PUSH            %0
-#450 LOAD_A          %0  $40
-#460 LOAD_A          %1  $8
-#470 LOAD_I          %2  8
-#480 ASSIGN          %0  %1  %2
-#484 LOAD_I          %0  1
-#494 LOAD            %1  $8
-#504 ADD             %1  %0
-#507 STORE           %2  %1  $8
-#518 RES_SP
-#519 LOAD_I          %0  -451
-#529 GOTO            %0
-#531 RES_SP
-#532 RES_SP
-#533 STOP
+#13 LOAD_I          %0  8
+#23 PUSH            %0
+#25 LOAD            %0  $1040
+#35 NEG             %0
+#37 STORE           %1  %0  $8
+#48 LOAD_A          %0  $0
+#58 LOAD_A          %1  $8
+#68 LOAD_I          %2  8
+#78 ASSIGN          %0  %1  %2
+#82 LABEL           0
+#91 STORE_SP
+#92 LOAD_I          %0  8
+#102 PUSH            %0
+#104 LOAD            %0  $0
+#114 LOAD            %1  $1040
+#124 LT              %0  %1
+#127 STORE           %2  %0  $16
+#138 LOAD_I          %0  2
+#148 LOAD            %1  $16
+#158 IF_ZERO_GOTO_L  %0  %1
+#161 LOAD_I          %0  0
+#171 PUSH            %0
+#173 LOAD_I          %2  8
+#183 PUSH            %2
+#185 LOAD_A          %2  $24
+#195 LOAD_A          %3  $1048
+#205 LOAD_I          %4  8
+#215 ASSIGN          %2  %3  %4
+#219 LOAD_I          %2  8
+#229 PUSH            %2
+#231 LOAD_A          %2  $32
+#241 LOAD_A          %3  $0
+#251 LOAD_I          %4  8
+#261 ASSIGN          %2  %3  %4
+#265 LOAD_A          %0  $1124
+#275 LOAD_I          %1  16
+#285 CALL_NAT        %0  %1
+#288 LOAD_I          %0  8
+#298 PUSH            %0
+#300 LOAD            %0  $1060
+#310 NEG             %0
+#312 STORE           %1  %0  $24
+#323 LOAD_I          %0  8
+#333 PUSH            %0
+#335 LOAD            %0  $0
+#345 LOAD            %1  $24
+#355 EQ              %0  %1
+#358 STORE           %2  %0  $32
+#369 LOAD_I          %0  3
+#379 LOAD            %1  $32
+#389 IF_ZERO_GOTO_L  %0  %1
+#392 LOAD            %0  $0
+#402 LOAD            %1  $1068
+#412 ADD             %0  %1
+#415 STORE           %2  %0  $0
+#426 LOAD_I          %0  1
+#436 GOTO_L          %0
+#438 LOAD_I          %0  4
+#448 GOTO_L          %0
+#450 LABEL           3
+#459 LABEL           4
+#468 LABEL           1
+#477 LOAD_I          %0  8
+#487 PUSH            %0
+#489 LOAD_A          %0  $40
+#499 LOAD_A          %1  $0
+#509 LOAD_I          %2  8
+#519 ASSIGN          %0  %1  %2
+#523 LOAD_I          %0  1
+#533 LOAD            %1  $0
+#543 ADD             %1  %0
+#546 STORE           %2  %1  $0
+#557 RES_SP
+#558 LOAD_I          %0  0
+#568 GOTO_L          %0
+#570 LABEL           2
+#579 RES_SP
+#580 RES_SP
+#581 STOP
 
 
 //MAIN:

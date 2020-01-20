@@ -70,6 +70,10 @@ LT_F = 57
 NE_F = 58
 NEG_F = 59
 
+LABEL = 128
+GOTO_L = 129
+IF_ZERO_GOTO_L = 130
+
 LOAD_LEN = 11
 STORE_LEN = 11
 
@@ -562,11 +566,60 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
-    def if_zero_goto(self, offset: int, cond_ptr: int) -> int:
+    # def if_zero_goto(self, offset: int, cond_ptr: int) -> int:
+    #     """
+    #     Returns the occupied length
+    #
+    #     :param offset:
+    #     :param cond_ptr:
+    #     :return:
+    #     """
+    #     reg1, reg2, reg3 = self.manager.require_regs64(3)
+    #
+    #     self.write_one(LOAD_I)
+    #     self.write_one(reg1)  # reg stores skip len
+    #     self.write_int(offset)
+    #
+    #     if cond_ptr < 0:  # cond is register:
+    #         self.write_one(MOVE_REG)
+    #         self.write_one(reg2)
+    #         self.write_one(-cond_ptr - 1)
+    #         length = 16
+    #     else:
+    #         self.write_one(LOAD)
+    #         self.write_one(reg2)  # reg stores cond ptr
+    #         self.write_int(cond_ptr)
+    #         length = 23
+    #
+    #     self.write_one(IF_ZERO_GOTO)
+    #     self.write_one(reg1)
+    #     self.write_one(reg2)
+    #
+    #     self.manager.append_regs64(reg3, reg2, reg1)
+    #
+    #     return length
+    #
+    # def goto(self, offset: int):
+    #     reg1, = self.manager.require_regs64(1)
+    #
+    #     self.write_one(LOAD_I)
+    #     self.write_one(reg1)
+    #     self.write_int(offset)
+    #
+    #     self.write_one(GOTO)
+    #     self.write_one(reg1)
+    #
+    #     self.manager.append_regs64(reg1)
+
+    def add_label(self, label: int):
+        self.write_one(LABEL)
+        self.write_int(label)
+
+    def if_zero_goto_l(self, label: int, cond_ptr: int) -> int:
         """
         Returns the occupied length
 
-        :param offset:
+        :param label:
         :param cond_ptr:
         :return:
         """
@@ -574,7 +627,7 @@ class ByteOutput:
 
         self.write_one(LOAD_I)
         self.write_one(reg1)  # reg stores skip len
-        self.write_int(offset)
+        self.write_int(label)
 
         if cond_ptr < 0:  # cond is register:
             self.write_one(MOVE_REG)
@@ -587,7 +640,7 @@ class ByteOutput:
             self.write_int(cond_ptr)
             length = 23
 
-        self.write_one(IF_ZERO_GOTO)
+        self.write_one(IF_ZERO_GOTO_L)
         self.write_one(reg1)
         self.write_one(reg2)
 
@@ -595,14 +648,14 @@ class ByteOutput:
 
         return length
 
-    def goto(self, offset: int):
+    def goto_l(self, label: int):
         reg1, = self.manager.require_regs64(1)
 
         self.write_one(LOAD_I)
         self.write_one(reg1)
-        self.write_int(offset)
+        self.write_int(label)
 
-        self.write_one(GOTO)
+        self.write_one(GOTO_L)
         self.write_one(reg1)
 
         self.manager.append_regs64(reg1)
@@ -625,34 +678,34 @@ class ByteOutput:
         raise lib.CompileTimeException("Continue outside loop")
 
 
-class LoopByteOutput(ByteOutput):
-    def __init__(self, manager, loop_indicator_pos, cond_len, step_node):
-        ByteOutput.__init__(self, manager)
-
-        # self.outer = outer
-        self.loop_indicator_pos = loop_indicator_pos
-        self.cond_len = cond_len
-        self.step_node = step_node
-
-    def get_loop_indicator(self):
-        return self.loop_indicator_pos
-
-    def get_loop_length(self):
-        return self.step_node, self.cond_len + len(self)
-
-
-class BlockByteOutput(ByteOutput):
-    def __init__(self, manager, outer):
-        ByteOutput.__init__(self, manager)
-
-        self.outer: ByteOutput = outer
-
-    def get_loop_indicator(self):
-        return self.outer.get_loop_indicator()
-
-    def get_loop_length(self):
-        out_res = self.outer.get_loop_length()
-        return out_res[0], out_res[1] + len(self) + INT_LEN * 2 + 1
+# class LoopByteOutput(ByteOutput):
+#     def __init__(self, manager, loop_indicator_pos, cond_len, step_node):
+#         ByteOutput.__init__(self, manager)
+#
+#         # self.outer = outer
+#         self.loop_indicator_pos = loop_indicator_pos
+#         self.cond_len = cond_len
+#         self.step_node = step_node
+#
+#     def get_loop_indicator(self):
+#         return self.loop_indicator_pos
+#
+#     def get_loop_length(self):
+#         return self.step_node, self.cond_len + len(self)
+#
+#
+# class BlockByteOutput(ByteOutput):
+#     def __init__(self, manager, outer):
+#         ByteOutput.__init__(self, manager)
+#
+#         self.outer: ByteOutput = outer
+#
+#     def get_loop_indicator(self):
+#         return self.outer.get_loop_indicator()
+#
+#     def get_loop_length(self):
+#         out_res = self.outer.get_loop_length()
+#         return out_res[0], out_res[1] + len(self) + INT_LEN * 2 + 1
 
 
 class MemoryManager:
@@ -672,6 +725,8 @@ class MemoryManager:
 
         self.blocks = []
         self.loop_sp_stack = []
+
+        self.label = 0
 
         self.type_sizes = {
             "int": INT_LEN,
@@ -704,6 +759,11 @@ class MemoryManager:
 
     def has_enough_regs(self):
         return len(self.available_regs64) > 4
+
+    def generate_label(self):
+        label = self.label
+        self.label += 1
+        return label
 
     def get_type_size(self, name):
         if name[0] == "*":  # is a pointer
@@ -1602,156 +1662,90 @@ class Compiler:
     def compile_if(self, node: ast.IfStmt, env: en.Environment, bo: ByteOutput):
         # print(node.condition.lines[0])
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
-        # print(cond_ptr)
-        if_bo = BlockByteOutput(self.memory, bo)
-        else_bo = BlockByteOutput(self.memory, bo)
+
+        else_begin_label = self.memory.generate_label()
+        end_label = self.memory.generate_label()
 
         if_env = en.BlockEnvironment(env)
         else_env = en.BlockEnvironment(env)
-        self.compile(node.then_block, if_env, if_bo)
-        self.compile(node.else_block, else_env, else_bo)
-        # if_branch_len = len(if_bo) + INT_LEN + 1  # skip if branch + goto stmt after if branch
-        if_branch_len = len(if_bo) + 10 + 2  # load_i(10), goto(2)
 
-        if_bo.goto(len(else_bo))  # goto the pos after else block
-
-        bo.if_zero_goto(if_branch_len, cond_ptr)
-
-        bo.codes.extend(if_bo.codes)
-        bo.codes.extend(else_bo.codes)
-        # bo.add_if_zero_goto(, cond_ptr)
+        bo.if_zero_goto_l(else_begin_label, cond_ptr)
+        self.compile(node.then_block, if_env, bo)
+        bo.goto_l(end_label)
+        bo.add_label(else_begin_label)
+        self.compile(node.else_block, else_env, bo)
+        bo.add_label(end_label)
 
     def compile_for_loop(self, node: ast.ForLoopStmt, env: en.Environment, bo: ByteOutput):
         if len(node.condition.lines) != 3:
             raise lib.CompileTimeException("For loop title must have 3 parts, got {}".format(len(node.condition.lines)))
 
-        # if loop body does not contains break, no loop_indicator needed
-        optimize_able = self.optimize_level >= OPTIMIZE_LOOP_INDICATOR and not has_child_node(node.body, ast.BreakStmt)
+        body_label = self.memory.generate_label()
+        step_label = self.memory.generate_label()
+        end_label = self.memory.generate_label()
 
         self.memory.store_sp()
         bo.write_one(STORE_SP)  # before loop
 
-        if optimize_able:
-            loop_indicator = None
-        elif self.optimize_level >= OPTIMIZE_LOOP_REG and self.memory.has_enough_regs():
-            reg = self.memory.require_reg64()
-            loop_indicator = -reg - 1
-            bo.assign_reg_i(loop_indicator, 1)
-        else:
-            loop_indicator = self.memory.allocate(INT_LEN, bo)
-            bo.assign_i(loop_indicator, 1)
-
-        title_env = en.LoopEnvironment(env)
+        title_env = en.LoopEnvironment(env, step_label, end_label)
         body_env = en.BlockEnvironment(title_env)
 
         self.compile(node.condition.lines[0], title_env, bo)  # start
-
-        init_len = len(bo)
+        bo.add_label(body_label)
 
         self.memory.store_sp()
         bo.write_one(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
 
-        if optimize_able:
-            real_cond_ptr = cond_ptr
-        elif self.optimize_level >= OPTIMIZE_LOOP_REG and self.memory.has_enough_regs():
-            reg = self.memory.require_reg64()
-            real_cond_ptr = -reg - 1
-            bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
-        else:
-            real_cond_ptr = self.memory.allocate(INT_LEN, bo)
-            bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
+        bo.if_zero_goto_l(end_label, cond_ptr)
 
-        cond_len = len(bo) - init_len
+        self.compile(node.body, body_env, bo)
+        bo.add_label(step_label)
+        self.compile(node.condition.lines[2], title_env, bo)  # step
+        bo.write_one(RES_SP)
 
-        body_bo = LoopByteOutput(self.memory, loop_indicator, cond_len, node.condition.lines[2])
+        bo.goto_l(body_label)
+        bo.add_label(end_label)
 
-        self.compile(node.body, body_env, body_bo)
-        self.compile(node.condition.lines[2], title_env, body_bo)  # step
-        body_bo.write_one(RES_SP)
-
-        body_len = len(body_bo) + 10 + 2  # load_i(10), goto(2)
-
-        if_len = bo.if_zero_goto(body_len, real_cond_ptr)
-
-        body_bo.goto(-body_len - cond_len - if_len)  # the length of if_zero_goto(3), load_i(10), load(10)
-
-        bo.codes.extend(body_bo.codes)
-        # print(len(bo) - body_len - cond_len, init_len)
         bo.write_one(RES_SP)
         self.memory.restore_sp()
         bo.write_one(RES_SP)
         self.memory.restore_sp()
-
-        if real_cond_ptr < 0:
-            self.memory.append_regs64(-real_cond_ptr - 1)
-        if loop_indicator is not None and loop_indicator < 0:
-            self.memory.append_regs64(-loop_indicator - 1)
 
     def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: ByteOutput):
         if len(node.condition.lines) != 1:
             raise lib.CompileTimeException("While loop title must have 1 part.")
 
-        # if loop body does not contains break, no loop_indicator needed
-        optimize_able = self.optimize_level >= OPTIMIZE_LOOP_INDICATOR and not has_child_node(node.body, ast.BreakStmt)
+        body_label = self.memory.generate_label()
+        step_label = self.memory.generate_label()
+        end_label = self.memory.generate_label()
 
         self.memory.store_sp()  # 进loop之前
         bo.write_one(STORE_SP)
 
-        if optimize_able:
-            loop_indicator = None
-        elif self.optimize_level >= OPTIMIZE_LOOP_REG and self.memory.has_enough_regs():
-            reg = self.memory.require_reg64()
-            loop_indicator = -reg - 1
-            bo.assign_reg_i(loop_indicator, 1)
-        else:
-            loop_indicator = self.memory.allocate(INT_LEN, bo)
-            bo.assign_i(loop_indicator, 1)
-
-        init_len = len(bo)
+        bo.add_label(body_label)
         self.memory.store_sp()  # 循环开始
         bo.write_one(STORE_SP)
 
-        title_env = en.LoopEnvironment(env)
+        title_env = en.LoopEnvironment(env, step_label, end_label)
         body_env = en.BlockEnvironment(title_env)
 
         cond_ptr = self.compile_condition(node.condition.lines[0], env, bo)
+        bo.if_zero_goto_l(end_label, cond_ptr)
 
-        if optimize_able:
-            real_cond_ptr = cond_ptr
-        elif self.optimize_level >= OPTIMIZE_LOOP_REG and self.memory.has_enough_regs():
-            reg = self.memory.require_reg64()
-            real_cond_ptr = -reg - 1
-            bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
-        else:
-            real_cond_ptr = self.memory.allocate(INT_LEN, bo)
-            bo.add_binary_op(AND, real_cond_ptr, cond_ptr, loop_indicator)
-
-        cond_len = len(bo) - init_len
-
-        body_bo = LoopByteOutput(self.memory, loop_indicator, cond_len, None)
-
-        self.compile(node.body, body_env, body_bo)
+        self.compile(node.body, body_env, bo)
         # self.memory.restore_sp()
-        body_bo.write_one(RES_SP)
-        body_len = len(body_bo) + 10 + 2  # load_i(10), goto(2)
+        bo.add_label(step_label)
+        bo.write_one(RES_SP)
 
-        if_len = bo.if_zero_goto(body_len, real_cond_ptr)
+        bo.goto_l(body_label)
+        bo.add_label(end_label)
 
-        body_bo.goto(-body_len - cond_len - if_len)  # the length of if_zero_goto(3), load_i(10), load(10)
-
-        bo.codes.extend(body_bo.codes)
-        # print(len(bo) - body_len - cond_len, init_len)
         self.memory.restore_sp()
         bo.write_one(RES_SP)
 
         self.memory.restore_sp()
         bo.write_one(RES_SP)
-
-        if real_cond_ptr < 0:
-            self.memory.append_regs64(-real_cond_ptr - 1)
-        if loop_indicator is not None and loop_indicator < 0:
-            self.memory.append_regs64(-loop_indicator - 1)
 
     def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
         tal = get_tal_of_evaluated_node(node, env)
@@ -1761,32 +1755,12 @@ class Compiler:
         return self.compile(node, env, bo)
 
     def compile_break(self, node: ast.BreakStmt, env: en.Environment, bo: ByteOutput):
-        loop_indicator = bo.get_loop_indicator()
-        if loop_indicator < 0:  # is register
-            bo.assign_reg_i(loop_indicator, 0)
-        else:
-            bo.assign_i(loop_indicator, 0)
-        self.compile_continue(None, env, bo)
+        end_label = env.get_end_label()
+        bo.goto_l(end_label)
 
     def compile_continue(self, node: ast.ContinueStmt, env: en.Environment, bo: ByteOutput):
-        step_node, length_before = bo.get_loop_length()
-
-        cur_len = len(bo)
-        self.compile(step_node, env, bo)
-        len_diff = len(bo) - cur_len
-
-        li = bo.get_loop_indicator()
-        if li is None:
-            back = 42
-        elif li < 0:
-            back = 35
-        else:
-            back = 42
-
-        bo.write_one(RES_SP)
-        bo.goto(-length_before - len_diff - back)
-        # bo.write_one(GOTO)
-        # bo.write_int(-length_before - len_diff - INT_LEN - 1)
+        step_label = env.get_step_label()
+        bo.goto_l(step_label)
 
     def compile_undefined(self, node: ast.UndefinedNode, env: en.Environment, bo: ByteOutput):
         return 0

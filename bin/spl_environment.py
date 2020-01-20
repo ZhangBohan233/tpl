@@ -115,25 +115,6 @@ class Environment:
         self.constants[name] = ptr
         self.var_types[name] = type_
 
-    # def assign(self, name: str, ptr: int, lf):
-    #     if name in self.variables:
-    #         self.variables[name] = ptr
-    #     elif not self.is_global():
-    #         self.outer.assign(name, ptr, lf)
-    #     else:
-    #         raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
-    #                                 .format(name, lf[1], lf[0]))
-
-    # def define_function(self, name: str, func):
-    #     raise EnvironmentException("Function must be declared in global scope")
-    #     # self.functions[name] = func
-    #
-    # def contains_function(self, name: str):
-    #     return self.outer.contains_function(name)
-    #
-    # def get_function(self, name: str, lf):
-    #     return self.outer.get_function(name, lf)
-
     def get(self, name: str, lf, assign_const: bool):
         if name in self.constants:
             if assign_const:
@@ -156,6 +137,12 @@ class Environment:
         if not self.is_global():
             return self.outer.contains_ptr(name)
         return False
+
+    def get_step_label(self):
+        raise EnvironmentException("Continue outside loop")
+
+    def get_end_label(self):
+        raise EnvironmentException("Break outside loop")
 
 
 class MainAbstractEnvironment(Environment):
@@ -235,10 +222,25 @@ class FunctionEnvironment(MainAbstractEnvironment):
 
 
 class LoopEnvironment(SubAbstractEnvironment):
-    def __init__(self, outer):
+    def __init__(self, outer, step_label, end_label):
         SubAbstractEnvironment.__init__(self, outer)
+
+        self.step_label = step_label
+        self.end_label = end_label
+
+    def get_step_label(self):
+        return self.step_label
+
+    def get_end_label(self):
+        return self.end_label
 
 
 class BlockEnvironment(SubAbstractEnvironment):
     def __init__(self, outer):
         SubAbstractEnvironment.__init__(self, outer)
+
+    def get_step_label(self):
+        return self.outer.get_step_label()
+
+    def get_end_label(self):
+        return self.outer.get_end_label()

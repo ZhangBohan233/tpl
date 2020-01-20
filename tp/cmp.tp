@@ -1,10 +1,12 @@
 
 fn main() int {
 
-    for i := 0; i < 10; i++ {
-                if i == 6 {
-                    i += 2;
-                }
-        printf("%d\n", i);
+    for i := -10; i < 10; i++ {
+        printf("%d ", i);
+        if i == -2 {
+
+            i += 3;
+            continue;
+        }
     }
 }

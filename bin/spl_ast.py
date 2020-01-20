@@ -1398,7 +1398,7 @@ def parse_expr(lst):
                 operator.value = lst[index + 1]
                 lst.pop(index + 1)
         else:
-            raise stl.ParseException("Unknown error while parsing operators")
+            raise stl.ParseException("Unknown error while parsing operators: unexpect type: " + str(type(operator)))
         # print(lst)
     return lst[0]
 
