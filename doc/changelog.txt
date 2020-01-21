@@ -1,3 +1,13 @@
+#### Build 1050 ####
+2020/01/21
+
+* Redesigned call stack:
+    * Preset sp and fp when pushing stack
+    * Cancelled instruction 'push', 'store_sp', 'restore_sp'
+* Bug fixes:
+    * Labeling in multiple functions causes function pointers shift
+    * Goto, label
+
 #### Build 1049 ####
 2020/01/20
 

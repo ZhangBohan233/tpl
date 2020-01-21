@@ -11,11 +11,12 @@
 #include "lib.h"
 #include "heap.h"
 
-#define true_ptr(ptr) (ptr < LITERAL_START ? ptr + CALL_STACK[CSP] : ptr)
+#define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
+#define true_ptr_sp(ptr) (ptr < LITERAL_START ? ptr + SP : ptr)
 
 #define rshift_logical(val, n) ((int_fast64_t) ((uint_fast64_t) val >> n));
 
-//#define rel_ptr(ptr) (ptr < LITERAL_START && CSP >= 0 ? ptr - CALL_STACK[CSP] : ptr)
+//#define rel_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr - CALL_STACK[FSP] : ptr)
 
 const int INT_LEN = 8;
 const int PTR_LEN = 8;
@@ -40,17 +41,21 @@ int MAIN_HAS_ARG = 0;
 const int_fast64_t MEMORY_SIZE = 16384;
 unsigned char MEMORY[16384];
 
-uint_fast64_t SP = 9;
+uint_fast64_t SP = 9;  // stack pointer
+uint_fast64_t FP = 1;  // frame pointer
 uint_fast64_t PC = 1024;
 
 uint_fast64_t CALL_STACK[1000];  // recursion limit
-int CSP = -1;
+int FSP = -1;
 
 int PC_STACK[1000];
 int PSP = -1;
 
-int LOOP_STACK[1000];  // 1000 nested loop
-int LSP = -1;
+uint_fast64_t RET_STACK[1000];
+int RSP = -1;
+
+//int LOOP_STACK[1000];  // 1000 nested loop
+//int LSP = -1;
 
 // The error code, set by virtual machine. Used to tell the main loop that the process is interrupted
 // Interrupt the vm if the code is not 0
@@ -108,7 +113,7 @@ void print_memory() {
 
 void print_call_stack() {
     printf("Call stack: ");
-    for (int i = 0; i <= CSP; i++) {
+    for (int i = 0; i <= FSP; i++) {
         printf("%lld, ", CALL_STACK[i]);
     }
     printf("\n");
@@ -151,8 +156,10 @@ void vm_shutdown() {
 }
 
 void exit_func() {
-    SP = CALL_STACK[CSP--];
+    SP = FP;
+    FP = CALL_STACK[FSP--];
     PC = PC_STACK[PSP--];
+//    printf("old %lld %lld\n", FP, SP);
 }
 
 StringBuilder *str_format(int_fast64_t arg_len, const unsigned char *arg_array) {
@@ -337,17 +344,13 @@ void native_mem_copy(int_fast64_t arg_len, const unsigned char *args) {
     memcpy(MEMORY + dest, MEMORY + src, length);
 }
 
-void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_len, unsigned char *args) {
-    int ret_len;
-//    printf("func: %lld, arg len: %lld\n", func, arg_len);
+void call_native(int_fast64_t func, int_fast64_t ret_ptr, int_fast64_t arg_len, unsigned char *args) {
     switch (func) {
         case 1:  // clock
-            ret_len = INT_LEN;
-            native_clock(arg_len, ret_ptr_end - ret_len);
+            native_clock(arg_len, ret_ptr);
             break;
         case 2:  // malloc
-            ret_len = PTR_LEN;
-            native_malloc(arg_len, ret_ptr_end - ret_len, args);
+            native_malloc(arg_len, ret_ptr, args);
             break;
         case 3:  // printf
             native_printf(arg_len, args);
@@ -359,8 +362,7 @@ void call_native(int_fast64_t func, int_fast64_t ret_ptr_end, int_fast64_t arg_l
             native_free(arg_len, args);
             break;
         case 6:  // stringf
-            ret_len = PTR_LEN;
-            native_stringf(arg_len, ret_ptr_end - ret_len, args);
+            native_stringf(arg_len, ret_ptr, args);
             break;
         default:
             printf("Unknown native function %lld\n", func);
@@ -409,6 +411,7 @@ void vm_run() {
 
     while (PC < HEAP_START) {
         instruction = MEMORY[PC++];
+//        printf("ins: %d ", instruction);
         switch (instruction) {
             case 1:  // PUSH STACK
                 reg_p1 = MEMORY[PC++];
@@ -433,40 +436,47 @@ void vm_run() {
             case 4:  // CALL
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-
-
-//                printf("ftn_ptr %lld\n", regs64[reg_p1].int_value);
+                reg_p3 = MEMORY[PC++];
 
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
 
                 PC_STACK[++PSP] = PC;
-                CALL_STACK[++CSP] = SP - regs64[reg_p2].int_value;
-//                printf("call %lld\n", SP);
+                CALL_STACK[++FSP] = FP;
+                RET_STACK[++RSP] = regs64[reg_p2].int_value;
+                FP = SP;
+                SP = FP + regs64[reg_p3].int_value;
+//                CALL_STACK[++FSP] = SP - regs64[reg_p2].int_value;
+//                printf("call %lld %lld\n", FP, SP);
+                if (SP >= LITERAL_START) {
+                    fprintf(stderr, "Stack Overflow\n");
+                    ERROR_CODE = ERR_STACK_OVERFLOW;
+                    return;
+                }
 
                 PC = regs64[reg_p1].int_value;
+//                printf("pc %lld\n", PC);
                 break;
             case 31:  // CALL_NAT
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
+                reg_p3 = MEMORY[PC++];
 
-//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // true ftn ptr
-//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value);  // ftn content
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // ftn content
 
 //                printf("call nat %lld\n", regs64[reg_p1].int_value);
 
                 call_native(regs64[reg_p1].int_value,
-                            SP - regs64[reg_p2].int_value,
                             regs64[reg_p2].int_value,
-                            MEMORY + SP - regs64[reg_p2].int_value);
+                            regs64[reg_p3].int_value,
+                            MEMORY + SP);
 
-                SP -= regs64[reg_p2].int_value;
+//                SP -= regs64[reg_p2].int_value;
                 break;
             case 5:  // RETURN
                 reg_p1 = MEMORY[PC++];  // reg of value ptr
                 reg_p2 = MEMORY[PC++];  // reg of length
-                ret = CALL_STACK[CSP] - regs64[reg_p2].int_value;
+                ret = RET_STACK[RSP--];
                 memcpy(MEMORY + ret,
                        MEMORY + regs64[reg_p1].int_value,
                        regs64[reg_p2].int_value);
@@ -620,7 +630,7 @@ void vm_run() {
             case 30:  // IF ZERO GOTO
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-                printf("%lld\n", regs64[reg_p2].int_value);
+//                printf("%lld\n", regs64[reg_p2].int_value);
                 if (regs64[reg_p2].int_value == 0) {
                     PC += regs64[reg_p1].int_value;
                 }
@@ -628,9 +638,6 @@ void vm_run() {
             case 32:  // STORE ADDR, store addr to des
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-//                regs64[reg_p1].int_value = true_ptr(regs64[reg_p1].int_value);
-//                regs64[reg_p2].int_value = true_ptr(regs64[reg_p2].int_value);
-//                printf("%lld %lld\n", regs64[reg_p1], regs64[reg_p2]);
                 int_to_bytes(MEMORY + regs64[reg_p1].int_value, regs64[reg_p2].int_value);
                 break;
             case 33:  // UNPACK ADDR
@@ -641,23 +648,6 @@ void vm_run() {
                 memcpy(MEMORY + regs64[reg_p1].int_value,
                        MEMORY + regs64[reg_p2].int_value,
                        regs64[reg_p3].int_value);
-                break;
-//            case 34:  // PTR ASSIGN
-//                reg_p1 = MEMORY[PC++];
-//                reg_p2 = MEMORY[PC++];
-//                reg_p3 = MEMORY[PC++];
-//
-//                memcpy(MEMORY + regs64[reg_p1].int_value,
-//                       MEMORY + regs64[reg_p2].int_value,
-//                       regs64[reg_p3].int_value);
-//                break;
-            case 35:  // STORE SP
-                LOOP_STACK[++LSP] = SP;
-//                printf("add: %lld ", SP);
-                break;
-            case 36:  // RESTORE SP
-                SP = LOOP_STACK[LSP--];
-//                printf("res: %lld %d ", SP, LSP);
                 break;
             case 37:  // MOVE_REG
                 reg_p1 = MEMORY[PC++];
@@ -671,6 +661,12 @@ void vm_run() {
             case 40:  // FLOAT_TO_INT
                 reg_p1 = MEMORY[PC++];
                 regs64[reg_p1].int_value = (int_fast64_t) regs64[reg_p1].double_value;
+                break;
+            case 41:  // LOAD_AS
+                reg_p1 = MEMORY[PC++];
+                memcpy(regs64[reg_p1].bytes, MEMORY + PC, INT_LEN);
+                regs64[reg_p1].int_value = true_ptr_sp(regs64[reg_p1].int_value);
+                PC += INT_LEN;
                 break;
             case 50:  // ADD_F
                 reg_p1 = MEMORY[PC++];
@@ -803,7 +799,9 @@ int run(int argc, char **argv) {
     vm_set_args(vm_argc, vm_argv);
     vm_run();
 
-    uint_fast64_t main_rtn_ptr = CALL_STACK[0] - INT_LEN;
+//    uint_fast64_t main_rtn_ptr = CALL_STACK[0] - INT_LEN;
+    int_fast64_t main_rtn_ptr = 1;
+//    printf("mrp %lld\n", main_rtn_ptr);
 
     if (ERROR_CODE != 0) int_to_bytes(MEMORY + main_rtn_ptr, ERROR_CODE);
 

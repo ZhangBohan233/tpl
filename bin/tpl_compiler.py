@@ -12,13 +12,13 @@ PTR_LEN = 8
 CHAR_LEN = 1
 VOID_LEN = 0
 
-PUSH = 1
+# PUSH = 1
 STOP = 2  # STOP                                  | stop current process
 ASSIGN = 3  # ASSIGN   TARGET    SOURCE   LENGTH    | copy LENGTH bytes from SOURCE to TARGET
 CALL = 4  # CALL
 RETURN = 5  # RETURN   VALUE_PTR
 GOTO = 6  # JUMP       CODE_PTR
-LOAD_A = 7  # LOAD_A                             | loads addr to register
+LOAD_A = 7  # LOAD_A                             | loads rel_addr + fp to register
 LOAD = 8  # LOAD     %DES_REG   $ADDR                   |
 STORE = 9  # STORE   %TEMP   %REG   $DES_ADDR
 LOAD_I = 10
@@ -55,9 +55,7 @@ MOVE_REG = 37  # MOVE_REG   %DST  %SRC       | copy between registers
 CAST_INT = 38  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
-# SUB_I = 41
-# ADD_FI = 42
-# SUB_FI = 43
+LOAD_AS = 41  # | load addr from rel_addr + sp
 
 ADD_F = 50
 SUB_F = 51
@@ -185,17 +183,17 @@ class ByteOutput:
     def write_one(self, b):
         self.codes.append(b)
 
-    def push_stack(self, value: int):
-        reg1 = self.manager.require_regs64(1)[0]
-
-        self.write_one(LOAD_I)
-        self.write_one(reg1)
-        self.write_int(value)
-
-        self.write_one(PUSH)
-        self.write_one(reg1)
-
-        self.manager.append_regs64(reg1)
+    # def push_stack(self, value: int):
+    #     reg1 = self.manager.require_regs64(1)[0]
+    #
+    #     self.write_one(LOAD_I)
+    #     self.write_one(reg1)
+    #     self.write_int(value)
+    #
+    #     self.write_one(PUSH)
+    #     self.write_one(reg1)
+    #
+    #     self.manager.append_regs64(reg1)
 
     def assign(self, tar: int, src: int, length: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
@@ -257,77 +255,108 @@ class ByteOutput:
 
         self.manager.append_regs64(reg2, reg1)
 
-    def call_main(self, ftn_ptr: int, args: list):
-        reg1, reg2 = self.manager.require_regs64(2)
+    def assign_as(self, tar: int, src: int, length: int):
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        spb = self.manager.sp + 8
+        self.write_one(LOAD_AS)
+        self.write_one(reg1)
+        self.write_int(tar)
+
+        self.write_one(LOAD_A)
+        self.write_one(reg2)
+        self.write_int(src)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg3)
+        self.write_int(length)
+
+        self.write_one(ASSIGN)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
+
+        self.manager.append_regs64(reg3, reg2, reg1)
+
+    def call_main(self, ftn_ptr: int, r_ptr: int, args: list, stack_len: int):
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
+
+        # spb = self.manager.sp + 8
         i = 0
         for arg in args:
-            ptr = spb + i
 
-            self.assign(ptr, arg[0], arg[1])
-            self.push_stack(arg[1])
+            self.assign_as(i, arg[0], arg[1])
 
             i += arg[1]
 
-        self.manager.sp = spb
+        # self.manager.sp = spb
 
         self.write_one(LOAD_A)
         self.write_one(reg1)  # ftn ptr
         self.write_int(ftn_ptr)
 
+        self.write_one(LOAD_A)
+        self.write_one(reg2)
+        self.write_int(r_ptr)
+
         self.write_one(LOAD_I)
-        self.write_one(reg2)  # args length
-        self.write_int(i)
+        self.write_one(reg3)
+        self.write_int(stack_len)
 
         self.write_one(CALL)
         self.write_one(reg1)
         self.write_one(reg2)
+        self.write_one(reg3)
 
-        self.manager.append_regs64(reg2, reg1)
+        self.manager.append_regs64(reg3, reg2, reg1)
 
-    def call(self, is_native: bool, ftn_ptr: int, args: list):
+    def call(self, is_native: bool, ftn_ptr: int, r_ptr: int, args: list, stack_len: int):
         """
 
         :param is_native:
         :param ftn_ptr:
+        :param r_ptr: return ptr
         :param args: list of tuple(arg_ptr, arg_len)
+        :param stack_len: total length in stack occupied by this function
         :return:
         """
-        reg1, reg2 = self.manager.require_regs64(2)
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
 
-        spb = self.manager.sp
         i = 0
         for arg in args:
-            ptr = self.manager.allocate(arg[1], self)
-            # print(ptr)
-            # self.push_stack(arg[1])
 
             if arg[0] < 0:  # register:
-                self.store_from_reg(ptr, arg[0])
+                self.store_from_reg(i, arg[0])
             else:
-                self.assign(ptr, arg[0], arg[1])
+                self.assign_as(i, arg[0], arg[1])
 
             i += arg[1]
-
-        self.manager.sp = spb
 
         self.write_one(LOAD_A)
         self.write_one(reg1)  # ftn ptr
         self.write_int(ftn_ptr)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg2)  # args length
-        self.write_int(i)
+        self.write_one(LOAD_A)
+        self.write_one(reg2)  # return ptr
+        self.write_int(r_ptr)
 
         if is_native:
+            self.write_one(LOAD_I)
+            self.write_one(reg3)
+            self.write_int(i)  # stores arguments length for native functions
+
             self.write_one(CALL_NAT)
         else:
+            self.write_one(LOAD_I)
+            self.write_one(reg3)
+            self.write_int(stack_len)  # stores stack length for function
+
             self.write_one(CALL)
+
         self.write_one(reg1)
         self.write_one(reg2)
+        self.write_one(reg3)
 
-        self.manager.append_regs64(reg2, reg1)
+        self.manager.append_regs64(reg3, reg2, reg1)
 
     def int_to_float(self, des: int, src: int):
         reg1, reg2 = self.manager.require_regs64(2)
@@ -676,8 +705,8 @@ class ByteOutput:
 
 class MemoryManager:
     def __init__(self, literal_bytes):
-        self.stack_begin = 1
-        self.sp = 1
+        self.stack_begin = 9
+        self.sp = 9
         self.literal_begins = STACK_SIZE
         self.global_begins = STACK_SIZE + len(literal_bytes)
         self.functions_begin = 0
@@ -690,10 +719,11 @@ class MemoryManager:
         self.functions = {}
 
         self.blocks = []
-        self.loop_sp_stack = []
+        # self.loop_sp_stack = []
 
         self.label_accumulator = 0
         self.text_labels = {}
+        self.function_stack_sizes = {}
 
         self.type_sizes = {
             "int": INT_LEN,
@@ -746,11 +776,13 @@ class MemoryManager:
     def restore_stack(self):
         self.sp = self.blocks.pop()
 
-    def store_sp(self):
-        self.loop_sp_stack.append(self.sp)
-
-    def restore_sp(self):
-        self.sp = self.loop_sp_stack.pop()
+    # def store_sp(self):
+    #     pass
+    #     # self.loop_sp_stack.append(self.sp)
+    #
+    # def restore_sp(self):
+    #     pass
+        # self.sp = self.loop_sp_stack.pop()
 
     def allocate(self, length, bo) -> int:
         if len(self.blocks) == 0:  # global
@@ -759,8 +791,8 @@ class MemoryManager:
         else:  # in call
             ptr = self.sp - self.blocks[-1]
             self.sp += length
-            if bo is not None:
-                bo.push_stack(length)
+            # if bo is not None:
+            #     bo.push_stack(length)
         return ptr
 
     def calculate_lit_ptr(self, lit_num):
@@ -774,6 +806,7 @@ class MemoryManager:
         self.functions_bytes[0:INT_LEN] = typ.int_to_bytes(len(self.functions))
         for ptr in self.functions:
             fb = self.functions[ptr]
+            # print(ptr, self.func_p)
             ptr_in_g = ptr - self.functions_begin
             self.functions_bytes[ptr_in_g: ptr_in_g + PTR_LEN] = typ.int_to_bytes(self.func_p)
             self.functions_bytes.extend(fb)
@@ -932,15 +965,16 @@ class Compiler:
         if env.contains_ptr("main"):
             main_ptr: int = env.get("main", lf, False)
             main_tal: en.FuncType = env.get_type_arr_len("main", lf)
+            main_stack_len = self.memory.function_stack_sizes["main"]
             if len(main_tal.param_types) == 0:
-                self.call_main(main_ptr, [], bo)
+                self.call_main(main_ptr, [], main_stack_len, bo)
             elif len(main_tal.param_types) == 2 and \
                     main_tal.param_types[0].type_name == "int" and \
                     main_tal.param_types[1].type_name == "**char":
                 main_take_arg = 1
                 # self.memory.allocate(INT_LEN + PTR_LEN, None)
                 # bo.push_stack(INT_LEN + PTR_LEN)
-                self.call_main(main_ptr, [(global_ends - 16, INT_LEN), (global_ends - 8, PTR_LEN)], bo)
+                self.call_main(main_ptr, [(global_ends - 16, INT_LEN), (global_ends - 8, PTR_LEN)], main_stack_len, bo)
             else:
                 raise lib.CompileTimeException("Function main must either have zero parameters or two parameters "
                                                "arg count(int) and arg array(**char).")
@@ -1057,6 +1091,10 @@ class Compiler:
 
             for reg_id_neg in scope.registers:  # return back registers
                 self.memory.append_regs64(-reg_id_neg - 1)
+
+            stack_len = self.memory.sp - self.memory.blocks[-1]
+            # print(stack_len)
+            self.memory.function_stack_sizes[node.name] = stack_len
 
         self.memory.restore_stack()
 
@@ -1386,19 +1424,20 @@ class Compiler:
 
         # print(args)
         if ftn_tal.func_type == "f":
-            return self.function_call(ftn, ftn_tal, args, env, bo)
+            return self.function_call(ftn, ftn_tal, args, self.memory.function_stack_sizes[node.call_obj.name], env, bo)
         elif ftn_tal.func_type == "n":
             return self.native_function_call(ftn, ftn_tal, args, env, bo)
         else:
             raise lib.CompileTimeException("Unexpected function type")
 
-    def call_main(self, func_ptr: int, args: list, bo: ByteOutput):
+    def call_main(self, func_ptr: int, args: list, stack_len: int, bo: ByteOutput):
         # self.memory.push_stack()
-        r_ptr = self.memory.allocate(INT_LEN, bo)
-        bo.call_main(func_ptr, args)
+        r_ptr = 1
+        bo.call_main(func_ptr, r_ptr, args, stack_len)
         # self.memory.restore_stack()
 
-    def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list, call_env: en.Environment, bo: ByteOutput):
+    def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list, stack_len: int,
+                      call_env: en.Environment, bo: ByteOutput):
         if len(args) != len(func_tal.param_types):
             raise lib.CompileTimeException("Function requires {} arguments, {} given"
                                            .format(len(func_tal.param_types), len(args)))
@@ -1408,7 +1447,7 @@ class Compiler:
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        bo.call(False, func_ptr, args)
+        bo.call(False, func_ptr, r_ptr, args, stack_len)
 
         return r_ptr
 
@@ -1418,7 +1457,7 @@ class Compiler:
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        bo.call(True, func, args)
+        bo.call(True, func, r_ptr, args, 0)
 
         return r_ptr
 
@@ -1636,8 +1675,8 @@ class Compiler:
         step_label = self.memory.generate_label()
         end_label = self.memory.generate_label()
 
-        self.memory.store_sp()
-        bo.write_one(STORE_SP)  # before loop
+        # self.memory.store_sp()
+        # bo.write_one(STORE_SP)  # before loop
 
         title_env = en.LoopEnvironment(env, step_label, end_label)
         body_env = en.BlockEnvironment(title_env)
@@ -1645,8 +1684,8 @@ class Compiler:
         self.compile(node.condition.lines[0], title_env, bo)  # start
         bo.add_label(body_label)
 
-        self.memory.store_sp()
-        bo.write_one(STORE_SP)
+        # self.memory.store_sp()
+        # bo.write_one(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
 
         bo.if_zero_goto_l(end_label, cond_ptr)
@@ -1654,15 +1693,15 @@ class Compiler:
         self.compile(node.body, body_env, bo)
         bo.add_label(step_label)
         self.compile(node.condition.lines[2], title_env, bo)  # step
-        bo.write_one(RES_SP)
+        # bo.write_one(RES_SP)
 
         bo.goto_l(body_label)
         bo.add_label(end_label)
 
-        bo.write_one(RES_SP)
-        self.memory.restore_sp()
-        bo.write_one(RES_SP)
-        self.memory.restore_sp()
+        # bo.write_one(RES_SP)
+        # self.memory.restore_sp()
+        # bo.write_one(RES_SP)
+        # self.memory.restore_sp()
 
     def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: ByteOutput):
         if len(node.condition.lines) != 1:
@@ -1672,12 +1711,12 @@ class Compiler:
         step_label = self.memory.generate_label()
         end_label = self.memory.generate_label()
 
-        self.memory.store_sp()  # 进loop之前
-        bo.write_one(STORE_SP)
+        # self.memory.store_sp()  # 进loop之前
+        # bo.write_one(STORE_SP)
 
         bo.add_label(body_label)
-        self.memory.store_sp()  # 循环开始
-        bo.write_one(STORE_SP)
+        # self.memory.store_sp()  # 循环开始
+        # bo.write_one(STORE_SP)
 
         title_env = en.LoopEnvironment(env, step_label, end_label)
         body_env = en.BlockEnvironment(title_env)
@@ -1688,16 +1727,16 @@ class Compiler:
         self.compile(node.body, body_env, bo)
         # self.memory.restore_sp()
         bo.add_label(step_label)
-        bo.write_one(RES_SP)
+        # bo.write_one(RES_SP)
 
         bo.goto_l(body_label)
         bo.add_label(end_label)
 
-        self.memory.restore_sp()
-        bo.write_one(RES_SP)
-
-        self.memory.restore_sp()
-        bo.write_one(RES_SP)
+        # self.memory.restore_sp()
+        # bo.write_one(RES_SP)
+        #
+        # self.memory.restore_sp()
+        # bo.write_one(RES_SP)
 
     def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
         tal = get_tal_of_evaluated_node(node, env)

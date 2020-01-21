@@ -119,12 +119,12 @@ class GotoL(Link):
         self.lines[0][2] = (real_offset, "num")
 
 
-class Push(InstructionSet):
-    def __init__(self, *args):
-        InstructionSet.__init__(self, *args)
-
-    def get_count(self):
-        return self.lines[0][2][0]
+# class Push(InstructionSet):
+#     def __init__(self, *args):
+#         InstructionSet.__init__(self, *args)
+#
+#     def get_count(self):
+#         return self.lines[0][2][0]
 
 
 class TpaParser:
@@ -195,10 +195,10 @@ class TpaParser:
                 load_i: InstructionSet = self.instructions.pop()
                 ins_set = IfZeroGotoL(load_i.lines[0], load.lines[0], tk)
                 self.instructions.append(ins_set)
-            elif tk[0] == ("PUSH", "ins"):
-                load_i: InstructionSet = self.instructions.pop()
-                ins_set = Push(load_i.lines[0], tk)
-                self.instructions.append(ins_set)
+            # elif tk[0] == ("PUSH", "ins"):
+            #     load_i: InstructionSet = self.instructions.pop()
+            #     ins_set = Push(load_i.lines[0], tk)
+            #     self.instructions.append(ins_set)
             elif tk[0] == ("LABEL", "ins"):
                 ins_set = Label(tk)
                 self.instructions.append(ins_set)
@@ -216,55 +216,6 @@ class TpaParser:
             else:
                 byte_len += ins_set.byte_len()
 
-    def linking(self):
-        pass
-        # tk_len = len(self.instructions)
-        # cur_byte_len = 0
-        # for i in range(tk_len):
-        #     tk: InstructionSet = self.instructions[i]
-        #     cur_byte_len += tk.byte_len()
-        #     if isinstance(tk, Link):
-        #         off = tk.get_offset()
-        #         j = i
-        #         if off < 0:
-        #             while off < 0:
-        #                 off += self.instructions[j].byte_len()
-        #                 j -= 1
-        #             tar = self.instructions[j + 1]
-        #         else:
-        #             j = i + 1
-        #             while off > 0:
-        #                 off -= self.instructions[j].byte_len()
-        #                 j += 1
-        #             tar = self.instructions[j]
-        #         tk.link = tar
-        #         tar.pointed_by.add(tk)
-
-    # def re_link(self):
-    #     pass
-    #     tk_len = len(self.instructions)
-    #     byte_len = 0
-    #     for i in range(tk_len):
-    #         tk: InstructionSet = self.instructions[i]
-    #         byte_len += tk.byte_len()
-    #         if isinstance(tk, Link):
-    #             tar = tk.link
-    #             off = 0
-    #             j = i
-    #             if tk.get_offset() < 0:  # front will always be at front
-    #                 while self.instructions[j] is not tar:
-    #                     off -= self.instructions[j].byte_len()
-    #                     j -= 1
-    #                 off -= 1
-    #             else:
-    #                 j += 1
-    #                 while self.instructions[j] is not tar:
-    #                     off += self.instructions[j].byte_len()
-    #                     j += 1
-    #
-    #             # print(tk.get_offset(), off)
-    #             tk.set_offset(off)
-
     def to_byte_code(self) -> bytes:
         # print(self.label_indices)
         out = bytearray()
@@ -279,13 +230,24 @@ class TpaParser:
 
         out.extend(typ.int_to_bytes(self.func_count))
 
-        for fp in self.func_pointers:
-            out.extend(typ.int_to_bytes(fp))
+        fp_index = len(out)
+        out.extend(bytes(self.func_count * 8))
+        # for fp in self.func_pointers:
+        #     out.extend(typ.int_to_bytes(fp))
+
+        first_function_pos = self.func_pointers[cmp.NATIVE_FUNCTION_COUNT]
+
+        new_func_pointers: list = self.func_pointers[:cmp.NATIVE_FUNCTION_COUNT + 1]  # the starting pos of the first
+        # user function will not change
+        nfp_i = cmp.NATIVE_FUNCTION_COUNT
 
         for i in range(self.nat_func_count):
             out.extend(typ.int_to_bytes(i + 1))  # native functions
 
         ins_byt_begin = len(out)
+
+        current_func_begin = ins_byt_begin
+        len_diff_sum = 0
 
         for ins in self.instructions:  # instructions
             if isinstance(ins, Link):
@@ -294,6 +256,18 @@ class TpaParser:
                 ins.transform(off)
             if not isinstance(ins, Label):
                 out.extend(bytes(ins))
+                if ins.lines[0][0] == ("STOP", "ins"):
+                    cur_len = len(out) - current_func_begin
+                    current_func_begin = len(out)
+                    if nfp_i < self.func_count - 1:
+                        old_len = self.func_pointers[nfp_i + 1] - self.func_pointers[nfp_i]
+                        len_diff = old_len - cur_len
+                        new_func_pointers.append(self.func_pointers[nfp_i + 1] - len_diff - len_diff_sum)
+                        len_diff_sum += len_diff
+                        nfp_i += 1
+        for i in range(self.func_count):
+            index = fp_index + (i * 8)
+            out[index: index + 8] = typ.int_to_bytes(new_func_pointers[i])
 
         return bytes(out)
 

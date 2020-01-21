@@ -68,7 +68,7 @@ class TPAssemblyCompiler:
         out_stream.write("\n//FUNCTION " + str(self.current_function_count) + ":\n")
         self.func_begin_pc = self.pc
         while self.pc < self.code_begin:  # function codes
-            out_stream.write("#{} ".format(self.pc - self.func_begin_pc))
+            out_stream.write("#{} ".format(self.pc))
             self.one_loop(out_stream)
 
         out_stream.write("\n//MAIN:\n")
@@ -80,9 +80,9 @@ class TPAssemblyCompiler:
     def one_loop(self, out_stream):
         instruction = self.codes[self.pc]
         self.pc += 1
-        if instruction == cpl.PUSH:
-            out_stream.write("PUSH            %{}\n".format(self.read_one()))
-        elif instruction == cpl.STOP:
+        # if instruction == cpl.PUSH:
+        #     out_stream.write("PUSH            %{}\n".format(self.read_one()))
+        if instruction == cpl.STOP:
             out_stream.write("STOP\n\n")
             self.func_begin_pc = self.pc
             self.current_function_count += 1
@@ -93,8 +93,9 @@ class TPAssemblyCompiler:
                                                                       self.read_one(),
                                                                       self.read_one()))
         elif instruction == cpl.CALL:
-            out_stream.write("CALL            %{}  %{}\n".format(self.read_one(),
-                                                                 self.read_one()))
+            out_stream.write("CALL            %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
         elif instruction == cpl.RETURN:
             out_stream.write("RETURN          %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.GOTO:
@@ -104,6 +105,8 @@ class TPAssemblyCompiler:
         elif instruction == cpl.LOAD:
             out_stream.write("LOAD            %{}  ${}\n"
                              .format(self.read_one(), self.read_1_int()))
+        elif instruction == cpl.LOAD_AS:
+            out_stream.write("LOAD_AS         %{}  ${}\n".format(self.read_one(), self.read_1_int()))
         elif instruction == cpl.STORE:
             out_stream.write("STORE           %{}  %{}  ${}\n"
                              .format(self.read_one(), self.read_one(), self.read_1_int()))
@@ -154,18 +157,15 @@ class TPAssemblyCompiler:
         elif instruction == cpl.IF_ZERO_GOTO:
             out_stream.write("IF_ZERO_GOTO    %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.CALL_NAT:
-            out_stream.write("CALL_NAT        %{}  %{}\n".format(self.read_one(),
-                                                                 self.read_one()))
+            out_stream.write("CALL_NAT        %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
         elif instruction == cpl.STORE_ADDR:
             out_stream.write("STORE_ADDR      %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.UNPACK_ADDR:
             out_stream.write("UNPACK_ADDR     %{}  %{}  %{}\n".format(self.read_one(),
                                                                       self.read_one(),
                                                                       self.read_one()))
-        elif instruction == cpl.STORE_SP:
-            out_stream.write("STORE_SP\n")
-        elif instruction == cpl.RES_SP:
-            out_stream.write("RES_SP\n")
         elif instruction == cpl.MOVE_REG:
             out_stream.write("MOVE_REG        %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.INT_TO_FLOAT:

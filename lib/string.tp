@@ -24,7 +24,7 @@ fn str_to_int(s: *char, base: int) int {
     v := 0;
     for i := 0; i < len; ++i {
         var digit: int = int(s[i]) - 48;
-        v += v * base;
+        v = v * base + digit;
     }
     return v;
 }

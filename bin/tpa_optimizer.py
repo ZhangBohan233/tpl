@@ -2,7 +2,7 @@ import sys
 import math
 import bin.spl_types as typ
 import bin.tpl_compiler as cmp  # used in eval
-from bin.tpa_compiler import Link, Push, InstructionSet, TpaParser
+from bin.tpa_compiler import Link, InstructionSet, TpaParser
 
 # Optimization level works:
 MERGE_VARIABLE = 2
@@ -37,9 +37,8 @@ class Optimizer:
         self.parser.ori_function_length += change_value
 
     def optimize(self, level: int):
-        if level >= DELETE_EMPTY:
-            self.delete_empty()
-            self.parser.re_link()
+        # if level >= DELETE_EMPTY:
+        #     self.delete_empty()
         if level >= SUBSTITUTE_OPERATORS:
             self.substitute_operators()
         # if level >= MERGE_VARIABLE:
