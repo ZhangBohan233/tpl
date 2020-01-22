@@ -30,11 +30,11 @@ const int INT_LEN_2 = 16;
 //const int INT_LEN_4 = 32;
 
 int_fast64_t CALL_STACK_BEGINS = 1;
-int_fast64_t LITERAL_START = 1024;
-int_fast64_t GLOBAL_START = 1024;
-int_fast64_t FUNCTIONS_START = 1024;
-int_fast64_t CODE_START = 1024;
-int_fast64_t HEAP_START = 1024;
+int_fast64_t LITERAL_START = 4096;
+int_fast64_t GLOBAL_START = 4096;
+int_fast64_t FUNCTIONS_START = 4096;
+int_fast64_t CODE_START = 4096;
+int_fast64_t HEAP_START = 4096;
 
 int MAIN_HAS_ARG = 0;
 
@@ -43,7 +43,7 @@ unsigned char MEMORY[16384];
 
 uint_fast64_t SP = 9;  // stack pointer
 uint_fast64_t FP = 1;  // frame pointer
-uint_fast64_t PC = 1024;
+uint_fast64_t PC = 4096;
 
 uint_fast64_t CALL_STACK[1000];  // recursion limit
 int FSP = -1;
@@ -436,22 +436,15 @@ void vm_run() {
             case 4:  // CALL
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
-                reg_p3 = MEMORY[PC++];
+//                reg_p3 = MEMORY[PC++];
 
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++FSP] = FP;
                 RET_STACK[++RSP] = regs64[reg_p2].int_value;
-                FP = SP;
-                SP = FP + regs64[reg_p3].int_value;
-//                CALL_STACK[++FSP] = SP - regs64[reg_p2].int_value;
-//                printf("call %lld %lld\n", FP, SP);
-                if (SP >= LITERAL_START) {
-                    fprintf(stderr, "Stack Overflow\n");
-                    ERROR_CODE = ERR_STACK_OVERFLOW;
-                    return;
-                }
+//                FP = SP;
+//                SP = FP + regs64[reg_p3].int_value;
 
                 PC = regs64[reg_p1].int_value;
 //                printf("pc %lld\n", PC);
@@ -667,6 +660,19 @@ void vm_run() {
                 memcpy(regs64[reg_p1].bytes, MEMORY + PC, INT_LEN);
                 regs64[reg_p1].int_value = true_ptr_sp(regs64[reg_p1].int_value);
                 PC += INT_LEN;
+                break;
+            case 42:  // MOVE_REG_SPE
+                reg_p1 = MEMORY[PC++];
+                reg_p2 = MEMORY[PC++];
+                if (reg_p1 == 1) {
+                    if (reg_p2 == 2) {
+                        SP = FP;
+                    }
+                } else if (reg_p1 == 2) {
+                    if (reg_p2 == 1) {
+                        FP = SP;
+                    }
+                }
                 break;
             case 50:  // ADD_F
                 reg_p1 = MEMORY[PC++];

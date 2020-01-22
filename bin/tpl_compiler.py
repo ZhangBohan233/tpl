@@ -3,7 +3,7 @@ import bin.spl_environment as en
 import bin.spl_types as typ
 import bin.spl_lib as lib
 
-STACK_SIZE = 1024
+STACK_SIZE = 4096
 
 INT_LEN = 8
 FLOAT_LEN = 8
@@ -12,7 +12,7 @@ PTR_LEN = 8
 CHAR_LEN = 1
 VOID_LEN = 0
 
-# PUSH = 1
+PUSH = 1
 STOP = 2  # STOP                                  | stop current process
 ASSIGN = 3  # ASSIGN   TARGET    SOURCE   LENGTH    | copy LENGTH bytes from SOURCE to TARGET
 CALL = 4  # CALL
@@ -56,6 +56,7 @@ CAST_INT = 38  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
 LOAD_AS = 41  # | load addr from rel_addr + sp
+MOVE_REG_SPE = 42  # MOVE_REG_SPE   %DST  %SRC       | copy between special regs.  1: sp 2: fp
 
 ADD_F = 50
 SUB_F = 51
@@ -169,6 +170,12 @@ WITH_ASSIGN = {
 }
 
 
+SPE_REGS = {
+    "SP": 1,
+    "FP": 2
+}
+
+
 class ByteOutput:
     def __init__(self, manager):
         self.manager: MemoryManager = manager
@@ -183,17 +190,22 @@ class ByteOutput:
     def write_one(self, b):
         self.codes.append(b)
 
-    # def push_stack(self, value: int):
-    #     reg1 = self.manager.require_regs64(1)[0]
-    #
-    #     self.write_one(LOAD_I)
-    #     self.write_one(reg1)
-    #     self.write_int(value)
-    #
-    #     self.write_one(PUSH)
-    #     self.write_one(reg1)
-    #
-    #     self.manager.append_regs64(reg1)
+    # def reserve_space(self, length: int) -> int:
+    #     i = len(self.codes)
+    #     self.codes.extend(bytes(length))
+    #     return i
+
+    def push(self, value: int):
+        reg1 = self.manager.require_reg64()
+
+        self.write_one(LOAD_I)
+        self.write_one(reg1)
+        self.write_int(value)
+
+        self.write_one(PUSH)
+        self.write_one(reg1)
+
+        self.manager.append_regs64(reg1)
 
     def assign(self, tar: int, src: int, length: int):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
@@ -277,8 +289,8 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
-    def call_main(self, ftn_ptr: int, r_ptr: int, args: list, stack_len: int):
-        reg1, reg2, reg3 = self.manager.require_regs64(3)
+    def call_main(self, ftn_ptr: int, r_ptr: int, args: list):
+        reg1, reg2 = self.manager.require_regs64(2)
 
         # spb = self.manager.sp + 8
         i = 0
@@ -298,25 +310,24 @@ class ByteOutput:
         self.write_one(reg2)
         self.write_int(r_ptr)
 
-        self.write_one(LOAD_I)
-        self.write_one(reg3)
-        self.write_int(stack_len)
+        # self.write_one(LOAD_I)
+        # self.write_one(reg3)
+        # self.write_int(stack_len)
 
         self.write_one(CALL)
         self.write_one(reg1)
         self.write_one(reg2)
-        self.write_one(reg3)
+        # self.write_one(reg3)
 
-        self.manager.append_regs64(reg3, reg2, reg1)
+        self.manager.append_regs64(reg2, reg1)
 
-    def call(self, is_native: bool, ftn_ptr: int, r_ptr: int, args: list, stack_len: int):
+    def call(self, is_native: bool, ftn_ptr: int, r_ptr: int, args: list):
         """
 
         :param is_native:
         :param ftn_ptr:
         :param r_ptr: return ptr
         :param args: list of tuple(arg_ptr, arg_len)
-        :param stack_len: total length in stack occupied by this function
         :return:
         """
         reg1, reg2, reg3 = self.manager.require_regs64(3)
@@ -345,16 +356,17 @@ class ByteOutput:
             self.write_int(i)  # stores arguments length for native functions
 
             self.write_one(CALL_NAT)
-        else:
-            self.write_one(LOAD_I)
+            self.write_one(reg1)
+            self.write_one(reg2)
             self.write_one(reg3)
-            self.write_int(stack_len)  # stores stack length for function
+        else:
+            # self.write_one(LOAD_I)
+            # self.write_one(reg3)
+            # self.write_int(stack_len)  # stores stack length for function
 
             self.write_one(CALL)
-
-        self.write_one(reg1)
-        self.write_one(reg2)
-        self.write_one(reg3)
+            self.write_one(reg1)
+            self.write_one(reg2)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
@@ -591,6 +603,14 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
+    def move_reg_spe(self, dst: str, src: str):
+        from_code = SPE_REGS[src]
+        to_code = SPE_REGS[dst]
+
+        self.write_one(MOVE_REG_SPE)
+        self.write_one(to_code)
+        self.write_one(from_code)
+
     # def if_zero_goto(self, offset: int, cond_ptr: int) -> int:
     #     """
     #     Returns the occupied length
@@ -688,11 +708,6 @@ class ByteOutput:
     def write_int(self, i):
         self.codes.extend(typ.int_to_bytes(i))
 
-    def reserve_space(self, n) -> int:
-        i = len(self.codes)
-        self.codes.extend(bytes(n))
-        return i
-
     def set_bytes(self, from_: int, b: bytes):
         self.codes[from_: from_ + len(b)] = b
 
@@ -723,7 +738,7 @@ class MemoryManager:
 
         self.label_accumulator = 0
         self.text_labels = {}
-        self.function_stack_sizes = {}
+        # self.function_stack_sizes = {}
 
         self.type_sizes = {
             "int": INT_LEN,
@@ -965,16 +980,16 @@ class Compiler:
         if env.contains_ptr("main"):
             main_ptr: int = env.get("main", lf, False)
             main_tal: en.FuncType = env.get_type_arr_len("main", lf)
-            main_stack_len = self.memory.function_stack_sizes["main"]
+            # main_stack_len = self.memory.function_stack_sizes["main"]
             if len(main_tal.param_types) == 0:
-                self.call_main(main_ptr, [], main_stack_len, bo)
+                self.call_main(main_ptr, [], bo)
             elif len(main_tal.param_types) == 2 and \
                     main_tal.param_types[0].type_name == "int" and \
                     main_tal.param_types[1].type_name == "**char":
                 main_take_arg = 1
                 # self.memory.allocate(INT_LEN + PTR_LEN, None)
                 # bo.push_stack(INT_LEN + PTR_LEN)
-                self.call_main(main_ptr, [(global_ends - 16, INT_LEN), (global_ends - 8, PTR_LEN)], main_stack_len, bo)
+                self.call_main(main_ptr, [(global_ends - 16, INT_LEN), (global_ends - 8, PTR_LEN)], bo)
             else:
                 raise lib.CompileTimeException("Function main must either have zero parameters or two parameters "
                                                "arg count(int) and arg array(**char).")
@@ -1087,14 +1102,18 @@ class Compiler:
             inner_bo = ByteOutput(self.memory)
             self.compile(node.body, scope, inner_bo)
             inner_bo.write_one(STOP)
-            self.memory.implement_func(ftn_ptr, bytes(inner_bo))
 
             for reg_id_neg in scope.registers:  # return back registers
                 self.memory.append_regs64(-reg_id_neg - 1)
 
             stack_len = self.memory.sp - self.memory.blocks[-1]
-            # print(stack_len)
-            self.memory.function_stack_sizes[node.name] = stack_len
+
+            fn_bo = ByteOutput(self.memory)
+            fn_bo.move_reg_spe("FP", "SP")
+            fn_bo.push(stack_len)
+            fn_bo.codes.extend(bytes(inner_bo))
+
+            self.memory.implement_func(ftn_ptr, bytes(fn_bo))
 
         self.memory.restore_stack()
 
@@ -1424,19 +1443,19 @@ class Compiler:
 
         # print(args)
         if ftn_tal.func_type == "f":
-            return self.function_call(ftn, ftn_tal, args, self.memory.function_stack_sizes[node.call_obj.name], env, bo)
+            return self.function_call(ftn, ftn_tal, args, env, bo)
         elif ftn_tal.func_type == "n":
             return self.native_function_call(ftn, ftn_tal, args, env, bo)
         else:
             raise lib.CompileTimeException("Unexpected function type")
 
-    def call_main(self, func_ptr: int, args: list, stack_len: int, bo: ByteOutput):
+    def call_main(self, func_ptr: int, args: list, bo: ByteOutput):
         # self.memory.push_stack()
         r_ptr = 1
-        bo.call_main(func_ptr, r_ptr, args, stack_len)
+        bo.call_main(func_ptr, r_ptr, args)
         # self.memory.restore_stack()
 
-    def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list, stack_len: int,
+    def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list,
                       call_env: en.Environment, bo: ByteOutput):
         if len(args) != len(func_tal.param_types):
             raise lib.CompileTimeException("Function requires {} arguments, {} given"
@@ -1447,7 +1466,7 @@ class Compiler:
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        bo.call(False, func_ptr, r_ptr, args, stack_len)
+        bo.call(False, func_ptr, r_ptr, args)
 
         return r_ptr
 
@@ -1457,7 +1476,7 @@ class Compiler:
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        bo.call(True, func, r_ptr, args, 0)
+        bo.call(True, func, r_ptr, args)
 
         return r_ptr
 

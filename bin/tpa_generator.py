@@ -80,9 +80,9 @@ class TPAssemblyCompiler:
     def one_loop(self, out_stream):
         instruction = self.codes[self.pc]
         self.pc += 1
-        # if instruction == cpl.PUSH:
-        #     out_stream.write("PUSH            %{}\n".format(self.read_one()))
-        if instruction == cpl.STOP:
+        if instruction == cpl.PUSH:
+            out_stream.write("PUSH            %{}\n".format(self.read_one()))
+        elif instruction == cpl.STOP:
             out_stream.write("STOP\n\n")
             self.func_begin_pc = self.pc
             self.current_function_count += 1
@@ -93,9 +93,8 @@ class TPAssemblyCompiler:
                                                                       self.read_one(),
                                                                       self.read_one()))
         elif instruction == cpl.CALL:
-            out_stream.write("CALL            %{}  %{}  %{}\n".format(self.read_one(),
-                                                                      self.read_one(),
-                                                                      self.read_one()))
+            out_stream.write("CALL            %{}  %{}\n".format(self.read_one(),
+                                                                 self.read_one(), ))
         elif instruction == cpl.RETURN:
             out_stream.write("RETURN          %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.GOTO:
@@ -168,6 +167,8 @@ class TPAssemblyCompiler:
                                                                       self.read_one()))
         elif instruction == cpl.MOVE_REG:
             out_stream.write("MOVE_REG        %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.MOVE_REG_SPE:
+            out_stream.write("MOVE_REG_SPE    %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.INT_TO_FLOAT:
             out_stream.write("INT_TO_FLOAT    %{}\n".format(self.read_one()))
         elif instruction == cpl.FLOAT_TO_INT:

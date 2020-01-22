@@ -1,3 +1,12 @@
+#### Build 1051 ####
+2020/01/22
+
+* Bug fixes:
+    * Recursion and calling virtual function causes error
+* Call mechanism change:
+    * Separate push stack and store fp into instruction level
+    * Moved instructions above from call to function body
+
 #### Build 1050 ####
 2020/01/21
 
