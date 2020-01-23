@@ -1,3 +1,11 @@
+===== TPL 1.0 Alpha 1 =====
+#### Build 1052 ####
+2020/01/22
+
+* Changed the VM main loop to an infinite loop, use instruction "EXIT" to quit
+* Separated instructions of calling and returning
+* Added compile time function "exit"
+
 #### Build 1051 ####
 2020/01/22
 

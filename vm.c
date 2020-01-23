@@ -7,43 +7,48 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "vm.h"
+//#include "vm.h"
 #include "lib.h"
 #include "heap.h"
+
+#define STACK_SIZE 4096
+#define MEMORY_SIZE 16384
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
 #define true_ptr_sp(ptr) (ptr < LITERAL_START ? ptr + SP : ptr)
 
 #define rshift_logical(val, n) ((int_fast64_t) ((uint_fast64_t) val >> n));
 
-//#define rel_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr - CALL_STACK[FSP] : ptr)
+#define exit_func {             \
+    FP = CALL_STACK[FSP--];     \
+    PC = PC_STACK[PSP--];       \
+}
 
 const int INT_LEN = 8;
 const int PTR_LEN = 8;
 const int FLOAT_LEN = 8;
 const int CHAR_LEN = 1;
 //const int BOOLEAN_LEN = 1;
-const int VOID_LEN = 0;
+//const int VOID_LEN = 0;
 
 const int INT_LEN_2 = 16;
 //const int INT_LEN_3 = 24;
 //const int INT_LEN_4 = 32;
 
-int_fast64_t CALL_STACK_BEGINS = 1;
-int_fast64_t LITERAL_START = 4096;
-int_fast64_t GLOBAL_START = 4096;
-int_fast64_t FUNCTIONS_START = 4096;
-int_fast64_t CODE_START = 4096;
-int_fast64_t HEAP_START = 4096;
+//int_fast64_t CALL_STACK_BEGINS = 1;
+int_fast64_t LITERAL_START = STACK_SIZE;
+int_fast64_t GLOBAL_START = STACK_SIZE;
+int_fast64_t FUNCTIONS_START = STACK_SIZE;
+int_fast64_t CODE_START = STACK_SIZE;
+int_fast64_t HEAP_START = STACK_SIZE;
 
 int MAIN_HAS_ARG = 0;
 
-const int_fast64_t MEMORY_SIZE = 16384;
-unsigned char MEMORY[16384];
+unsigned char MEMORY[MEMORY_SIZE];
 
 uint_fast64_t SP = 9;  // stack pointer
 uint_fast64_t FP = 1;  // frame pointer
-uint_fast64_t PC = 4096;
+uint_fast64_t PC = STACK_SIZE;
 
 uint_fast64_t CALL_STACK[1000];  // recursion limit
 int FSP = -1;
@@ -71,7 +76,7 @@ const int ERR_VM_OPT = 3;
 const int ERR_HEAP_COLLISION = 4;
 const int ERR_INSTRUCTION = 5;
 
-int ERROR_CODE = 0;
+int_fast64_t ERROR_CODE = 0;
 
 void print_memory() {
     int i = 0;
@@ -153,13 +158,6 @@ void vm_load(const unsigned char *codes, int read) {
 
 void vm_shutdown() {
     free(AVAILABLE);
-}
-
-void exit_func() {
-    SP = FP;
-    FP = CALL_STACK[FSP--];
-    PC = PC_STACK[PSP--];
-//    printf("old %lld %lld\n", FP, SP);
 }
 
 StringBuilder *str_format(int_fast64_t arg_len, const unsigned char *arg_array) {
@@ -409,21 +407,14 @@ void vm_run() {
 
     register unsigned char instruction;
 
-    while (PC < HEAP_START) {
+    while (1) {
         instruction = MEMORY[PC++];
 //        printf("ins: %d ", instruction);
         switch (instruction) {
-            case 1:  // PUSH STACK
-                reg_p1 = MEMORY[PC++];
-                SP += regs64[reg_p1].int_value;
-                if (SP >= LITERAL_START) {
-                    fprintf(stderr, "Stack Overflow\n");
-                    ERROR_CODE = ERR_STACK_OVERFLOW;
-                    return;
-                }
-                break;
+            case 1:  // EXIT
+                return;
             case 2:  // Stop
-                exit_func();
+                exit_func;
                 break;
             case 3:  // ASSIGN
                 reg_p1 = MEMORY[PC++];  // dest
@@ -443,11 +434,8 @@ void vm_run() {
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++FSP] = FP;
                 RET_STACK[++RSP] = regs64[reg_p2].int_value;
-//                FP = SP;
-//                SP = FP + regs64[reg_p3].int_value;
 
                 PC = regs64[reg_p1].int_value;
-//                printf("pc %lld\n", PC);
                 break;
             case 31:  // CALL_NAT
                 reg_p1 = MEMORY[PC++];
@@ -457,14 +445,10 @@ void vm_run() {
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // ftn content
 
-//                printf("call nat %lld\n", regs64[reg_p1].int_value);
-
                 call_native(regs64[reg_p1].int_value,
                             regs64[reg_p2].int_value,
                             regs64[reg_p3].int_value,
                             MEMORY + SP);
-
-//                SP -= regs64[reg_p2].int_value;
                 break;
             case 5:  // RETURN
                 reg_p1 = MEMORY[PC++];  // reg of value ptr
@@ -474,7 +458,7 @@ void vm_run() {
                        MEMORY + regs64[reg_p1].int_value,
                        regs64[reg_p2].int_value);
 //                printf("ret %lld\n", ret);
-                exit_func();
+                exit_func;
                 break;
             case 6:  // GOTO
                 reg_p1 = MEMORY[PC++];
@@ -661,19 +645,25 @@ void vm_run() {
                 regs64[reg_p1].int_value = true_ptr_sp(regs64[reg_p1].int_value);
                 PC += INT_LEN;
                 break;
-            case 42:  // MOVE_REG_SPE
+            case 42:  // PUSH STACK
                 reg_p1 = MEMORY[PC++];
-                reg_p2 = MEMORY[PC++];
-                if (reg_p1 == 1) {
-                    if (reg_p2 == 2) {
-                        SP = FP;
-                    }
-                } else if (reg_p1 == 2) {
-                    if (reg_p2 == 1) {
-                        FP = SP;
-                    }
+                SP += regs64[reg_p1].int_value;
+                if (SP >= LITERAL_START) {
+                    fprintf(stderr, "Stack Overflow\n");
+                    ERROR_CODE = ERR_STACK_OVERFLOW;
+                    return;
                 }
                 break;
+            case 43:  // SP_TO_FP
+                FP = SP;
+                break;
+            case 44:  // FP_TO_SP
+                SP = FP;
+                break;
+            case 45:  // EXIT_V
+                reg_p1 = MEMORY[PC++];
+                ERROR_CODE = regs64[reg_p1].int_value;
+                return;
             case 50:  // ADD_F
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
@@ -734,7 +724,6 @@ void vm_run() {
             default:
                 fprintf(stderr, "Unknown instruction %d at byte pos %lld\n", instruction, PC);
                 ERROR_CODE = ERR_INSTRUCTION;
-//                break;
                 return;
         }
 //        printf("sp: %lld\n", SP);
@@ -754,14 +743,14 @@ void vm_run() {
     }
 }
 
-void test() {
-    int_fast64_t i = 94;
-    unsigned char *arr = malloc(12);
-    int_to_bytes(arr + 1, i);
-    printf("%lld\n", bytes_to_int(arr + 1));
-
-    float c = (int) 6.6;
-}
+//void test() {
+//    int_fast64_t i = 94;
+//    unsigned char *arr = malloc(12);
+//    int_to_bytes(arr + 1, i);
+//    printf("%lld\n", bytes_to_int(arr + 1));
+//
+//    float c = (int) 6.6;
+//}
 
 int run(int argc, char **argv) {
     int p_memory = 0;

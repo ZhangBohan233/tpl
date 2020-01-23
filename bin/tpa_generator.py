@@ -80,7 +80,9 @@ class TPAssemblyCompiler:
     def one_loop(self, out_stream):
         instruction = self.codes[self.pc]
         self.pc += 1
-        if instruction == cpl.PUSH:
+        if instruction == cpl.EXIT:
+            out_stream.write("EXIT\n")
+        elif instruction == cpl.PUSH:
             out_stream.write("PUSH            %{}\n".format(self.read_one()))
         elif instruction == cpl.STOP:
             out_stream.write("STOP\n\n")
@@ -167,8 +169,14 @@ class TPAssemblyCompiler:
                                                                       self.read_one()))
         elif instruction == cpl.MOVE_REG:
             out_stream.write("MOVE_REG        %{}  %{}\n".format(self.read_one(), self.read_one()))
-        elif instruction == cpl.MOVE_REG_SPE:
-            out_stream.write("MOVE_REG_SPE    %{}  %{}\n".format(self.read_one(), self.read_one()))
+        # elif instruction == cpl.MOVE_REG_SPE:
+        #     out_stream.write("MOVE_REG_SPE    %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.FP_TO_SP:
+            out_stream.write("FP_TO_SP\n")
+        elif instruction == cpl.SP_TO_FP:
+            out_stream.write("SP_TO_FP\n")
+        elif instruction == cpl.EXIT_V:
+            out_stream.write("EXIT_V          %{}\n".format(self.read_one()))
         elif instruction == cpl.INT_TO_FLOAT:
             out_stream.write("INT_TO_FLOAT    %{}\n".format(self.read_one()))
         elif instruction == cpl.FLOAT_TO_INT:

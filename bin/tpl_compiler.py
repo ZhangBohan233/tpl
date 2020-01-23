@@ -12,7 +12,7 @@ PTR_LEN = 8
 CHAR_LEN = 1
 VOID_LEN = 0
 
-PUSH = 1
+EXIT = 1  # completely exit function
 STOP = 2  # STOP                                  | stop current process
 ASSIGN = 3  # ASSIGN   TARGET    SOURCE   LENGTH    | copy LENGTH bytes from SOURCE to TARGET
 CALL = 4  # CALL
@@ -56,7 +56,11 @@ CAST_INT = 38  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
 LOAD_AS = 41  # | load addr from rel_addr + sp
-MOVE_REG_SPE = 42  # MOVE_REG_SPE   %DST  %SRC       | copy between special regs.  1: sp 2: fp
+# MOVE_REG_SPE = 42  # MOVE_REG_SPE   %DST  %SRC       | copy between special regs.  1: sp 2: fp
+PUSH = 42
+SP_TO_FP = 43
+FP_TO_SP = 44
+EXIT_V = 45  # | exit with value
 
 ADD_F = 50
 SUB_F = 51
@@ -170,10 +174,10 @@ WITH_ASSIGN = {
 }
 
 
-SPE_REGS = {
-    "SP": 1,
-    "FP": 2
-}
+# SPE_REGS = {
+#     "SP": 1,
+#     "FP": 2
+# }
 
 
 class ByteOutput:
@@ -291,16 +295,12 @@ class ByteOutput:
 
     def call_main(self, ftn_ptr: int, r_ptr: int, args: list):
         reg1, reg2 = self.manager.require_regs64(2)
-
-        # spb = self.manager.sp + 8
         i = 0
         for arg in args:
 
             self.assign_as(i, arg[0], arg[1])
 
             i += arg[1]
-
-        # self.manager.sp = spb
 
         self.write_one(LOAD_A)
         self.write_one(reg1)  # ftn ptr
@@ -310,14 +310,9 @@ class ByteOutput:
         self.write_one(reg2)
         self.write_int(r_ptr)
 
-        # self.write_one(LOAD_I)
-        # self.write_one(reg3)
-        # self.write_int(stack_len)
-
         self.write_one(CALL)
         self.write_one(reg1)
         self.write_one(reg2)
-        # self.write_one(reg3)
 
         self.manager.append_regs64(reg2, reg1)
 
@@ -360,10 +355,6 @@ class ByteOutput:
             self.write_one(reg2)
             self.write_one(reg3)
         else:
-            # self.write_one(LOAD_I)
-            # self.write_one(reg3)
-            # self.write_int(stack_len)  # stores stack length for function
-
             self.write_one(CALL)
             self.write_one(reg1)
             self.write_one(reg2)
@@ -565,6 +556,8 @@ class ByteOutput:
         self.write_one(reg2)  # return length
         self.write_int(total_len)
 
+        self.write_one(FP_TO_SP)
+
         self.write_one(RETURN)
         self.write_one(reg1)
         self.write_one(reg2)
@@ -603,58 +596,17 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
-    def move_reg_spe(self, dst: str, src: str):
-        from_code = SPE_REGS[src]
-        to_code = SPE_REGS[dst]
+    def exit_with_value(self, value_addr: int):
+        reg1 = self.manager.require_reg64()
 
-        self.write_one(MOVE_REG_SPE)
-        self.write_one(to_code)
-        self.write_one(from_code)
+        self.write_one(LOAD)
+        self.write_one(reg1)
+        self.write_int(value_addr)
 
-    # def if_zero_goto(self, offset: int, cond_ptr: int) -> int:
-    #     """
-    #     Returns the occupied length
-    #
-    #     :param offset:
-    #     :param cond_ptr:
-    #     :return:
-    #     """
-    #     reg1, reg2, reg3 = self.manager.require_regs64(3)
-    #
-    #     self.write_one(LOAD_I)
-    #     self.write_one(reg1)  # reg stores skip len
-    #     self.write_int(offset)
-    #
-    #     if cond_ptr < 0:  # cond is register:
-    #         self.write_one(MOVE_REG)
-    #         self.write_one(reg2)
-    #         self.write_one(-cond_ptr - 1)
-    #         length = 16
-    #     else:
-    #         self.write_one(LOAD)
-    #         self.write_one(reg2)  # reg stores cond ptr
-    #         self.write_int(cond_ptr)
-    #         length = 23
-    #
-    #     self.write_one(IF_ZERO_GOTO)
-    #     self.write_one(reg1)
-    #     self.write_one(reg2)
-    #
-    #     self.manager.append_regs64(reg3, reg2, reg1)
-    #
-    #     return length
-    #
-    # def goto(self, offset: int):
-    #     reg1, = self.manager.require_regs64(1)
-    #
-    #     self.write_one(LOAD_I)
-    #     self.write_one(reg1)
-    #     self.write_int(offset)
-    #
-    #     self.write_one(GOTO)
-    #     self.write_one(reg1)
-    #
-    #     self.manager.append_regs64(reg1)
+        self.write_one(EXIT_V)
+        self.write_one(reg1)
+
+        self.manager.append_regs64(reg1)
 
     def add_label(self, label: int):
         self.write_one(LABEL)
@@ -945,6 +897,7 @@ class Compiler:
         env.define_const("char", CompileTimeFunctionType([], en.Type("char"), self.function_char), 0)
         env.define_const("int", CompileTimeFunctionType([], en.Type("int"), self.function_int), 0)
         env.define_const("float", CompileTimeFunctionType([], en.Type("float"), self.function_float), 0)
+        env.define_const("exit", CompileTimeFunctionType([], en.Type("void"), self.function_exit), 0)
 
     def calculate_global_len(self, root: ast.Node, is_child: bool):
         if is_child:
@@ -1004,6 +957,7 @@ class Compiler:
         final_result.codes.extend(self.memory.literal)
         final_result.codes.extend(self.memory.functions_bytes)
         final_result.codes.extend(bo.codes)
+        final_result.write_one(EXIT)
         return bytes(final_result)
 
     def compile(self, node: ast.Node, env: en.Environment, bo: ByteOutput, **kwargs):
@@ -1101,6 +1055,7 @@ class Compiler:
 
             inner_bo = ByteOutput(self.memory)
             self.compile(node.body, scope, inner_bo)
+            inner_bo.write_one(FP_TO_SP)
             inner_bo.write_one(STOP)
 
             for reg_id_neg in scope.registers:  # return back registers
@@ -1109,7 +1064,7 @@ class Compiler:
             stack_len = self.memory.sp - self.memory.blocks[-1]
 
             fn_bo = ByteOutput(self.memory)
-            fn_bo.move_reg_spe("FP", "SP")
+            fn_bo.write_one(SP_TO_FP)
             fn_bo.push(stack_len)
             fn_bo.codes.extend(bytes(inner_bo))
 
@@ -1904,6 +1859,20 @@ class Compiler:
             return r_ptr
         else:
             raise lib.CompileTimeException("Cannot cast '{}' to float".format(arg_tal.type_name))
+
+    def function_exit(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+        arg_len = len(args)
+        if arg_len == 0:
+            bo.write_one(EXIT)
+        elif arg_len == 1:
+            arg_ptr = self.compile(args[0], env, bo)
+            arg_tal = get_tal_of_evaluated_node(args[0], env)
+            if arg_tal.type_name != "int" or en.is_array(arg_tal):
+                raise lib.CompileTimeException("Argument of function 'exit' must be int")
+            bo.exit_with_value(arg_ptr)
+        else:
+            raise lib.CompileTimeException("Function 'exit' takes 0 to 1 arguments, {} given."
+                                           .format(arg_len))
 
     def generate_labels(self, node: ast.Node):
         if isinstance(node, ast.LabelStmt):
