@@ -1,5 +1,5 @@
-import bin.spl_types as typ
-import bin.tpl_compiler as cmp  # used by eval
+import py.tpl_types as typ
+import py.tpl_compiler as cmp  # used by eval
 
 
 class Line:

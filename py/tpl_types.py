@@ -1,6 +1,13 @@
 import struct
 import sys
-import bin.spl_memory as mem
+
+
+INT_LEN = 8
+FLOAT_LEN = 8
+PTR_LEN = 8
+# BOOLEAN_LEN = 1
+CHAR_LEN = 1
+VOID_LEN = 0
 
 
 class Type:
@@ -16,19 +23,12 @@ class Type:
 
 
 def int_to_bytes(i: int) -> bytes:
-    return mem.int_to_bytes(i)
+    int_len = INT_LEN
+    return i.to_bytes(int_len, sys.byteorder, signed=True)
 
 
 def bytes_to_int(b: bytes) -> int:
-    return mem.bytes_to_int(b)
-
-
-# def uint7_to_bytes(i: int) -> bytes:
-#     return i.to_bytes(7, sys.byteorder, signed=False)
-#
-#
-# def bytes_to_uint7(b: bytes) -> int:
-#     return int.from_bytes(b, sys.byteorder, signed=False)
+    return int.from_bytes(b, sys.byteorder, signed=True)
 
 
 def float_to_bytes(f: float) -> bytes:

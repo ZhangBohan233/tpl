@@ -1,4 +1,4 @@
-import bin.spl_types as typ
+import py.tpl_types as typ
 import time
 
 INT_LEN = 8

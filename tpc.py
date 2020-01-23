@@ -10,12 +10,12 @@ tpe: Trash Program Executable
 
 import sys
 import time
-import bin.tpl_compiler as cmp
-import bin.spl_parser as psr
-import bin.tpl_lexer as lex
-import bin.tpl_ast_optimizer as pre
-import bin.tpa_generator as decompiler
-import bin.tpa_optimizer as optimizer
+import py.tpl_compiler as cmp
+import py.tpl_parser as psr
+import py.tpl_lexer as lex
+import py.tpl_ast_optimizer as pre
+import py.tpa_generator as decompiler
+import py.tpa_optimizer as optimizer
 import script
 
 

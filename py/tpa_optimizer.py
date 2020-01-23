@@ -1,8 +1,8 @@
 import sys
 import math
-import bin.spl_types as typ
-import bin.tpl_compiler as cmp  # used in eval
-from bin.tpa_compiler import Link, InstructionSet, TpaParser
+import py.tpl_types as typ
+import py.tpl_compiler as cmp  # used in eval
+from py.tpa_compiler import Link, InstructionSet, TpaParser
 
 # Optimization level works:
 MERGE_VARIABLE = 2

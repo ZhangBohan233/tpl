@@ -1,5 +1,5 @@
-import bin.spl_types as typ
-import bin.tpl_compiler as cpl
+import py.tpl_types as typ
+import py.tpl_compiler as cpl
 
 INT_LEN = 8
 FLOAT_LEN = 8

@@ -1,5 +1,5 @@
-from bin import spl_ast as ast, spl_token_lib as stl
-import bin.spl_types as typ
+from py import tpl_ast as ast, tpl_token_lib as stl
+import py.tpl_types as typ
 
 ABSTRACT_IDENTIFIER = {"fn", "class"}
 

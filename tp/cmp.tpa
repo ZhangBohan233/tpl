@@ -1,0 +1,186 @@
+//STACK SIZE
+4096
+//LITERAL LENGTH:
+85
+//GLOBAL MEMORY LENGTH:
+24
+//FUNCTIONS LENGTH:
+1210
+//MAIN TAKES ARG:
+%0
+//LITERALS:
+1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 30 0 0 0 0 0 0 0 40 16 0 0 0 0 0 0 102 105 98 32 116 105 109 101 58 32 37 100 10 0 64 66 15 0 0 0 0 0 70 16 0 0 0 0 0 0 108 111 111 112 32 116 105 109 101 58 32 37 100 10 0 
+//FUNCTIONS COUNT:
+8
+//FUNCTION POINTERS:
+4277 4285 4293 4301 4309 4317 4325 4691 
+//NATIVE FUNCTIONS COUNT:
+6
+
+//FUNCTIONS: 
+
+//FUNCTION 6:
+#205 SP_TO_FP
+#206 LOAD_I          %0  56
+#216 PUSH            %0
+#218 LOAD            %0  $0
+#228 LOAD            %1  $4112
+#238 LT              %0  %1
+#241 STORE           %2  %0  $8
+#252 LOAD_I          %0  0
+#262 LOAD            %1  $8
+#272 IF_ZERO_GOTO_L  %0  %1
+#275 LOAD_A          %0  $0
+#285 LOAD_I          %1  8
+#295 FP_TO_SP
+#296 RETURN          %0  %1
+#299 LOAD_I          %0  1
+#309 GOTO_L          %0
+#311 LABEL           0
+#320 LOAD            %0  $0
+#330 LOAD            %1  $4096
+#340 SUB             %0  %1
+#343 STORE           %2  %0  $16
+#354 LOAD_AS         %3  $0
+#364 LOAD_A          %4  $16
+#374 LOAD_I          %5  8
+#384 ASSIGN          %3  %4  %5
+#388 LOAD_A          %0  $4261
+#398 LOAD_A          %1  $24
+#408 CALL            %0  %1
+#411 LOAD            %0  $0
+#421 LOAD            %1  $4112
+#431 SUB             %0  %1
+#434 STORE           %2  %0  $32
+#445 LOAD_AS         %3  $0
+#455 LOAD_A          %4  $32
+#465 LOAD_I          %5  8
+#475 ASSIGN          %3  %4  %5
+#479 LOAD_A          %0  $4261
+#489 LOAD_A          %1  $40
+#499 CALL            %0  %1
+#502 LOAD            %0  $24
+#512 LOAD            %1  $40
+#522 ADD             %0  %1
+#525 STORE           %2  %0  $48
+#536 LOAD_A          %0  $48
+#546 LOAD_I          %1  8
+#556 FP_TO_SP
+#557 RETURN          %0  %1
+#560 LABEL           1
+#569 FP_TO_SP
+#570 STOP
+
+//FUNCTION 7:
+#571 SP_TO_FP
+#572 LOAD_I          %0  88
+#582 PUSH            %0
+#584 LOAD_A          %0  $4213
+#594 LOAD_A          %1  $8
+#604 LOAD_I          %2  0
+#614 CALL_NAT        %0  %1  %2
+#618 LOAD_A          %0  $0
+#628 LOAD_A          %1  $8
+#638 LOAD_I          %2  8
+#648 ASSIGN          %0  %1  %2
+#652 LOAD_AS         %3  $0
+#662 LOAD_A          %4  $4120
+#672 LOAD_I          %5  8
+#682 ASSIGN          %3  %4  %5
+#686 LOAD_A          %0  $4261
+#696 LOAD_A          %1  $24
+#706 CALL            %0  %1
+#709 LOAD_A          %0  $16
+#719 LOAD_A          %1  $24
+#729 LOAD_I          %2  8
+#739 ASSIGN          %0  %1  %2
+#743 LOAD_A          %0  $4213
+#753 LOAD_A          %1  $40
+#763 LOAD_I          %2  0
+#773 CALL_NAT        %0  %1  %2
+#777 LOAD_A          %0  $32
+#787 LOAD_A          %1  $40
+#797 LOAD_I          %2  8
+#807 ASSIGN          %0  %1  %2
+#811 LOAD            %0  $32
+#821 LOAD            %1  $0
+#831 SUB             %0  %1
+#834 STORE           %2  %0  $48
+#845 LOAD_AS         %3  $0
+#855 LOAD_A          %4  $4128
+#865 LOAD_I          %5  8
+#875 ASSIGN          %3  %4  %5
+#879 LOAD_AS         %3  $8
+#889 LOAD_A          %4  $48
+#899 LOAD_I          %5  8
+#909 ASSIGN          %3  %4  %5
+#913 LOAD_A          %0  $4229
+#923 LOAD_A          %1  $56
+#933 LOAD_I          %2  16
+#943 CALL_NAT        %0  %1  %2
+#947 LOAD            %0  $4104
+#957 LABEL           2
+#966 MOVE_REG        %1  %0
+#969 LOAD            %2  $4150
+#979 LT              %1  %2
+#982 STORE           %3  %1  $56
+#993 LOAD_I          %1  4
+#1003 LOAD            %2  $56
+#1013 IF_ZERO_GOTO_L  %1  %2
+#1016 LABEL           3
+#1025 LOAD_I          %1  1
+#1035 MOVE_REG        %2  %0
+#1038 ADD             %2  %1
+#1041 MOVE_REG        %0  %2
+#1044 LOAD_I          %1  2
+#1054 GOTO_L          %1
+#1056 LABEL           4
+#1065 LOAD_A          %1  $4213
+#1075 LOAD_A          %2  $72
+#1085 LOAD_I          %3  0
+#1095 CALL_NAT        %1  %2  %3
+#1099 LOAD_A          %1  $64
+#1109 LOAD_A          %2  $72
+#1119 LOAD_I          %3  8
+#1129 ASSIGN          %1  %2  %3
+#1133 LOAD            %1  $64
+#1143 LOAD            %2  $32
+#1153 SUB             %1  %2
+#1156 STORE           %3  %1  $80
+#1167 LOAD_AS         %4  $0
+#1177 LOAD_A          %5  $4158
+#1187 LOAD_I          %6  8
+#1197 ASSIGN          %4  %5  %6
+#1201 LOAD_AS         %4  $8
+#1211 LOAD_A          %5  $80
+#1221 LOAD_I          %6  8
+#1231 ASSIGN          %4  %5  %6
+#1235 LOAD_A          %1  $4229
+#1245 LOAD_A          %2  $88
+#1255 LOAD_I          %3  16
+#1265 CALL_NAT        %1  %2  %3
+#1269 LOAD_A          %1  $16
+#1279 LOAD_I          %2  8
+#1289 FP_TO_SP
+#1290 RETURN          %1  %2
+#1293 FP_TO_SP
+#1294 STOP
+
+
+//MAIN:
+LOAD_A          %0  $4181
+LOAD_A          %1  $4096
+LOAD_I          %2  8
+ASSIGN          %0  %1  %2
+LOAD_A          %0  $4189
+LOAD_A          %1  $4104
+LOAD_I          %2  8
+ASSIGN          %0  %1  %2
+LOAD_A          %0  $4197
+LOAD_A          %1  $4104
+LOAD_I          %2  8
+ASSIGN          %0  %1  %2
+LOAD_A          %0  $4269
+LOAD_A          %1  $1
+CALL            %0  %1
+EXIT

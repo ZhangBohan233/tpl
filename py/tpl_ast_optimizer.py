@@ -1,7 +1,7 @@
 import sys
-import bin.spl_ast as ast
-import bin.spl_types as typ
-import bin.spl_parser as psr
+import py.tpl_ast as ast
+import py.tpl_types as typ
+import py.tpl_parser as psr
 
 INT_LEN = 8
 FLOAT_LEN = 8

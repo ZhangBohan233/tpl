@@ -1,16 +1,10 @@
-import bin.spl_ast as ast
-import bin.spl_environment as en
-import bin.spl_types as typ
-import bin.spl_lib as lib
+import py.tpl_ast as ast
+import py.spl_environment as en
+import py.tpl_types as typ
+import py.tpl_lib as lib
+from py.tpl_types import INT_LEN, FLOAT_LEN, PTR_LEN, CHAR_LEN, VOID_LEN
 
 STACK_SIZE = 4096
-
-INT_LEN = 8
-FLOAT_LEN = 8
-PTR_LEN = 8
-# BOOLEAN_LEN = 1
-CHAR_LEN = 1
-VOID_LEN = 0
 
 EXIT = 1  # completely exit function
 STOP = 2  # STOP                                  | stop current process

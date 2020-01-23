@@ -1,8 +1,8 @@
-# import bin.spl_ast as ast
-# import bin.spl_memory as mem
-# import bin.spl_environment as en
-# import bin.spl_lib as lib
-# import bin.spl_types as typ
+# import py.spl_ast as ast
+# import py.spl_memory as mem
+# import py.spl_environment as en
+# import py.spl_lib as lib
+# import py.spl_types as typ
 # import time
 # import sys
 #

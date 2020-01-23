@@ -1,3 +1,9 @@
+#### Build 1053 ####
+2020/01/22
+
+* Renamed some files and folders
+* Rebuild the program structure
+
 ===== TPL 1.0 Alpha 1 =====
 #### Build 1052 ####
 2020/01/22

@@ -35,10 +35,6 @@ NO_BUILD_LINE = {"catch", "finally"}
 NO_CLASS_NAME = {"Object"}
 
 
-# PUBLIC = 0
-# PRIVATE = 1
-
-
 def is_in_all(keyword):
     for s in ALL:
         if keyword in s:

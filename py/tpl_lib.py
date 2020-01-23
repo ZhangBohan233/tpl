@@ -1,6 +1,3 @@
-import bin.spl_memory as mem
-
-
 class InvalidArgument:
     def __init__(self):
         pass
@@ -14,16 +11,16 @@ class CompileTimeException(Exception):
         Exception.__init__(self, msg)
 
 
-class SplException(CompileTimeException):
+class TplException(CompileTimeException):
     def __init__(self, msg=""):
         CompileTimeException.__init__(self, msg)
 
 
-class UnexpectedSyntaxException(SplException):
+class UnexpectedSyntaxException(TplException):
     def __init__(self, msg=""):
-        SplException.__init__(self, msg)
+        TplException.__init__(self, msg)
 
 
-class TypeException(SplException):
+class TypeException(TplException):
     def __init__(self, msg=""):
-        SplException.__init__(self, msg)
+        TplException.__init__(self, msg)
