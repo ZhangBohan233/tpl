@@ -1,9 +1,9 @@
 struct Test {
     var x: int;
-    var set: fn(*Test, int)->int;
+    var set: fn(int)->int;
 }
 
-fn Test::set(this: *Test, x: int) int {
+fn Test::set(x: int) int {
     this..x = x;
     printf("Set to %d\n", this..x);
     return 0;
@@ -11,7 +11,7 @@ fn Test::set(this: *Test, x: int) int {
 
 fn main() int {
     var g: *Test = new(Test);
-    g..set(g, 17);
+    g..set(17);
     printf("%d\n", g..x);
     return g..x;
 }

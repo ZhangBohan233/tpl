@@ -46,7 +46,7 @@ int MAIN_HAS_ARG = 0;
 
 unsigned char MEMORY[MEMORY_SIZE];
 
-uint_fast64_t SP = 9;  // stack pointer
+uint_fast64_t SP = 1;  // stack pointer
 uint_fast64_t FP = 1;  // frame pointer
 uint_fast64_t PC = STACK_SIZE;
 

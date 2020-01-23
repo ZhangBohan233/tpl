@@ -1,8 +1,8 @@
-fn test() void {
-    return;
+fn test() int {
+    return 77;
 }
 
 fn main() int {
-    test();
-    return 66;
+    var c: int = test();
+    return c;
 }

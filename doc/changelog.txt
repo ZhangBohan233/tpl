@@ -1,3 +1,14 @@
+===== TPL 1.0 Alpha 2 =====
+#### Build 1055 ####
+2020/01/23
+
+* The pointer to struct pointer itself "this" now is automatically added as the first parameter and argument
+* Bug fixes:
+    * void function
+* Syntax added in last update:
+    * Compile time function "new"
+    * The support of void returning statement "return;"
+
 #### Build 1054 ####
 2020/01/23
 

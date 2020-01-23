@@ -664,7 +664,7 @@ class ByteOutput:
 
 class MemoryManager:
     def __init__(self, literal_bytes):
-        self.stack_begin = 9
+        self.stack_begin = 9  # TODO: review
         self.sp = 9
         self.literal_begins = STACK_SIZE
         self.global_begins = STACK_SIZE + len(literal_bytes)
@@ -678,11 +678,9 @@ class MemoryManager:
         self.functions = {}
 
         self.blocks = []
-        # self.loop_sp_stack = []
 
         self.label_accumulator = 0
         self.text_labels = {}
-        # self.function_stack_sizes = {}
 
         self.type_sizes = {
             "int": INT_LEN,
@@ -734,14 +732,6 @@ class MemoryManager:
 
     def restore_stack(self):
         self.sp = self.blocks.pop()
-
-    # def store_sp(self):
-    #     pass
-    #     # self.loop_sp_stack.append(self.sp)
-    #
-    # def restore_sp(self):
-    #     pass
-    # self.sp = self.loop_sp_stack.pop()
 
     def allocate(self, length, bo) -> int:
         if len(self.blocks) == 0:  # global
@@ -1026,8 +1016,26 @@ class Compiler:
         scope = en.FunctionEnvironment(env)
         self.memory.push_stack()
 
+        title = node.title
+
         param_pairs = []
         param_types = []
+
+        if isinstance(title, ast.NameNode):
+            is_method = False
+        elif isinstance(title, ast.BinaryOperator) and title.operation == "::" and \
+                isinstance(title.left, ast.NameNode) and isinstance(title.right, ast.NameNode):
+            # add 'this: *Struct' as the first parameter
+            is_method = True
+            tal = en.Type("*" + title.left.name)
+            param_types.append(tal)
+            ptr = self.memory.allocate(PTR_LEN, None)
+            scope.define_const("this", tal, ptr)
+            param_pair = ParameterPair("this", tal)
+            param_pairs.append(param_pair)
+        else:
+            raise lib.CompileTimeException()
+
         for param in node.params.lines:
             tn: ast.TypeNode = param
             name_node: ast.NameNode = tn.left
@@ -1045,19 +1053,12 @@ class Compiler:
 
         func_tal = en.FuncType(param_types, r_tal)
 
-        title = node.title
-        if isinstance(title, ast.NameNode):
-            ftn_ptr = self.get_function(title.name, env, func_tal, (node.line_num, node.file))
-        elif isinstance(title, ast.BinaryOperator) and title.operation == "::" and \
-                isinstance(title.left, ast.NameNode) and isinstance(title.right, ast.NameNode):
+        if is_method:
             ftn_ptr = self.memory.define_func_ptr()
             struct = env.get_struct(title.left.name)
-            # method_ptr = struct.get_attr_pos(title.right.name)
-            # print(ftn_ptr, method_ptr)
             struct.method_pointers[title.right.name] = (ftn_ptr, func_tal)
-            # self.compile_attr_assign()
         else:
-            raise lib.CompileTimeException()
+            ftn_ptr = self.get_function(title.name, env, func_tal, (node.line_num, node.file))
 
         if node.body is not None:  # implementing
             self.generate_labels(node.body)  # preprocess the labels to make sure future-pointing goto's work
@@ -1263,7 +1264,8 @@ class Compiler:
 
         if call:
             call_node: ast.FuncCall = node.right
-            args = call_node.args.lines
+            args = call_node.args.lines.copy()
+            args.insert(0, node.left)
             res_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.unpack_addr(res_ptr, attr_addr, PTR_LEN)
             return self.compile_ptr_call(res_ptr, attr_tal, args, env, bo)
@@ -1318,7 +1320,8 @@ class Compiler:
 
         return indexing_addr, tal, length
 
-    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, en.Type, bool):
+    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> \
+            (int, en.Type, bool):
         left_tal = get_tal_of_evaluated_node(node.left, env)
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:
@@ -1715,6 +1718,8 @@ class Compiler:
                                                generate_lf(node))
             type_node: ast.TypeNode = line.left
             tal = get_tal_of_defining_node(type_node.right, env, self.memory)
+            if isinstance(tal, en.FuncType):  # is a method, add pointer to struct as the first parameter
+                tal.param_types.insert(0, en.Type("*" + node.name))
             name = type_node.left.name
             struct.vars[name] = pos, tal
             total_len = tal.total_len(self.memory)
