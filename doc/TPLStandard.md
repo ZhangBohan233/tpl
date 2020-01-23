@@ -176,6 +176,44 @@ There are 3 types of conditional statements: `if` statement, `for` statement, an
 ## Native invoke functions
 
 
+## Functional programming
+
+### Passing function pointer as variable:
+
+
+## Object oriented programming:
+
+TPL supports simple object oriented programming. A method of a struct must be declared in the struct body.
+
+```
+struct Foo {
+    ...
+    var bar: fn(int)->void;
+}
+```
+Which declared a member function of struct `Foo` which takes an `int` and returns nothing.
+
+The declared member function may be implemented by
+```
+fn Foo::bar(x: int) void {
+    ...
+}
+```
+Notice that the compiler should add a parameter to the struct pointer named `this` as the first parameter. So the 
+actual parameters of the example method is `this: *Foo, x: int`
+
+Use the keyword function `new` to create structs that has member functions. Otherwise, the member functions may remain
+unimplemented. Example:
+```
+var foo: *Foo = new(Foo);
+```
+The member functions are called via struct attributes. For example:
+```
+foo..bar(5);
+```
+Which calls the member function `bar` of `Foo` instance 'foo'.
+Notice that the actual first argument is the struct instance.
+
 ## Label and goto
 
 A label can be defined as

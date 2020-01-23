@@ -4,7 +4,7 @@ import py.tpl_types as typ
 import py.tpl_lib as lib
 from py.tpl_types import INT_LEN, FLOAT_LEN, PTR_LEN, CHAR_LEN, VOID_LEN
 
-STACK_SIZE = 4096
+STACK_SIZE = 1024
 
 EXIT = 1  # completely exit function
 STOP = 2  # STOP                                  | stop current process
@@ -55,6 +55,7 @@ PUSH = 42
 SP_TO_FP = 43
 FP_TO_SP = 44
 EXIT_V = 45  # | exit with value
+SET_RET = 46
 
 ADD_F = 50
 SUB_F = 51
@@ -303,21 +304,53 @@ class ByteOutput:
         self.write_one(reg2)
         self.write_int(r_ptr)
 
+        self.write_one(SET_RET)
+        self.write_one(reg2)
+
         self.write_one(CALL)
         self.write_one(reg1)
-        self.write_one(reg2)
+        # self.write_one(reg2)
 
         self.manager.append_regs64(reg2, reg1)
 
-    def call(self, is_native: bool, ftn_ptr: int, r_ptr: int, args: list):
+    def call(self, ftn_ptr: int, not_void: bool, r_ptr: int, args: list):
         """
-
-        :param is_native:
         :param ftn_ptr:
+        :param not_void: True iff the return type of this function is not void
         :param r_ptr: return ptr
         :param args: list of tuple(arg_ptr, arg_len)
         :return:
         """
+        reg1, reg2 = self.manager.require_regs64(2)
+
+        i = 0
+        for arg in args:
+            if arg[0] < 0:  # register:
+                self.store_from_reg(i, arg[0])
+            else:
+                self.assign_as(i, arg[0], arg[1])
+
+            i += arg[1]
+
+        self.write_one(LOAD_A)
+        self.write_one(reg1)  # ftn ptr
+        self.write_int(ftn_ptr)
+
+        if not_void:
+            self.write_one(LOAD_A)
+            self.write_one(reg2)  # return ptr
+            self.write_int(r_ptr)
+
+            self.write_one(SET_RET)
+            self.write_one(reg2)
+
+        self.write_one(CALL)
+        self.write_one(reg1)
+        # self.write_one(reg2)
+
+        self.manager.append_regs64(reg2, reg1)
+
+    def call_nat(self, ftn_ptr: int, r_ptr: int, args: list):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
         i = 0
@@ -337,19 +370,14 @@ class ByteOutput:
         self.write_one(reg2)  # return ptr
         self.write_int(r_ptr)
 
-        if is_native:
-            self.write_one(LOAD_I)
-            self.write_one(reg3)
-            self.write_int(i)  # stores arguments length for native functions
+        self.write_one(LOAD_I)
+        self.write_one(reg3)
+        self.write_int(i)  # stores arguments length for native functions
 
-            self.write_one(CALL_NAT)
-            self.write_one(reg1)
-            self.write_one(reg2)
-            self.write_one(reg3)
-        else:
-            self.write_one(CALL)
-            self.write_one(reg1)
-            self.write_one(reg2)
+        self.write_one(CALL_NAT)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
@@ -604,13 +632,12 @@ class ByteOutput:
         self.write_one(LABEL)
         self.write_int(label)
 
-    def if_zero_goto_l(self, label: int, cond_ptr: int) -> int:
+    def if_zero_goto_l(self, label: int, cond_ptr: int):
         """
         Returns the occupied length
 
         :param label:
         :param cond_ptr:
-        :return:
         """
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
@@ -622,20 +649,16 @@ class ByteOutput:
             self.write_one(MOVE_REG)
             self.write_one(reg2)
             self.write_one(-cond_ptr - 1)
-            length = 16
         else:
             self.write_one(LOAD)
             self.write_one(reg2)  # reg stores cond ptr
             self.write_int(cond_ptr)
-            length = 23
 
         self.write_one(IF_ZERO_GOTO_L)
         self.write_one(reg1)
         self.write_one(reg2)
 
         self.manager.append_regs64(reg3, reg2, reg1)
-
-        return length
 
     def goto_l(self, label: int):
         reg1, = self.manager.require_regs64(1)
@@ -664,8 +687,8 @@ class ByteOutput:
 
 class MemoryManager:
     def __init__(self, literal_bytes):
-        self.stack_begin = 9  # TODO: review
-        self.sp = 9
+        self.stack_begin = 1  # TODO: review
+        self.sp = 1
         self.literal_begins = STACK_SIZE
         self.global_begins = STACK_SIZE + len(literal_bytes)
         self.functions_begin = 0
@@ -1402,10 +1425,8 @@ class Compiler:
         return self.compile_ptr_call(ftn, ftn_tal, node.args.lines, env, bo)
 
     def call_main(self, func_ptr: int, args: list, bo: ByteOutput):
-        # self.memory.push_stack()
         r_ptr = 1
         bo.call_main(func_ptr, r_ptr, args)
-        # self.memory.restore_stack()
 
     def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list,
                       call_env: en.Environment, bo: ByteOutput):
@@ -1416,7 +1437,7 @@ class Compiler:
         r_len = func_tal.rtype.total_len(self.memory)
         r_ptr = self.memory.allocate(r_len, bo)
 
-        bo.call(False, func_ptr, r_ptr, args)
+        bo.call(func_ptr, r_len > 0, r_ptr, args)
 
         return r_ptr
 
@@ -1426,7 +1447,7 @@ class Compiler:
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        bo.call(True, func, r_ptr, args)
+        bo.call_nat(func, r_ptr, args)
 
         return r_ptr
 
@@ -2018,7 +2039,13 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         real_l_tal = en.Type(left_tal.type_name[ptr_depth:], left_tal.array_lengths)
         if env.is_struct(real_l_tal.type_name):
             struct = env.get_struct(real_l_tal.type_name)
-            return struct.get_attr_tal(node.right.name)
+            if isinstance(node.right, ast.NameNode):
+                return struct.get_attr_tal(node.right.name)
+            elif isinstance(node.right, ast.FuncCall):
+                f_tal: en.FuncType = struct.get_attr_tal(node.right.call_obj.name)
+                return f_tal.rtype
+            else:
+                raise lib.TypeException()
         else:
             raise lib.TypeException()
     elif node.node_type == ast.IN_DECREMENT_OPERATOR:

@@ -1,17 +1,21 @@
 struct Test {
     var x: int;
-    var set: fn(int)->int;
+    var set: fn(int)->void;
+    var get: fn()->int;
 }
 
-fn Test::set(x: int) int {
+fn Test::set(x: int) void {
     this..x = x;
     printf("Set to %d\n", this..x);
-    return 0;
 }
 
-fn main() int {
+fn Test::get() int {
+    return this..x;
+}
+
+fn main(argc: int, argv: **char) int {
     var g: *Test = new(Test);
-    g..set(17);
+    g..set(argc);
     printf("%d\n", g..x);
-    return g..x;
+    return g..get();
 }

@@ -11,7 +11,7 @@
 #include "lib.h"
 #include "heap.h"
 
-#define STACK_SIZE 4096
+#define STACK_SIZE 1024
 #define MEMORY_SIZE 16384
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
@@ -46,7 +46,7 @@ int MAIN_HAS_ARG = 0;
 
 unsigned char MEMORY[MEMORY_SIZE];
 
-uint_fast64_t SP = 1;  // stack pointer
+uint_fast64_t SP = 9;  // stack pointer
 uint_fast64_t FP = 1;  // frame pointer
 uint_fast64_t PC = STACK_SIZE;
 
@@ -414,7 +414,7 @@ void vm_run() {
             case 1:  // EXIT
                 return;
             case 2:  // Stop
-                exit_func;
+            exit_func;
                 break;
             case 3:  // ASSIGN
                 reg_p1 = MEMORY[PC++];  // dest
@@ -426,16 +426,20 @@ void vm_run() {
                 break;
             case 4:  // CALL
                 reg_p1 = MEMORY[PC++];
-                reg_p2 = MEMORY[PC++];
+//                reg_p2 = MEMORY[PC++];
 //                reg_p3 = MEMORY[PC++];
 
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++FSP] = FP;
-                RET_STACK[++RSP] = regs64[reg_p2].int_value;
+//                RET_STACK[++RSP] = regs64[reg_p2].int_value;
 
                 PC = regs64[reg_p1].int_value;
+                break;
+            case 46:  // SET_RET
+                reg_p1 = MEMORY[PC++];
+                RET_STACK[++RSP] = regs64[reg_p1].int_value;
                 break;
             case 31:  // CALL_NAT
                 reg_p1 = MEMORY[PC++];

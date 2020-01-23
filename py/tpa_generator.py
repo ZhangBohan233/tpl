@@ -95,8 +95,7 @@ class TPAssemblyCompiler:
                                                                       self.read_one(),
                                                                       self.read_one()))
         elif instruction == cpl.CALL:
-            out_stream.write("CALL            %{}  %{}\n".format(self.read_one(),
-                                                                 self.read_one(), ))
+            out_stream.write("CALL            %{}\n".format(self.read_one()))
         elif instruction == cpl.RETURN:
             out_stream.write("RETURN          %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.GOTO:
@@ -177,6 +176,8 @@ class TPAssemblyCompiler:
             out_stream.write("SP_TO_FP\n")
         elif instruction == cpl.EXIT_V:
             out_stream.write("EXIT_V          %{}\n".format(self.read_one()))
+        elif instruction == cpl.SET_RET:
+            out_stream.write("SET_RET         %{}\n".format(self.read_one()))
         elif instruction == cpl.INT_TO_FLOAT:
             out_stream.write("INT_TO_FLOAT    %{}\n".format(self.read_one()))
         elif instruction == cpl.FLOAT_TO_INT:

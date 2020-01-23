@@ -1,3 +1,9 @@
+#### Build 1056 ####
+
+* Bug fixes:
+    * Assigning return value of method
+    * Void function (the fix in the last update is problematic)
+
 ===== TPL 1.0 Alpha 2 =====
 #### Build 1055 ####
 2020/01/23
