@@ -1,4 +1,3 @@
-
 class EnvironmentException(Exception):
     def __init__(self, msg=""):
         Exception.__init__(self, msg)
@@ -25,6 +24,14 @@ class Type:
     def __repr__(self):
         return self.__str__()
 
+    def __eq__(self, other):
+        if not isinstance(other, Type):
+            return False
+        return self.type_name == other.type_name and self.array_lengths == other.array_lengths
+
+    def __ne__(self, other):
+        return not self == other
+
     def total_len(self, mm):
         arr_len = 1
         for x in self.array_lengths:
@@ -47,6 +54,14 @@ class FuncType(Type):
 
     def __str__(self):
         return "fn(" + str(self.param_types) + ") -> " + str(self.rtype)
+
+    def __eq__(self, other):
+        if not isinstance(other, FuncType):
+            return False
+        return self.func_type == other.func_type and self.param_types == other.param_types and self.rtype == other.rtype
+
+    def __ne__(self, other):
+        return not self == other
 
     def total_len(self, mm):
         return mm.get_type_size("*")
@@ -170,19 +185,6 @@ class GlobalEnvironment(MainAbstractEnvironment):
         raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
                                 .format(name, lf[1], lf[0]))
 
-    # def define_function(self, name: str, func):
-    #     self.variables[name] = func
-    #     self.var_types[name] = func.tal
-    #
-    # def contains_function(self, name: str):
-    #     return name in self.functions
-    #
-    # def get_function(self, name: str, lf):
-    #     if name in self.functions:
-    #         return self.functions[name]
-    #     else:
-    #         raise EnvironmentException("Function '{}' not defined".format(name))
-
     def is_global(self):
         return True
 
@@ -219,6 +221,11 @@ class FunctionEnvironment(MainAbstractEnvironment):
 
     def add_register(self, reg_id_neg):
         self.registers.append(reg_id_neg)
+
+
+class StructEnvironment(MainAbstractEnvironment):
+    def __init__(self, outer):
+        MainAbstractEnvironment.__init__(self, outer)
 
 
 class LoopEnvironment(SubAbstractEnvironment):

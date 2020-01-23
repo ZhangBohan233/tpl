@@ -1,5 +1,5 @@
 import py.tpl_ast as ast
-import py.spl_environment as en
+import py.tpl_environment as en
 import py.tpl_types as typ
 import py.tpl_lib as lib
 from py.tpl_types import INT_LEN, FLOAT_LEN, PTR_LEN, CHAR_LEN, VOID_LEN
@@ -291,7 +291,6 @@ class ByteOutput:
         reg1, reg2 = self.manager.require_regs64(2)
         i = 0
         for arg in args:
-
             self.assign_as(i, arg[0], arg[1])
 
             i += arg[1]
@@ -323,7 +322,6 @@ class ByteOutput:
 
         i = 0
         for arg in args:
-
             if arg[0] < 0:  # register:
                 self.store_from_reg(i, arg[0])
             else:
@@ -743,7 +741,7 @@ class MemoryManager:
     #
     # def restore_sp(self):
     #     pass
-        # self.sp = self.loop_sp_stack.pop()
+    # self.sp = self.loop_sp_stack.pop()
 
     def allocate(self, length, bo) -> int:
         if len(self.blocks) == 0:  # global
@@ -806,6 +804,7 @@ class Struct:
     def __init__(self, name: str):
         self.name = name
         self.vars: {str: (int, en.Type)} = {}  # position, type
+        self.method_pointers: {str: (int, en.FuncType)} = {}
 
     def get_attr_pos(self, attr_name: str) -> int:
         return self.vars[attr_name][0]
@@ -892,6 +891,7 @@ class Compiler:
         env.define_const("int", CompileTimeFunctionType([], en.Type("int"), self.function_int), 0)
         env.define_const("float", CompileTimeFunctionType([], en.Type("float"), self.function_float), 0)
         env.define_const("exit", CompileTimeFunctionType([], en.Type("void"), self.function_exit), 0)
+        env.define_const("new", CompileTimeFunctionType([], en.Type("*void"), self.function_new), 0)
 
     def calculate_global_len(self, root: ast.Node, is_child: bool):
         if is_child:
@@ -994,9 +994,20 @@ class Compiler:
             self.memory.literal[lit_pos: lit_pos + PTR_LEN] = typ.int_to_bytes(new_string_ptr)
         return self.compile(node.literal, env, bo)
 
+    def get_function(self, name: str, env: en.Environment, func_tal: en.Type, lf: tuple) -> int:
+        if env.contains_ptr(name):  # is implementing
+            ftn_ptr: int = env.get(name, lf, False)
+            prev_func_tal = env.get_type_arr_len(name, lf)
+            if prev_func_tal != func_tal:
+                raise lib.CompileTimeException("Incompatible parameter or return types")
+        else:
+            ftn_ptr = self.memory.define_func_ptr()  # pre-defined for recursion
+            env.define_var(name, func_tal, ftn_ptr)
+        return ftn_ptr
+
     def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
         if self.memory.functions_begin == 0:  # not set. 第一次遍历ast获取global长度时用
-            if node.name == "main":
+            if isinstance(node.title, ast.NameNode) and node.title.name == "main":
                 if len(node.params.lines) == 2:
                     argc: ast.TypeNode = node.params.lines[0]
                     argv: ast.TypeNode = node.params.lines[1]
@@ -1034,15 +1045,19 @@ class Compiler:
 
         func_tal = en.FuncType(param_types, r_tal)
 
-        if env.contains_ptr(node.name):  # is implementing
-            ftn_ptr: int = env.get(node.name, (node.line_num, node.file), False)
-            prev_func_tal = env.get_type_arr_len(node.name, (node.line_num, node.file))
-            if prev_func_tal != func_tal:
-                raise lib.CompileTimeException("Incompatible parameter or return types")
+        title = node.title
+        if isinstance(title, ast.NameNode):
+            ftn_ptr = self.get_function(title.name, env, func_tal, (node.line_num, node.file))
+        elif isinstance(title, ast.BinaryOperator) and title.operation == "::" and \
+                isinstance(title.left, ast.NameNode) and isinstance(title.right, ast.NameNode):
+            ftn_ptr = self.memory.define_func_ptr()
+            struct = env.get_struct(title.left.name)
+            # method_ptr = struct.get_attr_pos(title.right.name)
+            # print(ftn_ptr, method_ptr)
+            struct.method_pointers[title.right.name] = (ftn_ptr, func_tal)
+            # self.compile_attr_assign()
         else:
-            ftn_ptr = self.memory.define_func_ptr()  # pre-defined for recursion
-            # print("allocated to", fake_ftn_ptr, self.memory.global_bytes)
-            env.define_var(node.name, func_tal, ftn_ptr)
+            raise lib.CompileTimeException()
 
         if node.body is not None:  # implementing
             self.generate_labels(node.body)  # preprocess the labels to make sure future-pointing goto's work
@@ -1213,18 +1228,6 @@ class Compiler:
                 bo.unpack_addr(arr_addr, r, total_len)
 
         return ptr
-        # else:
-        #     # ptr = self.memory.allocate(PTR_LEN)
-        #     # bo.push_stack(PTR_LEN)
-        #     partial_tal = en.Type(tal.type_name, *tal.array_lengths[1:])
-        #     this_arr_len = tal.array_lengths[0]
-        #     ptr_arr_addr = self.memory.allocate(PTR_LEN * this_arr_len)
-        #     bo.push_stack(PTR_LEN * this_arr_len)
-        #     for i in range(this_arr_len):
-        #         sub_array_addr = self.create_array(partial_tal, bo, False)
-        #         bo.store_addr_to_des(ptr_arr_addr + i * PTR_LEN, sub_array_addr)
-        #     # bo.store_addr_to_des(ptr, ptr_arr_addr)
-        #     return ptr_arr_addr
 
     def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, env: en.Environment, bo: ByteOutput):
         indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
@@ -1240,9 +1243,12 @@ class Compiler:
         return result_ptr
 
     def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: ByteOutput):
-        attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
+        attr_addr, attr_tal, call = self.get_struct_attr_ptr_and_len(node, env, bo)
 
-        bo.ptr_assign(attr_addr, value_ptr, length)
+        bo.ptr_assign(attr_addr, value_ptr, attr_tal.total_len(self.memory))
+
+    def attr_assign(self, ):
+        pass
 
     def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput, assign_const=False):
         """
@@ -1253,36 +1259,23 @@ class Compiler:
         :param assign_const: must be false since struct does not support constant attributes
         :return:
         """
-        attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
+        attr_addr, attr_tal, call = self.get_struct_attr_ptr_and_len(node, env, bo)
 
-        res_ptr = self.memory.allocate(length, bo)
-        # bo.push_stack(length)
-
-        bo.unpack_addr(res_ptr, attr_addr, length)
-        # print(res_ptr, attr_addr, length)
-        return res_ptr
-
-    # def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
-    #     if isinstance(node.call_obj, ast.IndexingNode):
-    #         raise lib.CompileTimeException("High dimensional indexing not supported")
-    #     obj_tal = get_tal_of_evaluated_node(node.call_obj, env)
-    #     unit_len = obj_tal.unit_len(self.memory)
-    #     index_ptr = self.compile(node.arg.lines[0], env, bo)
-    #     unit_len_ptr = self.memory.allocate(INT_LEN)
-    #     bo.push_stack(INT_LEN)
-    #     bo.assign_i(unit_len_ptr, unit_len)
-    #     indexing_ptr = self.memory.allocate(INT_LEN)
-    #     bo.push_stack(INT_LEN)
-    #     bo.add_binary_op(MUL, indexing_ptr, index_ptr, unit_len_ptr)
-    #     array_ptr = self.compile(node.call_obj, env, bo)
-    #     bo.add_binary_op(ADD, indexing_ptr, array_ptr, indexing_ptr)
-    #
-    #     return indexing_ptr, unit_len
+        if call:
+            call_node: ast.FuncCall = node.right
+            args = call_node.args.lines
+            res_ptr = self.memory.allocate(PTR_LEN, bo)
+            bo.unpack_addr(res_ptr, attr_addr, PTR_LEN)
+            return self.compile_ptr_call(res_ptr, attr_tal, args, env, bo)
+        else:
+            length = attr_tal.total_len(self.memory)
+            res_ptr = self.memory.allocate(length, bo)
+            bo.unpack_addr(res_ptr, attr_addr, length)
+            return res_ptr
 
     def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
 
         indexing_addr, tal, length = self.indexing_ptr(node, env, bo)
-        # print(length)
 
         return indexing_addr, length
 
@@ -1325,7 +1318,7 @@ class Compiler:
 
         return indexing_addr, tal, length
 
-    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, int):
+    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, en.Type, bool):
         left_tal = get_tal_of_evaluated_node(node.left, env)
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:
@@ -1335,51 +1328,40 @@ class Compiler:
         # attr_tal = get_tal_of_evaluated_node(node, env)
         left_ptr = self.compile(node.left, env, bo)
         struct = env.get_struct(ltn)
-        attr_tal = struct.get_attr_tal(node.right.name)
+        if isinstance(node.right, ast.NameNode):
+            name = node.right.name
+            call = False
+        elif isinstance(node.right, ast.FuncCall):
+            name = node.right.call_obj.name
+            call = True
+        else:
+            raise lib.CompileTimeException()
+        attr_tal = struct.get_attr_tal(name)
 
         attr_len = attr_tal.total_len(self.memory)
-        attr_pos = struct.get_attr_pos(node.right.name)
-
-        # print(struct, attr_tal, struct_ptr)
+        attr_pos = struct.get_attr_pos(name)
 
         if node.dot_count == 1:  # self
             addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.store_addr_to_des(addr_ptr, left_ptr + attr_pos)
-            return addr_ptr, attr_len
+            return addr_ptr, attr_tal, call
         elif node.dot_count == 2:
             real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.assign(real_addr_ptr, left_ptr, attr_len)
             bo.op_i(ADD, real_addr_ptr, attr_pos)
-            return real_addr_ptr, attr_len
+            return real_addr_ptr, attr_tal, call
         elif node.dot_count == 3:
             real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.unpack_addr(real_addr_ptr, left_ptr, attr_len)
             bo.op_i(ADD, real_addr_ptr, attr_pos)
-            return real_addr_ptr, attr_len
+            return real_addr_ptr, attr_tal, call
         else:
             raise lib.CompileTimeException("Pointer too deep.")
 
-    def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
-        assert isinstance(node.call_obj, ast.NameNode)
-
-        lf = node.line_num, node.file
-
-        # ftn = env.get_function(node.call_obj.name, lf)
-        ftn = env.get(node.call_obj.name, lf, False)
-        ftn_tal: en.FuncType = env.get_type_arr_len(node.call_obj.name, lf)
-
-        if not isinstance(ftn_tal, en.FuncType):
-            raise lib.CompileTimeException("Object is not callable")
-
-        if ftn_tal.func_type == "c":
-            ftn_tal: CompileTimeFunctionType
-            return self.call_compile_time_functions(ftn, ftn_tal, node.args, env, bo)
-
-        # if isinstance(ftn, CompileTimeFunction):
-        #     return self.call_compile_time_functions(ftn, node.args, env, bo)
-
+    def compile_ptr_call(self, ftn: int, ftn_tal: en.FuncType, arg_nodes: list, env: en.Environment,
+                         bo: ByteOutput) -> int:
         args = []  # args tuple
-        for arg_node in node.args.lines:
+        for arg_node in arg_nodes:
             tal = get_tal_of_evaluated_node(arg_node, env)
             total_len = tal.total_len(self.memory)
 
@@ -1398,6 +1380,24 @@ class Compiler:
         else:
             raise lib.CompileTimeException("Unexpected function type")
 
+    def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
+        assert isinstance(node.call_obj, ast.NameNode)
+
+        lf = node.line_num, node.file
+
+        # ftn = env.get_function(node.call_obj.name, lf)
+        ftn = env.get(node.call_obj.name, lf, False)
+        ftn_tal: en.FuncType = env.get_type_arr_len(node.call_obj.name, lf)
+
+        if not isinstance(ftn_tal, en.FuncType):
+            raise lib.CompileTimeException("Object is not callable")
+
+        if ftn_tal.func_type == "c":
+            ftn_tal: CompileTimeFunctionType
+            return self.call_compile_time_functions(ftn, ftn_tal, node.args, env, bo)
+
+        return self.compile_ptr_call(ftn, ftn_tal, node.args.lines, env, bo)
+
     def call_main(self, func_ptr: int, args: list, bo: ByteOutput):
         # self.memory.push_stack()
         r_ptr = 1
@@ -1411,9 +1411,7 @@ class Compiler:
                                            .format(len(func_tal.param_types), len(args)))
 
         r_len = func_tal.rtype.total_len(self.memory)
-
         r_ptr = self.memory.allocate(r_len, bo)
-        # bo.push_stack(r_len)
 
         bo.call(False, func_ptr, r_ptr, args)
 
@@ -1557,7 +1555,6 @@ class Compiler:
                 return lp
         elif op in EXTENDED_INT_RESULT_TABLE_FLOAT:
             res_pos = self.memory.allocate(INT_LEN, bo)
-            # bo.push_stack(INT_LEN)
 
             if op in INT_RESULT_TABLE_FLOAT:
                 op_code = INT_RESULT_TABLE_FLOAT[op]
@@ -1581,7 +1578,6 @@ class Compiler:
         if op in INT_RESULT_TABLE_INT_FULL:
             if op in INT_RESULT_TABLE_INT:
                 res_pos = self.memory.allocate(INT_LEN, bo)
-                # bo.push_stack(INT_LEN)
 
                 op_code = INT_RESULT_TABLE_INT[op]
                 bo.add_binary_op(op_code, res_pos, lp, rp)
@@ -1613,10 +1609,11 @@ class Compiler:
                                            .format(op))
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
-        r = self.compile(node.value, env, bo)
-        tal = get_tal_of_evaluated_node(node.value, env)
-        bo.add_return(r, tal.total_len(self.memory))
-        return r
+        if node.value is not None:
+            r = self.compile(node.value, env, bo)
+            tal = get_tal_of_evaluated_node(node.value, env)
+            bo.add_return(r, tal.total_len(self.memory))
+            return r
 
     def compile_if(self, node: ast.IfStmt, env: en.Environment, bo: ByteOutput):
         # print(node.condition.lines[0])
@@ -1643,17 +1640,12 @@ class Compiler:
         step_label = self.memory.generate_label()
         end_label = self.memory.generate_label()
 
-        # self.memory.store_sp()
-        # bo.write_one(STORE_SP)  # before loop
-
         title_env = en.LoopEnvironment(env, step_label, end_label)
         body_env = en.BlockEnvironment(title_env)
 
         self.compile(node.condition.lines[0], title_env, bo)  # start
         bo.add_label(body_label)
 
-        # self.memory.store_sp()
-        # bo.write_one(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
 
         bo.if_zero_goto_l(end_label, cond_ptr)
@@ -1661,15 +1653,9 @@ class Compiler:
         self.compile(node.body, body_env, bo)
         bo.add_label(step_label)
         self.compile(node.condition.lines[2], title_env, bo)  # step
-        # bo.write_one(RES_SP)
 
         bo.goto_l(body_label)
         bo.add_label(end_label)
-
-        # bo.write_one(RES_SP)
-        # self.memory.restore_sp()
-        # bo.write_one(RES_SP)
-        # self.memory.restore_sp()
 
     def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: ByteOutput):
         if len(node.condition.lines) != 1:
@@ -1679,12 +1665,7 @@ class Compiler:
         step_label = self.memory.generate_label()
         end_label = self.memory.generate_label()
 
-        # self.memory.store_sp()  # 进loop之前
-        # bo.write_one(STORE_SP)
-
         bo.add_label(body_label)
-        # self.memory.store_sp()  # 循环开始
-        # bo.write_one(STORE_SP)
 
         title_env = en.LoopEnvironment(env, step_label, end_label)
         body_env = en.BlockEnvironment(title_env)
@@ -1693,18 +1674,10 @@ class Compiler:
         bo.if_zero_goto_l(end_label, cond_ptr)
 
         self.compile(node.body, body_env, bo)
-        # self.memory.restore_sp()
         bo.add_label(step_label)
-        # bo.write_one(RES_SP)
 
         bo.goto_l(body_label)
         bo.add_label(end_label)
-
-        # self.memory.restore_sp()
-        # bo.write_one(RES_SP)
-        #
-        # self.memory.restore_sp()
-        # bo.write_one(RES_SP)
 
     def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
         tal = get_tal_of_evaluated_node(node, env)
@@ -1867,6 +1840,36 @@ class Compiler:
         else:
             raise lib.CompileTimeException("Function 'exit' takes 0 to 1 arguments, {} given."
                                            .format(arg_len))
+
+    def function_new(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+        lf = (0, "compiler")
+        if len(args) != 1:
+            raise lib.CompileTimeException("Function 'new' takes exactly 1 argument.")
+        arg = args[0]
+        struct = self.compile(arg, env, bo)
+        if not isinstance(struct, Struct):
+            raise lib.CompileTimeException("Argument of 'new' must be struct name.")
+
+        size_ptr = self.memory.allocate(INT_LEN, bo)
+        size_ptr = self.function_sizeof(size_ptr, env, bo, args)
+
+        malloc = env.get("malloc", lf, False)
+        malloc_tal = env.get_type_arr_len("malloc", lf)
+        malloc_rtn = self.native_function_call(malloc, malloc_tal, [(size_ptr, INT_LEN)], env, bo)
+
+        for method_name in struct.method_pointers:
+            method_ptr, actual_tal = struct.method_pointers[method_name]
+            loc_in_struct = struct.get_attr_pos(method_name)
+            declared_tal = struct.get_attr_tal(method_name)
+            if actual_tal != declared_tal:
+                raise lib.CompileTimeException("Method type does not match declared type")
+
+            real_attr_addr = self.memory.allocate(INT_LEN, bo)
+            bo.assign(real_attr_addr, malloc_rtn, PTR_LEN)
+            bo.op_i(ADD, real_attr_addr, loc_in_struct)
+            bo.ptr_assign(real_attr_addr, method_ptr, PTR_LEN)
+
+        return malloc_rtn
 
     def generate_labels(self, node: ast.Node):
         if isinstance(node, ast.LabelStmt):

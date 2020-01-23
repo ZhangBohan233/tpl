@@ -1,0 +1,8 @@
+fn test() void {
+    return;
+}
+
+fn main() int {
+    test();
+    return 66;
+}

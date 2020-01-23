@@ -8,7 +8,7 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "=": 1, "+=": 3, "-=": 3, "*=": 3, "/=": 3, "%=": 3,
               "&=": 3, "^=": 3, "|=": 3, "<<=": 3, ">>=": 3, ">>>=": 3,
               "===": 20, "!==": 20, "instanceof": 25, "subclassof": 25, "assert": 0,
-              "?": 4, "++": 300, "--": 300, ":": 3, "->": 4, "<-": 2, ":=": 1}
+              "?": 4, "++": 300, "--": 300, ":": 3, "->": 4, "<-": 2, ":=": 1, "::": 500}
 
 MULTIPLIER = 1000
 
@@ -470,10 +470,7 @@ class ForLoopStmt(CondStmt):
 class DefStmt(TitleNode):
     params: BlockStmt = None
     body = None
-    name: str
-    # abstract: bool = False
-    # annotations: list
-    # doc: str
+    title: Node
     r_type: Node
 
     def __init__(self, line, name):
@@ -481,13 +478,10 @@ class DefStmt(TitleNode):
 
         self.node_type = DEF_STMT
         self.params = None
-        self.name = name
-        # self.abstract = abstract
-        # self.doc = func_doc
-        # self.annotations = []
+        self.title = name
 
     def __str__(self):
-        return "fn {}(({}) -> {} {})".format(self.name, self.params, self.r_type, self.body)
+        return "fn {}(({}) -> {} {})".format(self.title, self.params, self.r_type, self.body)
 
     def __repr__(self):
         return "function"
@@ -992,11 +986,13 @@ class AbstractSyntaxTree:
     #     else:
     #         pass
 
-    def add_function(self, line, name: str):
-        if self.inner:
-            self.inner.add_function(line, name)
+    def add_function(self, line):
+        if self.inner.inner:
+            self.inner.add_function(line)
         else:
-            func = DefStmt(line, name)
+            f_title = self.inner.get_as_block().lines[0]
+            self.invalidate_inner()
+            func = DefStmt(line, f_title)
             self.stack.append(func)
             self.inner = AbstractSyntaxTree()
 

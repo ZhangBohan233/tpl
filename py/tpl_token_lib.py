@@ -6,13 +6,13 @@ SYMBOLS = {"{", "}", ".", ",", "~"}
 MIDDLE = {"(", ")", "[", "]"}
 TERNARY_OPERATORS = {"?": True, ":": False}  # the bool value indicate whether this operator can begin a ternary
 # operator
-BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mod",
+BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod",
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
-                    "<<": "lshift", ">>": "rshift_a", ">>>": "rshift_l", "===": "", "!==": "", "instanceof": "",
-                    "subclassof": "", ":": "", "->": "lambda", "<-": "extendedby", ":=": "quickass"}
+                    "<<": "lshift", ">>": "rshift_a", ">>>": "rshift_l", "===": "", "!==": "",
+                    ":": "", "->": "lambda", ":=": "quickass", "::": "attr"}
 UNARY_OPERATORS = {"!": "not"}
-OTHERS = {"=", "@", ":", ":="}
+OTHERS = {"=", ":", ":="}
 ALL = [SYMBOLS, UNARY_OPERATORS, BINARY_OPERATORS, TERNARY_OPERATORS, OTHERS, MIDDLE]
 # ALL = set().union(SYMBOLS) \
 #     .union(BINARY_OPERATORS) \

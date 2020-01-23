@@ -1,0 +1,17 @@
+struct Test {
+    var x: int;
+    var set: fn(*Test, int)->int;
+}
+
+fn Test::set(this: *Test, x: int) int {
+    this..x = x;
+    printf("Set to %d\n", this..x);
+    return 0;
+}
+
+fn main() int {
+    var g: *Test = new(Test);
+    g..set(g, 17);
+    printf("%d\n", g..x);
+    return g..x;
+}

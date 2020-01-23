@@ -37,6 +37,7 @@ class Parser:
         is_extending = False
         is_conditional = False
         is_type_param = False
+        is_func_def = False
         var_level = ast.ASSIGN
         brace_count = 0
         struct_braces = []
@@ -119,7 +120,13 @@ class Parser:
                         if not (isinstance(next_token, stl.IdToken) and next_token.symbol in stl.NO_BUILD_LINE):
                             parser.build_line()
                     elif sym == "(":
-                        if i > 0 and is_call(self.tokens[i - 1]):
+                        if is_func_def:
+                            is_func_def = False
+                            parser.build_line()
+                            parser.add_function(line)
+                            param_nest_list.append(par_count)
+                            labels.clear()
+                        elif i > 0 and is_call(self.tokens[i - 1]):
                             parser.add_call(line)
                             call_nest_list.append(par_count)
                         else:
@@ -177,32 +184,29 @@ class Parser:
                             parser.build_line()
                         elif len(func_obj_nest_list) > 0:
                             parser.build_line()
-                    elif sym == "~":  # a special mark
-                        pass
+                        else:
+                            raise stl.ParseException()
+                    # elif sym == "~":  # a special mark
+                    #     pass
                     elif sym == "fn":
                         # func_doc = self.get_doc(i)
-                        i += 1
-                        f_token: stl.IdToken = self.tokens[i]
-                        f_name = f_token.symbol
-                        push_back = 1
-                        # if f_name == "(":
-                        #     func_count += 1
-                        #     push_back = 0
-                        # elif f_name.isidentifier():
-                        #     parser.add_name(line, f_name)
-                        #     parser.add_assignment(line, ast.FUNC_DEFINE)
-                        # else:
-                        #     raise stl.ParseException("Illegal function name '{}', in file '{}', at line {}"
-                        #                              .format(f_name, line[1], line[0]))
-                        if f_name == "(":  # func-obj type
+                        f_token: stl.IdToken = self.tokens[i + 1]
+                        f_id = f_token.symbol
+                        # push_back = 1
+                        if f_id == "(":  # func-obj type
                             func_obj_nest_list.append(par_count)
                             parser.new_block()
-                        else:  # function declaration
-                            parser.add_function(line, f_name)
-                            i += push_back
-                            param_nest_list.append(par_count)
-                            labels.clear()
-                        par_count += 1
+                            par_count += 1
+                            i += 1
+                        else:
+                            is_func_def = True
+                            parser.new_block()
+                        # else:  # function declaration
+                        #     parser.add_function(line, f_name)
+                        #     i += push_back
+                        #     param_nest_list.append(par_count)
+                        #     labels.clear()
+                        #     par_count += 1
                         # is_abstract = False
                     elif sym == "struct":
                         i += 1

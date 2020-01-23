@@ -1,3 +1,12 @@
+#### Build 1054 ####
+2020/01/23
+
+* Introduced object oriented programming
+* New syntax:
+    * Method implementation: `fn Struct::method(this: *Struct, args...)`
+* Known bugs:
+    * Existence of void function causes addr shift
+
 #### Build 1053 ####
 2020/01/22
 
