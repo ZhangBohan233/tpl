@@ -1,0 +1,19 @@
+fn gx(a: int, b: fn(int, int)->int, c: int) int {
+    return a * b(a, c) * c;
+}
+
+fn test(a: int, b: int) int {
+    return a + b;
+}
+
+fn main() int {
+    //var y: float = 5.5;
+    var x: fn(int, int)->int = test;
+
+    var z: int = gx(sizeof(int), x, 3);
+    printf("%d\n", z);
+
+    var v: *int = malloc(sizeof(int));
+
+    return z + v;
+}

@@ -4,11 +4,14 @@ import bin.spl_types as typ
 ABSTRACT_IDENTIFIER = {"fn", "class"}
 
 
+PTR_LEN = 8
+
+
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
 
-        self.literal_bytes = bytearray((0, 1))
+        self.literal_bytes = bytearray()
         self.string_lengths = {}  # ptr: length
         self.literals = {}  # lit: position
         self.bool_literals = {}
@@ -28,6 +31,7 @@ class Parser:
         cond_nest_list = []
         call_nest_list = []
         param_nest_list = []
+        func_obj_nest_list = []
         square_nest_list = []
         # is_abstract = False
         is_extending = False
@@ -37,6 +41,7 @@ class Parser:
         brace_count = 0
         struct_braces = []
         # import_braces = []
+        labels = set()
 
         while True:
             try:
@@ -62,20 +67,17 @@ class Parser:
                         parser.add_break(line)
                     elif sym == "continue":
                         parser.add_continue(line)
-                    elif sym == "true" or sym == "false":
-                        lit_node = self.make_literal_node(line, True if sym == "true" else False, False)
-                        parser.add_bool(line, lit_node)
-                    elif sym == "null":
-                        parser.add_null(line)
+                    # elif sym == "true" or sym == "false":
+                    #     lit_node = self.make_literal_node(line, 1 if sym == "true" else 0, False)
+                    #     parser.add_number(line, lit_node)
+                    # elif sym == "null":
+                    #     parser.add_null(line)
                     elif sym == "const":
                         var_level = ast.CONST
                     elif sym == "var":
                         var_level = ast.VAR
-                    # elif sym == "@":
-                    #     i += 1
-                    #     next_token: stl.IdToken = self.tokens[i]
-                    #     # titles.append(next_token.symbol)
-                    #     parser.add_annotation(line, next_token.symbol)
+                    elif sym == "register":
+                        var_level = ast.REGISTER
                     elif sym == "{":
                         brace_count += 1
                         if is_conditional:
@@ -101,7 +103,7 @@ class Parser:
                                      is_identifier_before_block(last_token.symbol)):  # is a class or a dotted import
                                 parser.new_block()
                             else:
-                                parser.add_dict()
+                                parser.add_dict(line)
                     elif sym == "}":
                         brace_count -= 1
                         parser.build_block()
@@ -125,7 +127,7 @@ class Parser:
                         par_count += 1
                     elif sym == ")":
                         par_count -= 1
-                        next_sig_token = self.find_next_significant_token(i)
+                        # next_sig_token = self.find_next_significant_token(i)
                         if is_this_list(call_nest_list, par_count):
                             parser.build_line()
                             parser.build_call()
@@ -136,8 +138,11 @@ class Parser:
                             parser.begin_type_param(line)
                             is_type_param = True
                             # i += 1  # omit the next ':' symbol
-                        elif next_sig_token.is_identifier() and next_sig_token.symbol == "->":
-                            parser.build_lambda_parameters()
+                        # elif next_sig_token.is_identifier() and next_sig_token.symbol == "->":
+                        #     parser.build_lambda_parameters()
+                        elif is_this_list(func_obj_nest_list, par_count):
+                            # parser.build_expr()
+                            parser.build_func_obj(line)
                         else:
                             parser.build_parenthesis()
                     elif sym == "[":
@@ -170,6 +175,8 @@ class Parser:
                     elif sym == ",":
                         if var_level == ast.ASSIGN:  # the normal level
                             parser.build_line()
+                        elif len(func_obj_nest_list) > 0:
+                            parser.build_line()
                     elif sym == "~":  # a special mark
                         pass
                     elif sym == "fn":
@@ -187,9 +194,14 @@ class Parser:
                         # else:
                         #     raise stl.ParseException("Illegal function name '{}', in file '{}', at line {}"
                         #                              .format(f_name, line[1], line[0]))
-                        parser.add_function(line, f_name)
-                        i += push_back
-                        param_nest_list.append(par_count)
+                        if f_name == "(":  # func-obj type
+                            func_obj_nest_list.append(par_count)
+                            parser.new_block()
+                        else:  # function declaration
+                            parser.add_function(line, f_name)
+                            i += push_back
+                            param_nest_list.append(par_count)
+                            labels.clear()
                         par_count += 1
                         # is_abstract = False
                     elif sym == "struct":
@@ -197,8 +209,23 @@ class Parser:
                         name_token: stl.IdToken = self.tokens[i]
                         parser.add_struct(line, name_token.symbol)
                         struct_braces.append(brace_count)
-                    elif sym == "assert":
-                        parser.add_unary(line, "assert")
+                    # elif sym == "assert":
+                    #     parser.add_unary(line, "assert")
+                    elif sym == "label":
+                        i += 1
+                        label = self.tokens[i]
+                        if not isinstance(label, stl.IdToken):
+                            raise stl.ParseException("Label must be identifier")
+                        if label.symbol in labels:
+                            raise stl.ParseException("Duplicate label '{}'".format(label.symbol))
+                        labels.add(label.symbol)
+                        parser.add_label(line, label.symbol)
+                    elif sym == "goto":
+                        i += 1
+                        label = self.tokens[i]
+                        if not isinstance(label, stl.IdToken):
+                            raise stl.ParseException("Label must be identifier")
+                        parser.add_goto(line, label.symbol)
                     elif sym == "++" or sym == "--":
                         parser.add_increment_decrement(line, sym)
                     elif sym == ":=":
@@ -230,14 +257,6 @@ class Parser:
                         parser.add_operator(line, sym, True)
                     elif stl.is_dots(sym):
                         parser.add_dot(line, len(sym))
-                    # elif sym == "import":
-                    #     i += 2
-                    #     name_token: stl.IdToken = self.tokens[i - 1]
-                    #     path_token: stl.IdToken = self.tokens[i]
-                    #     # print(name_token)
-                    #     import_name = name_token.symbol
-                    #     parser.add_import(line, import_name, path_token.symbol)
-                    #     import_braces.append(brace_count)
                     elif token.is_eol():
                         if is_type_param:  # defining function header
                             parser.build_type_param()
@@ -322,10 +341,10 @@ class Parser:
         :param make_string: True if make string, False if make char
         """
         # print(lit, type(lit))
-        if isinstance(lit, bool):  # in python, bool is int but int is not bool
-            b = typ.boolean_to_bytes(lit)
-            lit_type = 2
-        elif isinstance(lit, int):
+        # if isinstance(lit, bool):  # in python, bool is int but int is not bool
+        #     b = typ.boolean_to_bytes(lit)
+        #     lit_type = 2
+        if isinstance(lit, int):
             b = typ.int_to_bytes(lit)
             lit_type = 0
         elif isinstance(lit, float):
@@ -335,6 +354,8 @@ class Parser:
             b = typ.string_to_bytes(lit)
             if make_string:
                 lit_type = 3
+                ptr = len(self.literal_bytes) + PTR_LEN
+                b = typ.int_to_bytes(ptr) + b  # string pointer
                 b += bytes(1)  # add the string terminator
             else:
                 if len(b) != 1:
@@ -343,12 +364,7 @@ class Parser:
         else:
             raise stl.ParseException("Unexpected literal type")
 
-        if lit_type == 2:  # special case for boolean, since in python, bool and int has the same hash
-            if lit:
-                return ast.Literal(lf, 1, 2)
-            else:
-                return ast.Literal(lf, 0, 2)
-        elif lit in self.literals:
+        if lit in self.literals:
             pos = self.literals[lit]
             node = ast.Literal(lf, pos, lit_type)
             return node
@@ -358,8 +374,23 @@ class Parser:
             self.literal_bytes.extend(b)
             node = ast.Literal(lf, ptr, lit_type)
             if lit_type == 3:
-                self.string_lengths[ptr] = len(b)
+                self.string_lengths[ptr] = len(b) - PTR_LEN
             return node
+
+
+def generate_int(v: str):
+    if len(v) < 3 or v[1].isdigit():
+        return int(v)
+    elif v[1] == 'b':
+        return int(v[2:], 2)
+    elif v[1] == 'o':
+        return int(v[2:], 8)
+    elif v[1] == 'd':
+        return int(v[2:], 10)
+    elif v[1] == 'x':
+        return int(v[2:], 16)
+    else:
+        raise TypeError
 
 
 def get_number(line, v: str):
@@ -367,7 +398,7 @@ def get_number(line, v: str):
         if "." in v:
             return float(v)
         else:
-            return int(v)
+            return generate_int(v)
     except TypeError:
         raise stl.ParseException("Unexpected syntax: '{}', at line {}".format(v, line))
 

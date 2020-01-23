@@ -9,8 +9,8 @@ TERNARY_OPERATORS = {"?": True, ":": False}  # the bool value indicate whether t
 BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mod",
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
-                    "<<": "lshift", ">>": "rshift", "===": "", "!==": "", "instanceof": "",
-                    "subclassof": "", ":": "", "->": "lambda", "<-": "extendedby"}
+                    "<<": "lshift", ">>": "rshift_a", ">>>": "rshift_l", "===": "", "!==": "", "instanceof": "",
+                    "subclassof": "", ":": "", "->": "lambda", "<-": "extendedby", ":=": "quickass"}
 UNARY_OPERATORS = {"!": "not"}
 OTHERS = {"=", "@", ":", ":="}
 ALL = [SYMBOLS, UNARY_OPERATORS, BINARY_OPERATORS, TERNARY_OPERATORS, OTHERS, MIDDLE]
@@ -24,7 +24,7 @@ ALL = [SYMBOLS, UNARY_OPERATORS, BINARY_OPERATORS, TERNARY_OPERATORS, OTHERS, MI
 #             "true", "false", "null", "operator", "while", "for", "import", "namespace", "throw", "try", "catch",
 #             "finally", "abstract", "const", "var", "assert", "as", "struct"}
 RESERVED = {"fn", "if", "else", "return", "break", "continue", "true", "false", "null", "while", "for",
-            "const", "var", "assert", "struct", "include"}
+            "const", "var", "assert", "struct", "include", "register", "goto", "label"}
 RESERVED_FOR_BRACE = {"return"}
 LAZY = {"&&", "||"}
 OMITS = {"\n", "\r", "\t", " "}

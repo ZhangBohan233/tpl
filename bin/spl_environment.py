@@ -1,5 +1,3 @@
-import bin.spl_memory as mem
-
 
 class EnvironmentException(Exception):
     def __init__(self, msg=""):
@@ -39,11 +37,19 @@ class Type:
         return mm.get_type_size(self.type_name)
 
 
-def type_total_len(t: Type) -> int:
-    arr_len = 1
-    for x in t.array_lengths:
-        arr_len *= x
-    return mem.MEMORY.get_type_size(t.type_name) * arr_len
+class FuncType(Type):
+    def __init__(self, param_types: list, rtype: Type, func_type="f"):
+        Type.__init__(self, "*")
+
+        self.param_types = param_types
+        self.rtype = rtype
+        self.func_type = func_type  # 'f' for function, 'n' for native function, 'c' for compile time function
+
+    def __str__(self):
+        return "fn(" + str(self.param_types) + ") -> " + str(self.rtype)
+
+    def total_len(self, mm):
+        return mm.get_type_size("*")
 
 
 def type_to_readable(t: Type) -> str:
@@ -73,11 +79,11 @@ class Environment:
         # self.var_count = 0
 
         self.variables: dict[str: int] = {}
-        self.constants = {}
+        self.constants: dict[str: int] = {}
         self.var_types: dict[str: Type] = {}  # name: (type name, arr len)
 
-    def invalidate(self):
-        raise EnvironmentException("Cannot invalidate a main environment")
+    def add_register(self, reg_id_neg):
+        raise EnvironmentException("Cannot assign register outside of function")
 
     def is_global(self):
         return False
@@ -106,44 +112,24 @@ class Environment:
             raise VariableException("Name '{}' already defined in this scope".format(name))
 
         # self.constants[name] = Variable(type_name, mem.MEMORY.type_sizes[type_name], ptr, array_length)
-        self.variables[name] = ptr
+        self.constants[name] = ptr
         self.var_types[name] = type_
 
-    def assign(self, name: str, ptr: int, lf):
-        if name in self.variables:
-            self.variables[name] = ptr
-        elif not self.is_global():
-            self.outer.assign(name, ptr, lf)
-        else:
-            raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
-                                    .format(name, lf[1], lf[0]))
-
-    def define_function(self, name: str, func):
-        raise EnvironmentException("Function must be declared in global scope")
-        # self.functions[name] = func
-
-    def contains_function(self, name: str):
-        return self.outer.contains_function(name)
-
-    def get_function(self, name: str, lf):
-        return self.outer.get_function(name, lf)
-
-    def get(self, name: str, lf):
+    def get(self, name: str, lf, assign_const: bool):
         if name in self.constants:
-            return self.constants[name]
+            if assign_const:
+                raise EnvironmentException("Cannot assign constant '{}', in file '{}', at line {}"
+                                           .format(name, lf[1], lf[0]))
+            else:
+                return self.constants[name]
         if name in self.variables:
             return self.variables[name]
-        return self.outer.get(name, lf)
-        # raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
-        #                         .format(name, lf[1], lf[0]))
+        return self.outer.get(name, lf, assign_const)
 
     def get_type_arr_len(self, name: str, lf) -> (str, int):
         if name in self.var_types:
             return self.var_types[name]
-        if not self.is_global():
-            return self.outer.get_type_arr_len(name, lf)
-        raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
-                                .format(name, lf[1], lf[0]))
+        return self.outer.get_type_arr_len(name, lf)
 
     def contains_ptr(self, name: str):
         if name in self.var_types:
@@ -152,26 +138,11 @@ class Environment:
             return self.outer.contains_ptr(name)
         return False
 
-    def terminate(self, ptr):
-        raise EnvironmentException("Return outside function")
+    def get_step_label(self):
+        raise EnvironmentException("Continue outside loop")
 
-    def is_terminated(self):
-        return False
-
-    def returned_ptr(self):
-        raise EnvironmentException("Return outside function")
-
-    def break_loop(self):
+    def get_end_label(self):
         raise EnvironmentException("Break outside loop")
-
-    def pause_loop(self):
-        raise EnvironmentException("Continue outside loop")
-
-    def resume_loop(self):
-        raise EnvironmentException("Continue outside loop")
-
-    def is_stopped(self):
-        return False
 
 
 class MainAbstractEnvironment(Environment):
@@ -183,28 +154,8 @@ class SubAbstractEnvironment(Environment):
     def __init__(self, outer):
         Environment.__init__(self, outer)
 
-    def terminate(self, ptr):
-        self.outer.terminate(ptr)
-
-    def is_terminated(self):
-        return self.outer.is_terminated()
-
-    def returned_ptr(self):
-        return self.outer.returned_ptr()
-
-    def break_loop(self):
-        self.outer.break_loop()
-
-    def pause_loop(self):
-        self.outer.pause_loop()
-
-    def is_stopped(self):
-        return self.outer.is_stopped()
-
-    def invalidate(self):
-        self.variables = {}
-        self.constants = {}
-        self.var_types = {}
+    def add_register(self, reg_id_neg):
+        self.outer.add_register(reg_id_neg)
 
 
 class GlobalEnvironment(MainAbstractEnvironment):
@@ -212,19 +163,25 @@ class GlobalEnvironment(MainAbstractEnvironment):
         MainAbstractEnvironment.__init__(self, None)
 
         self.structs = {}
-        self.functions: dict = {}
 
-    def define_function(self, name: str, func):
-        self.functions[name] = func
+    def get_type_arr_len(self, name: str, lf) -> (str, int):
+        if name in self.var_types:
+            return self.var_types[name]
+        raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
+                                .format(name, lf[1], lf[0]))
 
-    def contains_function(self, name: str):
-        return name in self.functions
-
-    def get_function(self, name: str, lf):
-        if name in self.functions:
-            return self.functions[name]
-        else:
-            raise EnvironmentException("Function '{}' not defined".format(name))
+    # def define_function(self, name: str, func):
+    #     self.variables[name] = func
+    #     self.var_types[name] = func.tal
+    #
+    # def contains_function(self, name: str):
+    #     return name in self.functions
+    #
+    # def get_function(self, name: str, lf):
+    #     if name in self.functions:
+    #         return self.functions[name]
+    #     else:
+    #         raise EnvironmentException("Function '{}' not defined".format(name))
 
     def is_global(self):
         return True
@@ -239,9 +196,13 @@ class GlobalEnvironment(MainAbstractEnvironment):
     def is_struct(self, name: str):
         return name in self.structs
 
-    def get(self, name: str, lf):
+    def get(self, name: str, lf, assign_const: bool):
         if name in self.constants:
-            return self.constants[name]
+            if assign_const:
+                raise EnvironmentException("Cannot assign constant '{}', in file '{}', at line {}"
+                                           .format(name, lf[1], lf[0]))
+            else:
+                return self.constants[name]
         if name in self.variables:
             return self.variables[name]
         if name in self.structs:
@@ -254,40 +215,32 @@ class FunctionEnvironment(MainAbstractEnvironment):
     def __init__(self, outer):
         MainAbstractEnvironment.__init__(self, outer)
 
-        self.terminated = False
-        self.return_ptr = 0
+        self.registers = []
 
-    def terminate(self, ptr):
-        self.terminated = True
-        self.return_ptr = ptr
-
-    def is_terminated(self):
-        return self.terminated
-
-    def returned_ptr(self):
-        return self.return_ptr
+    def add_register(self, reg_id_neg):
+        self.registers.append(reg_id_neg)
 
 
 class LoopEnvironment(SubAbstractEnvironment):
-    def __init__(self, outer):
+    def __init__(self, outer, step_label, end_label):
         SubAbstractEnvironment.__init__(self, outer)
 
-        self.broken = False
-        self.paused = False
+        self.step_label = step_label
+        self.end_label = end_label
 
-    def break_loop(self):
-        self.broken = True
+    def get_step_label(self):
+        return self.step_label
 
-    def pause_loop(self):
-        self.paused = True
-
-    def resume_loop(self):
-        self.paused = False
-
-    def is_stopped(self):
-        return self.broken or self.paused
+    def get_end_label(self):
+        return self.end_label
 
 
 class BlockEnvironment(SubAbstractEnvironment):
     def __init__(self, outer):
         SubAbstractEnvironment.__init__(self, outer)
+
+    def get_step_label(self):
+        return self.outer.get_step_label()
+
+    def get_end_label(self):
+        return self.outer.get_end_label()

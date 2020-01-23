@@ -1,3 +1,41 @@
+#### Build 1051 ####
+=== C vm ===
+
+Under Windows cmd:  -o0
+30 fib: 350 ms
+1m for loop with register ++i: 50 ms
+
+
+#### Build 1039 ####
+=== C vm ===
+
+Under Windows cmd:  -o2
+30 fib: 470 ms
+1m for loop with register ++i: 75 ms
+
+
+#### Build 1037 ####
+=== C vm ===
+
+Under Windows cmd:
+30 fib: 500 ms
+1m for loop with register ++i: 110 ms
+
+
+#### Build 1028 ####
+=== C vm ===
+
+Under Windows cmd:
+30 fib: 500 ms
+1m for loop with register ++i: 105 ms
+
+#### Build 1026 ####
+=== C vm ===
+
+Under Windows cmd:
+30 fib: 530 ms
+1m for loop with ++i: 110 ms
+
 #### Build 1021 ####
 === C vm ===
 

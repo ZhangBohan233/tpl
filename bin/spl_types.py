@@ -1,4 +1,5 @@
 import struct
+import sys
 import bin.spl_memory as mem
 
 
@@ -20,6 +21,14 @@ def int_to_bytes(i: int) -> bytes:
 
 def bytes_to_int(b: bytes) -> int:
     return mem.bytes_to_int(b)
+
+
+# def uint7_to_bytes(i: int) -> bytes:
+#     return i.to_bytes(7, sys.byteorder, signed=False)
+#
+#
+# def bytes_to_uint7(b: bytes) -> int:
+#     return int.from_bytes(b, sys.byteorder, signed=False)
 
 
 def float_to_bytes(f: float) -> bytes:

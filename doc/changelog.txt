@@ -1,3 +1,284 @@
+===== TPL 1.0 Alpha 1 =====
+#### Build 1052 ####
+2020/01/22
+
+* Changed the VM main loop to an infinite loop, use instruction "EXIT" to quit
+* Separated instructions of calling and returning
+* Added compile time function "exit"
+
+#### Build 1051 ####
+2020/01/22
+
+* Bug fixes:
+    * Recursion and calling virtual function causes error
+* Call mechanism change:
+    * Separate push stack and store fp into instruction level
+    * Moved instructions above from call to function body
+
+#### Build 1050 ####
+2020/01/21
+
+* Redesigned call stack:
+    * Preset sp and fp when pushing stack
+    * Cancelled instruction 'push', 'store_sp', 'restore_sp'
+* Bug fixes:
+    * Labeling in multiple functions causes function pointers shift
+    * Goto, label
+
+#### Build 1049 ####
+2020/01/20
+
+* New syntax:
+    * goto, label
+    * Still bug
+* Not implemented:
+    * Frame pointer
+* Currently unavailable:
+    * TPA Optimizer
+
+#### Build 1048 ####
+2020/01/20
+
+* Redesigned the mechanism of conditional statements:
+    * Uses label to direct goto and if_zero_goto
+    * Compile labels in tpa compiler
+    * Changed the executable to '*.tpe'. Compile assembly is now '*.tpc'.
+* Bug fixes:
+    * Fixed that quick assignment ':=' causes error when the right hand side is an operator. Example: `x := -1;`
+* Currently unavailable:
+    * TPA Optimizer
+
+
+#### Build 1047 ####
+2020/01/19
+
+* Bug fixes:
+    * Array creation without preset array caused compile error
+    * Arguments of main function caused compile error
+
+
+#### Build 1046 ####
+2020/01/19
+
+* More compile time type check
+* Compile time functions are now available
+* Print line terminator at the end of some error message in vm.c
+
+#### Build 1045 ####
+2020/01/18
+
+* New syntax:
+    * 'fn(arg_types...)->rtype' as the type parameter of function pointer
+    * Functional programming is now possible
+* Changed the mechanism of storing function in compiler:
+    * Functions are now same as any pointer type
+    * FuncType object to record the function parameter and return types
+* Unimplemented:
+    * Compile time functions
+
+#### Build 1044 ####
+2020/01/13
+
+* Added length check of preset array
+* Error trace for standalone block
+
+#### Build 1043 ####
+2020/01/13
+
+* New syntax:
+    * Fast array creation: var x: int[] = {...}
+* Bug fixes:
+    * Operator substitution causes error when right operand is 0
+
+#### Build 1042 ####
+2020/01/13
+
+* Rebuilt tpa optimizer:
+    * Uses instruction set
+* Function pointers are now stored in one line in TPA
+
+#### Build 1041 ####
+2020/01/10
+
+* New syntax:
+    * Parenthesis inside for loop title to support multiple conditions
+* Added support of access to pointer to pointer to structs
+* New library:
+    * util.tp
+* Bug fixes:
+    * Dot causes error
+
+#### Build 1040 ####
+2020/01/10
+
+* New compile time optimizations:
+    * Stores loop indicator and loop condition in -o3
+    * Do not compile push 0
+* Bug fixes:
+    * Fixed that 'continue' causes error under -o2
+* Known bug:
+    * Loop step in i++ causes bug if loop contains 'break' or 'continue'
+
+
+#### Build 1039 ####
+2020/01/09
+
+* New compile time optimizations:
+    * Available in -o2 level:
+        * Removes loop indicator if no 'break' in loop
+        * Substitute integer multiplication, division, modulo by a 2-power literal with bitwise operators
+
+#### Build 1038 ####
+2020/01/09
+
+* New syntax:
+    * Binary, octal, decimal, hexadecimal integer literals
+* Bug fixes:
+    * Fixed that binary operators with assignment '>>=', '>>>=', '<<=', '&=', '|=', '^=' did not work
+
+#### Build 1037 ####
+2020/01/09
+
+* Bug fixes:
+    * Fixed that the right side of integer binary operation was evaluated twice
+
+#### Build 1036 ####
+2020/01/08
+
+* Tpa and VM optimization:
+    * New instruction LOAD_A to substitute the combination of true_ptr and LOAD_I
+    * Deleted instruction PTR_ASSIGN
+
+
+#### Build 1035 ####
+2020/01/08
+
+*New native function "stringf": format a string
+
+
+#### Build 1034 ####
+2020/01/08
+
+* Moved arguments of main to global segment
+* Lexer will now automatically include "lang.tp" if not specified
+* Duplicated include will not be included
+
+
+#### Build 1033 ####
+2020/01/07
+
+* Global variable is now supported
+* Implemented constant declaration
+* New binary operators for int:
+    * Bitwise operators '>>', '>>>', '<<', '&', '|', '^'
+* Changed the memory structure:
+    * Added the global variable segment
+    * Current memory structure:
+        * Stack, literal, globals, functions, codes, heap
+
+
+#### Build 1032 ####
+2020/01/07
+
+* Bug fixes:
+    * C vm does not free the argv pointer
+    * The return pointer of main(argc, argv) overwrites the argv pointer
+    * Casting to int may cause undefined behavior
+* Compile time optimization:
+    * Changed the optimization level:
+        * -o1: only syntax tree level optimization
+        * -o2: -o1 + tpa code optimization
+    * New syntax tree optimization:
+        * Constant unary operator pre-calculation
+* New library function:
+    * str_to_float in "string"
+
+
+#### Build 1031 ####
+2020/01/06
+
+* Bug fixes:
+    * Compiler mistakenly compile indexing of any array type as int array
+    * Wrong malloc size of command line args in C vm
+* New library functions:
+    * str_to_int in "string"
+
+
+#### Build 1030 ####
+2020/01/06
+
+* Access to command line arguments:
+    * fn main(argc: int, argv: **char) int {...}
+
+
+#### Build 1029 ####
+2020/01/05
+
+* High dimensional getitem and setitem
+* Changed the ast precedence of unary expr
+* Deleted some unused codes
+
+
+#### Build 1028 ####
+2020/01/04
+
+* New syntax:
+    * "register x: int" which stores variable in a register
+
+
+#### Build 1027 ####
+2020/01/04
+
+* Native function implemented:
+    * malloc, free, mem_copy
+
+
+#### Build 1026 ####
+2020/01/04
+
+* Bug fixes:
+    * Fixed that loops have incorrect goto offset, caused by the length change of LOAD instruction
+    * Fixed that duplicate string literal pointers are counted multiple times
+
+
+#### Build 1025 ####
+2020/01/03
+
+* Finished casts and floats
+* Bug fixes:
+    * Fixed that pointers comparison returns pointer
+
+
+#### Build 1024 ####
+2020/01/03
+
+* Changed the mechanism of array literal:
+    * The array stores the self pointer at first
+* Changed the function call argument passing mechanism:
+    * Reference types are passed by references
+* Finished register-wised pointers operations
+* Currently unavailable:
+    * Casts
+    * Floats
+    * Functions mem_copy, malloc, free
+
+
+#### Build 1023 ####
+2020/01/03
+
+* Changed the compilation sequence of assignment
+
+#### Build 1022 ####
+2020/01/03
+
+* Redesigned VM:
+    * Compiler now allocate registers usage
+* Currently unavailable:
+    * Pointers
+    * Casts
+    * Floats
+    * Functions mem_copy, malloc, free
+
 #### Build 1021 ####
 2020/01/02
 

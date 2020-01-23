@@ -1,3 +1,4 @@
+
 fn fib(n: int) int {
     if n < 2 {
         return n;
@@ -11,11 +12,13 @@ fn main() int {
     var f: int = fib(30);
     var t1: int = clock();
 
-    for var i: int = 0; i < 1000000; ++i {
+    printf("fib time: %d\n", t1 - t0);
+
+    for register i: int = 0; i < 1000000; ++i {
     }
 
     var t2: int = clock();
-    printf("fib time: %d\n", t1 - t0);
+
     printf("loop time: %d\n", t2 - t1);
     return f;
 }

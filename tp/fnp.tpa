@@ -1,0 +1,64 @@
+//STACK SIZE
+1024
+//LITERAL LENGTH:
+24
+//GLOBAL MEMORY LENGTH:
+0
+//FUNCTIONS LENGTH:
+387
+//MAIN TAKES ARG:
+%0
+//LITERALS:
+1 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 
+//FUNCTIONS COUNT:
+8
+//FUNCTION POINTERS:
+1120 1128 1136 1144 1152 1160 1168 1238 
+//NATIVE FUNCTIONS COUNT:
+6
+
+//FUNCTIONS: 
+
+//FUNCTION 6:
+#0 LOAD_I          %0  8
+#10 PUSH            %0
+#12 LOAD            %0  $0
+#22 LOAD            %1  $8
+#32 ADD             %0  %1
+#35 STORE           %2  %0  $16
+#46 LOAD_A          %0  $16
+#56 LOAD_I          %1  8
+#66 RETURN          %0  %1
+#69 STOP
+
+//FUNCTION 7:
+#0 LOAD_I          %0  8
+#10 PUSH            %0
+#12 LOAD_I          %0  8
+#22 PUSH            %0
+#24 LOAD_I          %2  8
+#34 PUSH            %2
+#36 LOAD_A          %2  $16
+#46 LOAD_A          %3  $1024
+#56 LOAD_I          %4  8
+#66 ASSIGN          %2  %3  %4
+#70 LOAD_I          %2  8
+#80 PUSH            %2
+#82 LOAD_A          %2  $24
+#92 LOAD_A          %3  $1032
+#102 LOAD_I          %4  8
+#112 ASSIGN          %2  %3  %4
+#116 LOAD_A          %0  $1104
+#126 LOAD_I          %1  16
+#136 CALL            %0  %1
+#139 LOAD_A          %0  $0
+#149 LOAD_A          %1  $8
+#159 LOAD_I          %2  8
+#169 ASSIGN          %0  %1  %2
+#173 LOAD_A          %0  $1040
+#183 LOAD_I          %1  8
+#193 RETURN          %0  %1
+#196 STOP
+
+
+//MAIN:

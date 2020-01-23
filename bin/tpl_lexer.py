@@ -12,6 +12,7 @@ CROSS_CONCATENATE = {
     (8, 9),  # >=
     (20, 9),  # <=
     (1, 0), (0, 12), (12, 0), (15, 9),
+    (0, 1),  # 0b, 0x, 0d, 0o
     (17, 9),  # +=
     (21, 9),  # -=
     (100, 9), (16, 9), (10, 9), (11, 9),
@@ -28,15 +29,17 @@ class Tokenizer:
     :type tokens: list of Token
     """
 
-    def __init__(self):
+    def __init__(self, outer=None):
         self.tokens = []
-        # self.import_lang = True
+        self.import_lang = False
         self.spl_path = ""
         self.script_dir = ""
         self.file_name = ""
+        self.included = set()
+        self.outer: Tokenizer = outer
         # self.link = False
 
-    def setup(self, spl_path: str, file_name: str, script_dir: str):
+    def setup(self, spl_path: str, file_name: str, script_dir: str, import_lang: bool):
         """
         Sets up the parameters of this lexer.
 
@@ -48,7 +51,7 @@ class Tokenizer:
         :param spl_path: the directory path of spl interpreter
         :param file_name: the name of the main script
         :param script_dir: the directory of the main script
-        # :param imported: the set of imported file names
+        :param import_lang: whether to import "lang.tp"
         # :param link: whether to write the result to file
         :return:
         """
@@ -57,7 +60,7 @@ class Tokenizer:
         self.script_dir = script_dir
         # self.imported = imported
         # self.link = link
-        # self.import_lang = import_lang
+        self.import_lang = import_lang
 
     def tokenize(self, source):
         """
@@ -75,6 +78,9 @@ class Tokenizer:
         # if isinstance(source, list):
         #     self.tokenize_text(source)
         # else:
+        if self.import_lang:
+            self.tokens += [stl.IdToken(LINE_FILE, "include"), stl.LiteralToken(LINE_FILE, "lang", True)]
+            self.find_include(0, 2)
         self.tokenize_file(source)
 
     def tokenize_file(self, file: _io.TextIOWrapper):
@@ -258,12 +264,15 @@ class Tokenizer:
                 break
 
     def include_file(self, file_name):
-        with open(file_name, "r") as file:
-            lexer = Tokenizer()
-            lexer.setup(self.spl_path, file_name, get_dir(file_name))
-            lexer.tokenize(file)
-            self.tokens += lexer.tokens
-            self.tokens.pop()  # remove the EOF token
+        inc_ed = self.get_included()
+        if file_name not in inc_ed:
+            with open(file_name, "r") as file:
+                lexer = Tokenizer(self)
+                lexer.setup(self.spl_path, file_name, get_dir(file_name), False)
+                lexer.tokenize(file)
+                self.tokens += lexer.tokens
+                self.tokens.pop()  # remove the EOF token
+            inc_ed.add(file_name)
 
     def get_tokens(self):
         """
@@ -273,11 +282,11 @@ class Tokenizer:
         """
         return self.tokens
 
-    def _write_to_file(self):
-        name = stl.replace_extension(self.file_name, "lsp")
-        with open(name, "wb") as wf:
-            for token in self.tokens:
-                wf.write(token.to_binary())
+    def get_included(self) -> set:
+        if self.outer is None:
+            return self.included
+        else:
+            return self.outer.get_included()
 
 
 def normalize(string):
@@ -374,18 +383,45 @@ def char_type(ch):
         return -1
 
 
-def is_integer(num_str: str) -> bool:
-    """
-
-    :param num_str:
-    :return:
-    """
+def is_pure_int(num_str: str) -> bool:
     if len(num_str) == 0:
         return False
     for ch in num_str:
         if not ch.isdigit() and ch != "_":
             return False
     return True
+
+
+def is_integer(num_str: str) -> bool:
+    """
+
+    :param num_str:
+    :return:
+    """
+    if len(num_str) > 2 and num_str[0] == '0':
+        if num_str[1] == 'b':
+            for ch in num_str[2:]:
+                if ch not in "01" and ch != '_':
+                    return False
+            return True
+        elif num_str[1] == 'o':
+            for ch in num_str[2:]:
+                if ch not in "01234567" and ch != '_':
+                    return False
+            return True
+        elif num_str[1] == 'd':
+            for ch in num_str[2:]:
+                if ch not in "0123456789" and ch != '_':
+                    return False
+            return True
+        elif num_str[1] == 'x':
+            for ch in num_str[2:]:
+                if ch not in "0123456789abcdefABCDEF" and ch != '_':
+                    return False
+            return True
+        else:
+            return False
+    return is_pure_int(num_str)
 
 
 def is_float(num_str: str) -> bool:
@@ -398,9 +434,9 @@ def is_float(num_str: str) -> bool:
         front = num_str[:index]
         back = num_str[index + 1:]
         if len(front) > 0:
-            if not is_integer(front):
+            if not is_pure_int(front):
                 return False
-        if is_integer(back):
+        if is_pure_int(back):
             return True
     return False
 

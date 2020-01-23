@@ -1,0 +1,11 @@
+fn tt() int {
+    return tt() + tt();
+}
+
+
+fn main() int {
+    tt();
+
+    return 0;
+}
+

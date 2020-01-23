@@ -1,0 +1,31 @@
+struct LinkedNode {
+    var value: *void;
+    var next: *LinkedNode;
+}
+
+struct LinkedList {
+    var size: int;
+    var head: *LinkedNode;
+}
+
+fn make_ll() *LinkedList {
+    var list: *LinkedList = malloc(sizeof(LinkedList));
+    list..size = 0;
+    return list;
+}
+
+fn append_ll(list: *LinkedList, value: *void) void {
+    var node: *LinkedNode = malloc(sizeof(LinkedNode));
+    node..value = value;
+    node..next = list..head;
+    list..head = node;
+    list..size += 1;
+}
+
+fn get_ll(list: *LinkedList, index: int) *void {
+    var node: *LinkedNode = list..head;
+    for i := 0; i < index; ++i {
+        node = node..next;
+    }
+    return node..value;
+}
