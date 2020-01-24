@@ -1,6 +1,10 @@
+===== Before release =====
+
+* Rebuild parser and ast
+
 ===== 1.0 Alpha 3 =====
 
-* scanf
+* scanf     ...done
 
 ==========
 

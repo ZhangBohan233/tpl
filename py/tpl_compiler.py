@@ -1949,6 +1949,8 @@ def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryMan
     elif node.node_type == ast.BINARY_OPERATOR:
         node: ast.BinaryOperator
         if node.operation == "->":
+            # print(node.left)
+            # print("===================")
             left: ast.BlockStmt = node.left.expr
             lst = []
             for param_t in left.lines:
@@ -2085,12 +2087,3 @@ def pointer_depth(type_name: str) -> int:
 
 def generate_lf(node: ast.Node) -> str:
     return "In file '{}', at line {}.".format(node.file, node.line_num)
-
-# def indexing_remain_depth(node: ast.IndexingNode, tal: en.Type):
-#     i = 0
-#     while len(tal.array_lengths) > 0:
-#         print(12312313131)
-#         node = node.call_obj
-#         tal.array_lengths = tal.array_lengths[1:]
-#         i += 1
-#     return i

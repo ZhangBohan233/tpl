@@ -1,0 +1,22 @@
+include "util"
+
+
+fn main() int {
+    var ll: *LinkedList = new(LinkedList);
+    ll..init();
+
+    for i := 0; i < 10; ++i {
+        ll..append(i);
+    }
+
+    ll..print();
+
+    printf("size %d\n", ll..size);
+
+    while ll..size > 0 {
+        v := ll..pop();
+        printf("%d\n", v);
+    }
+
+    return 0;
+}

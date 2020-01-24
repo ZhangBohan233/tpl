@@ -1,3 +1,9 @@
+#### Build 1058 ####
+2020/01/24
+
+* Implemented the '%s' of 'scanf'
+* Implemented library type: util.LinkedList
+
 #### Build 1057 ####
 2020/01/23
 

@@ -1372,7 +1372,8 @@ class AbstractSyntaxTree:
 
     def get_as_block(self) -> BlockStmt:
         if len(self.stack) > 0 or self.in_expr:
-            raise stl.ParseException("Line is not terminated")
+            raise stl.ParseException("Line is not terminated. Stack: {}, in expr: {}"
+                                     .format(self.stack, self.in_expr))
         return self.elements
 
     def print_stack(self):

@@ -6,26 +6,44 @@ struct LinkedNode {
 struct LinkedList {
     var size: int;
     var head: *LinkedNode;
+    var init: fn()->void;
+    var append: fn(*void)->void;
+    var get: fn(int)->*void;
+    var pop: fn()->*void;
+    var print: fn()->void;
 }
 
-fn make_ll() *LinkedList {
-    var list: *LinkedList = malloc(sizeof(LinkedList));
-    list..size = 0;
-    return list;
+fn LinkedList::init() void {
+    this..size = 0;
 }
 
-fn append_ll(list: *LinkedList, value: *void) void {
+fn LinkedList::append(value: *void) void {
     var node: *LinkedNode = malloc(sizeof(LinkedNode));
     node..value = value;
-    node..next = list..head;
-    list..head = node;
-    list..size += 1;
+    node..next = this..head;
+    this..head = node;
+    this..size = this..size + 1;
 }
 
-fn get_ll(list: *LinkedList, index: int) *void {
-    var node: *LinkedNode = list..head;
+fn LinkedList::get(index: int) *void {
+    var node: *LinkedNode = this..head;
     for i := 0; i < index; ++i {
         node = node..next;
     }
     return node..value;
+}
+
+fn LinkedList::pop() *void {
+    node := this..head;
+    this..head = node..next;
+    this..size = this..size - 1;
+    return node..value;
+}
+
+fn LinkedList::print() void {
+    printf("[");
+    for node := this..head; node != NULL; node = node..next {
+        printf("%d, ", node..value);
+    }
+    printf("]\n");
 }

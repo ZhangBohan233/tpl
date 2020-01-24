@@ -305,6 +305,21 @@ void native_scanf(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned cha
                     post++;
                 MEMORY[ptr] = scanned;
                 success_count++;
+            } else if (ch == 's') {
+                f = 0;
+                int_fast64_t ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += PTR_LEN;
+                while (*processing == ' ') {  // skip spaces
+                    processing++;
+                    post++;
+                }
+                while (*post != ' ' && *post != '\n' && *post != '\0') {
+                    post++;
+                }
+                int_fast64_t str_len = post - processing;
+                memcpy(MEMORY + ptr, processing, str_len);
+                MEMORY[ptr + str_len] = '\0';
+                success_count++;
             }
 
             if (post == processing) {  // does not scan anything in this iteration
