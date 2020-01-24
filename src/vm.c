@@ -235,6 +235,92 @@ void native_stringf(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned c
     free_string(builder);
 }
 
+void native_scanf(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned char *arg_array) {
+    if (arg_len < 8) {
+        printf("'scanf' takes at least 1 argument\n");
+        ERROR_CODE = ERR_NATIVE_INVOKE;
+        return;
+    }
+
+    int len = 0;
+    int capacity = 8;
+    int cha;
+    char *input = malloc(capacity);
+    while ((cha = fgetc(stdin)) != EOF && cha != '\n') {
+        input[len++] = (char) cha;
+        if (len == capacity) {
+            capacity *= 2;
+            input = realloc(input, capacity);
+        }
+    }
+    input[len] = '\0';
+//    printf("inputs: %s\n", input);
+
+    int_fast64_t fmt_ptr = bytes_to_int(arg_array);
+    int_fast64_t fmt_end = fmt_ptr;
+    while (MEMORY[fmt_end] != 0) fmt_end++;
+
+//    printf("%lld %lld\n", fmt_ptr, fmt_end);
+
+    int_fast64_t i = fmt_ptr;
+
+    int f = 0;
+    int_fast64_t arg_ptr = INT_LEN;
+
+    char *processing = input;
+
+    int_fast64_t success_count = 0;
+
+    for (; i < fmt_end; ++i) {
+        unsigned char ch = MEMORY[i];
+        if (ch == '%') {
+            f = 1;
+        } else if (f) {
+            char *post = processing;
+
+            if (ch == 'd') {
+                f = 0;
+                int_fast64_t ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += PTR_LEN;
+                int_fast64_t scanned = strtoll(processing, &post, 10);
+                int_to_bytes(MEMORY + ptr, scanned);
+                success_count++;
+            } else if (ch == 'f') {
+                f = 0;
+                int_fast64_t ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += PTR_LEN;
+                double scanned = strtod(processing, &post);
+                double_to_bytes(MEMORY + ptr, scanned);
+                success_count++;
+            } else if (ch == 'c') {
+                f = 0;
+                int_fast64_t ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += PTR_LEN;
+                while (*processing == ' ') {
+                    processing++;
+                    post++;
+                }
+                char scanned = *post;
+                if (scanned != '\0' && scanned != '\n')
+                    post++;
+                MEMORY[ptr] = scanned;
+                success_count++;
+            }
+
+            if (post == processing) {  // does not scan anything in this iteration
+                success_count--;
+                break;
+            } else {
+                processing = post;
+            }
+        }
+    }
+
+    int_to_bytes(MEMORY + ret_ptr, success_count);
+
+    free(input);
+}
+
 int_fast64_t find_ava(int length) {
     Int64List *pool = create_list();
     int found = 0;
@@ -361,6 +447,9 @@ void call_native(int_fast64_t func, int_fast64_t ret_ptr, int_fast64_t arg_len, 
             break;
         case 6:  // stringf
             native_stringf(arg_len, ret_ptr, args);
+            break;
+        case 7:  // scanf
+            native_scanf(arg_len, ret_ptr, args);
             break;
         default:
             printf("Unknown native function %lld\n", func);

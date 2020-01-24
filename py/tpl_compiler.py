@@ -44,8 +44,6 @@ UNPACK_ADDR = 33
 STORE_SP = 35
 RES_SP = 36
 MOVE_REG = 37  # MOVE_REG   %DST  %SRC       | copy between registers
-# TO_REL = 37  # | transform absolute addr to
-# ADD_I = 38       # | add with real value
 CAST_INT = 38  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
@@ -72,11 +70,8 @@ LABEL = 128
 GOTO_L = 129
 IF_ZERO_GOTO_L = 130
 
-LOAD_LEN = 11
-STORE_LEN = 11
-
 # Number of native functions, used for generating tpa
-NATIVE_FUNCTION_COUNT = 6
+NATIVE_FUNCTION_COUNT = 7
 
 INT_RESULT_TABLE_INT = {
     "+": ADD,
@@ -687,8 +682,8 @@ class ByteOutput:
 
 class MemoryManager:
     def __init__(self, literal_bytes):
-        self.stack_begin = 1  # TODO: review
-        self.sp = 1
+        self.stack_begin = 9
+        self.sp = 9
         self.literal_begins = STACK_SIZE
         self.global_begins = STACK_SIZE + len(literal_bytes)
         self.functions_begin = 0
@@ -871,32 +866,37 @@ class Compiler:
         p1 = self.memory.define_func_ptr()  # 1: clock
         self.memory.implement_func(p1, typ.int_to_bytes(1))
         ft1 = en.FuncType([], en.Type("int"), 'n')
-        env.define_var("clock", ft1, p1)
+        env.define_const("clock", ft1, p1)
 
         p2 = self.memory.define_func_ptr()  # 2: malloc
         self.memory.implement_func(p2, typ.int_to_bytes(2))
         ft2 = en.FuncType([en.Type("int")], en.Type("*void"), 'n')
-        env.define_var("malloc", ft2, p2)
+        env.define_const("malloc", ft2, p2)
 
         p3 = self.memory.define_func_ptr()  # 3: printf
         self.memory.implement_func(p3, typ.int_to_bytes(3))
         ft3 = en.FuncType([en.Type("*void")], en.Type("void"), 'n')
-        env.define_var("printf", ft3, p3)
+        env.define_const("printf", ft3, p3)
 
         p4 = self.memory.define_func_ptr()  # 4: mem_copy
         self.memory.implement_func(p4, typ.int_to_bytes(4))
         ft4 = en.FuncType([en.Type("*char"), en.Type("*char"), en.Type("int")], en.Type("void"), 'n')
-        env.define_var("mem_copy", ft4, p4)
+        env.define_const("mem_copy", ft4, p4)
 
         p5 = self.memory.define_func_ptr()  # 5: free
         self.memory.implement_func(p5, typ.int_to_bytes(5))
         ft5 = en.FuncType([en.Type("*void")], en.Type("void"), 'n')
-        env.define_var("free", ft5, p5)
+        env.define_const("free", ft5, p5)
 
         p6 = self.memory.define_func_ptr()  # 6: stringf
         self.memory.implement_func(p6, typ.int_to_bytes(6))
         ft6 = en.FuncType([en.Type("*void")], en.Type("int"), 'n')
-        env.define_var("stringf", ft6, p6)
+        env.define_const("stringf", ft6, p6)
+
+        p7 = self.memory.define_func_ptr()  # 7: scanf
+        self.memory.implement_func(p7, typ.int_to_bytes(7))
+        ft7 = en.FuncType([en.Type("*void")], en.Type("int"), 'n')
+        env.define_const("scanf", ft7, p7)
 
     def add_compile_time_functions(self, env: en.GlobalEnvironment):
         env.define_const("sizeof", CompileTimeFunctionType([], en.Type("int"), self.function_sizeof), 0)
@@ -1021,6 +1021,7 @@ class Compiler:
     def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
         if self.memory.functions_begin == 0:  # not set. 第一次遍历ast获取global长度时用
             if isinstance(node.title, ast.NameNode) and node.title.name == "main":
+                # reserve argc and argv len in global
                 if len(node.params.lines) == 2:
                     argc: ast.TypeNode = node.params.lines[0]
                     argv: ast.TypeNode = node.params.lines[1]

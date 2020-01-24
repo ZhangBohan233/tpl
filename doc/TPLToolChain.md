@@ -36,7 +36,6 @@ List of flags:
 `-o2`: Redundancy clearance:
 * Removes noneffective TPA instructions
 * Removes empty assignment
-* Removes loop indicator if there is no `break` in loop body
 
 `-o3`: CPU friendly optimizations:
 * Substitute `*`, `/`, `%` with `<<`, `>>`, `&` if applicable

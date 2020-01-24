@@ -115,6 +115,8 @@ fn foo(n: int) int {
 
 The implementation should have the same name, return type, and parameter types.
 
+Implementation of function with declared return type other than `void` must terminate by `return` statement(s).
+
 ## Function call:
 
 ## Binary operators:
@@ -214,6 +216,8 @@ foo..bar(5);
 Which calls the member function `bar` of `Foo` instance 'foo'.
 Notice that the actual first argument is the struct instance.
 
+Inheritance is not supported.
+
 ## Label and goto
 
 A label can be defined as
@@ -252,6 +256,8 @@ while i < 10 {
 }
 ```
 
+**Warning:** do not use `label` or `goto` in any situation other than breaking loops.
+
 ## Table of all native primitive types:
 
 | Type name  | Byte length | Signed | Min value | Max value |
@@ -271,9 +277,11 @@ while i < 10 {
 ## List of all keywords:
 
 * `break`
+* `char`
 * `const`
 * `continue`
 * `else`
+* `exit`
 * `float`
 * `fn`
 * `for`
@@ -282,6 +290,7 @@ while i < 10 {
 * `if`
 * `include`
 * `label`
+* `new`
 * `register`
 * `return`
 * `sizeof`

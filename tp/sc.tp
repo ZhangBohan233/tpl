@@ -1,0 +1,10 @@
+fn main() int {
+    var a: int;
+    var b: char;
+    printf("input 2 ints\n");
+    var x: int = scanf("%d %c", &a, &b);
+
+    printf("scanned: %d, %c, succeed: %d\n", a, b, x);
+
+    return 0;
+}

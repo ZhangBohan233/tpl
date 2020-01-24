@@ -1,3 +1,11 @@
+#### Build 1057 ####
+2020/01/23
+
+* New native function:
+    * scanf:
+        * scans runtime input
+        * Not completely implemented
+
 #### Build 1056 ####
 2020/01/23
 
