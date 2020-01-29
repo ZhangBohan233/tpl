@@ -193,7 +193,9 @@ class Parser:
                         f_token: stl.IdToken = self.tokens[i + 1]
                         f_id = f_token.symbol
                         # push_back = 1
-                        if f_id == "(":  # func-obj type
+                        if f_token.is_eol():
+                            parser.add_name(line, sym)
+                        elif f_id == "(":  # func-obj type
                             func_obj_nest_list.append(par_count)
                             parser.new_block()
                             par_count += 1

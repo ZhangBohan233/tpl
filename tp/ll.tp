@@ -1,5 +1,8 @@
 include "util"
 
+fn p_int(x: *int) void {
+    printf("%d ", *x);
+}
 
 fn main() int {
     var ll: *LinkedList = new(LinkedList);
@@ -9,7 +12,7 @@ fn main() int {
         ll..append(i);
     }
 
-    ll..print();
+    ll..print(p_int);
 
     printf("size %d\n", ll..size);
 

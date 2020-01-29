@@ -811,14 +811,22 @@ class CompileTimeFunctionType(en.FuncType):
 class Struct:
     def __init__(self, name: str):
         self.name = name
-        self.vars: {str: (int, en.Type)} = {}  # position, type
-        self.method_pointers: {str: (int, en.FuncType)} = {}
+        self.vars: {str: (int, en.Type)} = {}  # position in struct, type
+        self.method_pointers: {str: int} = {}  # absolute addr of real function
 
     def get_attr_pos(self, attr_name: str) -> int:
         return self.vars[attr_name][0]
 
     def get_attr_tal(self, attr_name: str) -> en.Type:
         return self.vars[attr_name][1]
+
+    def implement_func_tal(self, func_name, new_tal: en.FuncType):
+        ptr_tal = self.vars[func_name]
+        if not isinstance(ptr_tal[1], en.AbstractFuncType):
+            raise lib.CompileTimeException("Attribute '{}' is not a member function.".format(func_name))
+        if isinstance(ptr_tal[1], en.FuncType):
+            raise lib.CompileTimeException("Member function '{}' is already implemented.".format(func_name))
+        self.vars[func_name] = (ptr_tal[0], new_tal)
 
     def __str__(self):
         return "Struct {}: {}".format(self.name, self.vars)
@@ -1080,7 +1088,8 @@ class Compiler:
         if is_method:
             ftn_ptr = self.memory.define_func_ptr()
             struct = env.get_struct(title.left.name)
-            struct.method_pointers[title.right.name] = (ftn_ptr, func_tal)
+            struct.method_pointers[title.right.name] = ftn_ptr
+            struct.implement_func_tal(title.right.name, func_tal)
         else:
             ftn_ptr = self.get_function(title.name, env, func_tal, (node.line_num, node.file))
 
@@ -1092,7 +1101,7 @@ class Compiler:
             inner_bo.write_one(FP_TO_SP)
             inner_bo.write_one(STOP)
 
-            for reg_id_neg in scope.registers:  # return back registers
+            for reg_id_neg in scope.registers:  # restore registers usage
                 self.memory.append_regs64(-reg_id_neg - 1)
 
             stack_len = self.memory.sp - self.memory.blocks[-1]
@@ -1740,8 +1749,8 @@ class Compiler:
                                                generate_lf(node))
             type_node: ast.TypeNode = line.left
             tal = get_tal_of_defining_node(type_node.right, env, self.memory)
-            if isinstance(tal, en.FuncType):  # is a method, add pointer to struct as the first parameter
-                tal.param_types.insert(0, en.Type("*" + node.name))
+            # if isinstance(tal, en.AbstractFuncType):  # is a method, add pointer to struct as the first parameter
+            #     tal.param_types.insert(0, en.Type("*" + node.name))
             name = type_node.left.name
             struct.vars[name] = pos, tal
             total_len = tal.total_len(self.memory)
@@ -1885,11 +1894,13 @@ class Compiler:
         malloc_rtn = self.native_function_call(malloc, malloc_tal, [(size_ptr, INT_LEN)], env, bo)
 
         for method_name in struct.method_pointers:
-            method_ptr, actual_tal = struct.method_pointers[method_name]
+            method_ptr = struct.method_pointers[method_name]
             loc_in_struct = struct.get_attr_pos(method_name)
-            declared_tal = struct.get_attr_tal(method_name)
-            if actual_tal != declared_tal:
-                raise lib.CompileTimeException("Method type does not match declared type")
+            # declared_tal = struct.get_attr_tal(method_name)
+            # print(actual_tal)
+            # print(declared_tal)
+            # if actual_tal != declared_tal:
+            #     raise lib.CompileTimeException("Method type does not match declared type")
 
             real_attr_addr = self.memory.allocate(INT_LEN, bo)
             bo.assign(real_attr_addr, malloc_rtn, PTR_LEN)
@@ -1924,7 +1935,10 @@ def index_node_depth(node: ast.IndexingNode):
 def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryManager) -> en.Type:
     if node.node_type == ast.NAME_NODE:
         node: ast.NameNode
-        return en.Type(node.name)
+        if node.name == "fn":
+            return en.AbstractFuncType()
+        else:
+            return en.Type(node.name)
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
         tn_al_inner: en.Type = get_tal_of_defining_node(node.call_obj, env, mem)

@@ -44,9 +44,20 @@ class Type:
         return mm.get_type_size(self.type_name)
 
 
-class FuncType(Type):
-    def __init__(self, param_types: list, rtype: Type, func_type="f"):
+class AbstractFuncType(Type):
+    def __init__(self):
         Type.__init__(self, "*")
+
+    def __str__(self):
+        return "fn"
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class FuncType(AbstractFuncType):
+    def __init__(self, param_types: list, rtype: Type, func_type="f"):
+        AbstractFuncType.__init__(self)
 
         self.param_types = param_types
         self.rtype = rtype

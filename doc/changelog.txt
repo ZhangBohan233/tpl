@@ -1,3 +1,12 @@
+===== TPL 1.0 Alpha 3 =====
+#### Build 1059 ####
+2020/01/29
+
+* Syntax change:
+    * Struct member functions are now declared as "var x: fn;"
+* Library updates:
+    * util.LinkedList::print(print_func : fn(*void)->void) now takes one print function as parameter
+
 #### Build 1058 ####
 2020/01/24
 

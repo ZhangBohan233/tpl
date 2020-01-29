@@ -6,11 +6,11 @@ struct LinkedNode {
 struct LinkedList {
     var size: int;
     var head: *LinkedNode;
-    var init: fn()->void;
-    var append: fn(*void)->void;
-    var get: fn(int)->*void;
-    var pop: fn()->*void;
-    var print: fn()->void;
+    var init: fn;
+    var append: fn;
+    var get: fn;
+    var pop: fn;
+    var print: fn;
 }
 
 fn LinkedList::init() void {
@@ -40,7 +40,7 @@ fn LinkedList::pop() *void {
     return node..value;
 }
 
-fn LinkedList::print() void {
+fn LinkedList::print(p_func: fn(*void)->void) void {
     printf("[");
     for node := this..head; node != NULL; node = node..next {
         printf("%d, ", node..value);
