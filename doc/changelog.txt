@@ -1,3 +1,12 @@
+#### Build 1060 ####
+2020/02/02
+
+* Bug fixes:
+    * Fixed that the function type in function parameter cannot be function type (nested function parameter type)
+    * Fixed that pre-definition of function causes error. Solved by sorts the function pointers
+* New development tool:
+    * Abstract syntax tree visualizer
+
 ===== TPL 1.0 Alpha 3 =====
 #### Build 1059 ####
 2020/01/29

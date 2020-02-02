@@ -79,13 +79,18 @@ class FuncType(AbstractFuncType):
 
 
 def type_to_readable(t: Type) -> str:
-    if len(t.array_lengths) == 0:
-        return t.type_name
+    if isinstance(t, FuncType):
+        s = "fn(" + ",".join([type_to_readable(p) for p in t.param_types]) + ")->"
+        s += type_to_readable(t.rtype)
+        return s
     else:
-        r = t.type_name
-        for ar in t.array_lengths:
-            r += "[" + str(ar) + "]"
-        return r
+        if len(t.array_lengths) == 0:
+            return t.type_name
+        else:
+            r = t.type_name
+            for ar in t.array_lengths:
+                r += "[" + str(ar) + "]"
+            return r
 
 
 def is_array(t: Type) -> bool:

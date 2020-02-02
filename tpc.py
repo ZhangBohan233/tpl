@@ -19,6 +19,15 @@ import py.tpa_optimizer as optimizer
 import script
 
 
+USAGE = """Usage: python tpc.py [flags] source target
+    flags:
+        -ast:            prints out the abstract syntax tree
+        -nl, --no-lang   do not automatically import lang.tp
+        -o<x>:           optimization level x
+        -tk, --tokens    prints out the language tokens
+"""
+
+
 def parse_args():
     args_dict = {"py": sys.argv[0], "src_file": None, "tar_file": None, "optimize": 0, "no_lang": False,
                  "tokens": False, "ast": False}
@@ -57,7 +66,7 @@ if __name__ == '__main__':
 
     args = parse_args()
     if not args["src_file"] or not args["tar_file"]:
-        print("Usage: python tpc.py -[FLAGS] source target")
+        print(USAGE)
 
     with open(args["src_file"], "r") as rf:
         lexer = lex.Tokenizer()

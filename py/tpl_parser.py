@@ -61,6 +61,7 @@ class Parser:
                     elif sym == "for":
                         parser.add_for_loop(line)
                         is_conditional = True
+                        parser.add_parenthesis()
                     elif sym == "return":
                         # parser.add_unary(line, "return")
                         parser.add_return(line)
@@ -150,6 +151,7 @@ class Parser:
                         elif is_this_list(func_obj_nest_list, par_count):
                             # parser.build_expr()
                             parser.build_func_obj(line)
+                            func_obj_nest_list.pop()
                         else:
                             parser.build_parenthesis()
                     elif sym == "[":

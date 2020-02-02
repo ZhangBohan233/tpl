@@ -1287,6 +1287,12 @@ class AbstractSyntaxTree:
                 node = parse_expr(lst)
                 self.stack.append(node)
             # print(self.stack)
+    #
+    # def build_section(self):
+    #     if self.inner:
+    #         self.inner.build_section()
+    #     else:
+    #         self.build_expr()
 
     def build_line(self):
         if self.inner:
@@ -1299,9 +1305,6 @@ class AbstractSyntaxTree:
                     node = self.stack.pop()
                     if isinstance(node, LeafNode):
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    # elif isinstance(node, AssignmentNode) and len(lst) > 0:
-                    #     node.right = lst[0]
-                    #     lst[0] = node
                     elif isinstance(node, UnaryExpr) and len(lst) > 0 and node.value is None:
                         # The build-expr method was interrupted by something
                         node.value = lst[0]
@@ -1309,15 +1312,6 @@ class AbstractSyntaxTree:
                     elif isinstance(node, BinaryExpr) and len(lst) > 0 and node.right is None:
                         node.right = lst[0]
                         lst[0] = node
-                    # elif isinstance(node, AnnotationNode) and len(lst) > 0 and node.body is None:
-                    #     node.body = lst[0]
-                    #     lst[0] = node
-                    # last: AssignmentNode = lst[0]
-                    # func: DefStmt = last.right
-                    # func.tags = node
-                    # elif isinstance(node, TernaryOperator) and len(lst) > 0:
-                    #     node.right = lst[0]
-                    #     lst[0] = node
                     elif isinstance(node, BlockStmt):
                         if len(lst) > 0:
                             lst.insert(0, node)
@@ -1327,9 +1321,6 @@ class AbstractSyntaxTree:
                     elif isinstance(node, IfStmt):
                         if len(lst) == 1:
                             node.then_block = lst[0]
-                        # elif len(lst) == 2:
-                        #     node.then_block = lst[0]
-                        #     node.else_block = lst[1]
                         elif len(lst) != 0:
                             raise stl.ParseException("Unexpected token, in file '{}', at line {}"
                                                      .format(node.file, node.line_num))
@@ -1347,20 +1338,6 @@ class AbstractSyntaxTree:
                             lst.append(node)
                         elif len(lst) != 0:
                             raise stl.ParseException("Unexpected token")
-                        # node.body = lst[0] if len(lst) > 0 else None
-                        # lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    # elif isinstance(node, CatchStmt):
-                    #     node.then = lst[0] if len(lst) > 0 else None
-                    #     lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    # elif isinstance(node, TryStmt):
-                    #     node.try_block = lst[0]
-                    #     if isinstance(lst[-1], CatchStmt):
-                    #         node.catch_blocks = lst[1:]
-                    #     else:
-                    #         node.catch_blocks = lst[1:-1]
-                    #         node.finally_block = lst[-1]
-                    #     lst.clear()
-                    #     lst.append(node)
                     else:
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                         # res = node

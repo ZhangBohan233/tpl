@@ -771,7 +771,9 @@ class MemoryManager:
     def compile_all_functions(self):
         # print(self.functions)
         self.functions_bytes[0:INT_LEN] = typ.int_to_bytes(len(self.functions))
-        for ptr in self.functions:
+        ptr_lst = list(self.functions)
+        ptr_lst.sort()  # sorts functions by pointer positions
+        for ptr in ptr_lst:
             fb = self.functions[ptr]
             # print(ptr, self.func_p)
             ptr_in_g = ptr - self.functions_begin
@@ -1396,10 +1398,23 @@ class Compiler:
 
     def compile_ptr_call(self, ftn: int, ftn_tal: en.FuncType, arg_nodes: list, env: en.Environment,
                          bo: ByteOutput) -> int:
+
+        if ftn_tal.func_type == "f" and len(arg_nodes) != len(ftn_tal.param_types):
+            raise lib.CompileTimeException("Function requires {} arguments, {} given"
+                                           .format(len(ftn_tal.param_types), len(arg_nodes)))
+
         args = []  # args tuple
-        for arg_node in arg_nodes:
+        for i in range(len(arg_nodes)):
+            arg_node = arg_nodes[i]
             tal = get_tal_of_evaluated_node(arg_node, env)
             total_len = tal.total_len(self.memory)
+
+            if ftn_tal.func_type == "f":
+                param_tal = ftn_tal.param_types[i]
+                if tal != param_tal:
+                    raise lib.CompileTimeException("Argument type does not match the parameter. Expected: '{}', "
+                                                   "got '{}'.".format(en.type_to_readable(param_tal),
+                                                                      en.type_to_readable(tal)))
 
             if en.is_pointer(tal) or en.is_array(tal):
                 total_len = PTR_LEN
@@ -1440,9 +1455,6 @@ class Compiler:
 
     def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list,
                       call_env: en.Environment, bo: ByteOutput):
-        if len(args) != len(func_tal.param_types):
-            raise lib.CompileTimeException("Function requires {} arguments, {} given"
-                                           .format(len(func_tal.param_types), len(args)))
 
         r_len = func_tal.rtype.total_len(self.memory)
         r_ptr = self.memory.allocate(r_len, bo)

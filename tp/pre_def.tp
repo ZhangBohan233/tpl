@@ -1,0 +1,14 @@
+fn f() void;
+
+fn g() int {
+    return 66;
+}
+
+fn f() void {
+    printf("fuck this\n");
+}
+
+fn main() int {
+    f();
+    return 0;
+}
