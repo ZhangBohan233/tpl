@@ -2,6 +2,11 @@
 
 * Rebuild parser and ast
 
+===== 1.0 Alpha 4 =====
+
+* ast preprocessor to expand operators like +=, ++
+* tpa optimizer to optimize operators like +=, ++
+
 ===== 1.0 Alpha 3 =====
 
 * scanf     ...done
