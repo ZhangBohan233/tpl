@@ -1,3 +1,10 @@
+#### Build 1061 ####
+2020/02/03
+
+* Supports of new syntax:
+    * Directly calling a function returned by another function
+    * Not yet supported for class member functions
+
 #### Build 1060 ####
 2020/02/02
 

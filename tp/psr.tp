@@ -1,25 +1,9 @@
-//fn pt(ftn: fn(int)->int) void;
+fn test() int {
 
-
-fn add(x: int) int;
-
-
-fn test(x: fn(fn(int)->int)->void, a: int) void {
-    x(add);
-}
-
-
-fn pt(ftn: fn(int)->int) void {
-    n := ftn(2);
-    printf("%d\n", n);
-}
-
-fn add(x: int) int {
-    return 33 + x;
 }
 
 
 fn main() int {
-    //test(pt, 2);
-    return add(7);
+    test();
+    return 0;
 }

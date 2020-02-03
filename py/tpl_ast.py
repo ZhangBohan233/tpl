@@ -8,7 +8,7 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "=": 1, "+=": 3, "-=": 3, "*=": 3, "/=": 3, "%=": 3,
               "&=": 3, "^=": 3, "|=": 3, "<<=": 3, ">>=": 3, ">>>=": 3,
               "===": 20, "!==": 20, "instanceof": 25, "subclassof": 25, "assert": 0,
-              "?": 4, "++": 300, "--": 300, ":": 3, "->": 4, "<-": 2, ":=": 1, "::": 500}
+              "?": 4, "++": 300, "--": 300, ":": 3, "->": 4, "<-": 2, ":=": 1, "::": 500, "call": 400}
 
 MULTIPLIER = 1000
 
@@ -87,6 +87,9 @@ class Node:
         self.line_num = line[0]
         self.file = line[1]
         self.node_type = 0
+
+    def lf(self):
+        return self.line_num, self.file
 
 
 class LeafNode(Node):
@@ -1079,13 +1082,6 @@ class AbstractSyntaxTree:
         else:
             self.stack.append(NullStmt(line))
 
-    # def add_annotation(self, line, name):
-    #     if self.inner:
-    #         self.inner.add_annotation(line, name)
-    #     else:
-    #         node = AnnotationNode(line, name)
-    #         self.stack.append(node)
-
     def build_call(self):
         if self.inner.inner:
             self.inner.build_call()
@@ -1094,11 +1090,6 @@ class AbstractSyntaxTree:
             block: BlockStmt = self.inner.get_as_block()
             self.invalidate_inner()
             call = self.stack.pop()
-            # if isinstance(call, AnnotationNode):
-            #     call.args = block
-            # else:
-            #     call: FuncCall
-            #     call.args = block
             call: FuncCall
             call.args = block
             self.stack.append(call)

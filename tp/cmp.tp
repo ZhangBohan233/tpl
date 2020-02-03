@@ -2,6 +2,7 @@ struct Test {
     var x: int;
     var set: fn;
     var get: fn;
+    var fc: fn;
 }
 
 fn Test::set(x: int) void {
@@ -13,9 +14,19 @@ fn Test::get() int {
     return this..x;
 }
 
-fn main(argc: int, argv: **char) int {
+fn fct() int {
+    return 23;
+}
+
+fn Test::fc() fn()->int {
+    return fct;
+}
+
+fn main() int {
     var g: *Test = new(Test);
-    g..set(argc);
+    g..set(4);
+    g..fc()();
     printf("%d\n", g..x);
     return g..get();
+    return 0;
 }

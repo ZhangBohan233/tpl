@@ -1432,13 +1432,13 @@ class Compiler:
             raise lib.CompileTimeException("Unexpected function type")
 
     def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
-        assert isinstance(node.call_obj, ast.NameNode)
-
-        lf = node.line_num, node.file
+        # lf = node.line_num, node.file
 
         # ftn = env.get_function(node.call_obj.name, lf)
-        ftn = env.get(node.call_obj.name, lf, False)
-        ftn_tal: en.FuncType = env.get_type_arr_len(node.call_obj.name, lf)
+        ftn = self.compile(node.call_obj, env, bo)
+        # ftn = env.get(node.call_obj.name, lf, False)
+        ftn_tal = get_func_call_final_tal(node, env)
+        # ftn_tal: en.FuncType = env.get_type_arr_len(node.call_obj.name, lf)
 
         if not isinstance(ftn_tal, en.FuncType):
             raise lib.CompileTimeException("Object is not callable")
@@ -1944,6 +1944,16 @@ def index_node_depth(node: ast.IndexingNode):
         return 1
 
 
+def get_func_call_final_tal(node: ast.FuncCall, env: en.Environment) -> en.FuncType:
+    call = node.call_obj
+    if isinstance(call, ast.NameNode):
+        return env.get_type_arr_len(call.name, node.lf())
+    elif isinstance(call, ast.FuncCall):
+        return get_func_call_final_tal(call, env).rtype
+    else:
+        raise lib.CompileTimeException("Not a function call")
+
+
 def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryManager) -> en.Type:
     if node.node_type == ast.NAME_NODE:
         node: ast.NameNode
@@ -2044,6 +2054,8 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
             # func: Function = env.get_function(call_obj.name, (node.line_num, node.file))
             func_tal: en.FuncType = env.get_type_arr_len(call_obj.name, (node.line_num, node.file))
             return func_tal.rtype
+        elif isinstance(call_obj, ast.FuncCall):
+            return get_tal_of_evaluated_node(call_obj, env)
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
         # return get_tal_of_ordinary_node(node.call_obj, env)
