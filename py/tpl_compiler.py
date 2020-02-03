@@ -822,6 +822,9 @@ class Struct:
     def get_attr_tal(self, attr_name: str) -> en.Type:
         return self.vars[attr_name][1]
 
+    def is_method(self, attr_name: str) -> bool:
+        return isinstance(self.vars[attr_name][1], en.AbstractFuncType)
+
     def implement_func_tal(self, func_name, new_tal: en.FuncType):
         ptr_tal = self.vars[func_name]
         if not isinstance(ptr_tal[1], en.AbstractFuncType):
@@ -1085,7 +1088,7 @@ class Compiler:
             param_pair = ParameterPair(name_node.name, tal)
             param_pairs.append(param_pair)
 
-        func_tal = en.FuncType(param_types, r_tal)
+        func_tal = en.FuncType(param_types, r_tal, "m" if is_method else "f")
 
         if is_method:
             ftn_ptr = self.memory.define_func_ptr()
@@ -1279,7 +1282,7 @@ class Compiler:
         return result_ptr
 
     def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: ByteOutput):
-        attr_addr, attr_tal, call = self.get_struct_attr_ptr_and_len(node, env, bo)
+        attr_addr, attr_tal = self.get_struct_attr_ptr_and_len(node, env, bo)
 
         bo.ptr_assign(attr_addr, value_ptr, attr_tal.total_len(self.memory))
 
@@ -1295,20 +1298,20 @@ class Compiler:
         :param assign_const: must be false since struct does not support constant attributes
         :return:
         """
-        attr_addr, attr_tal, call = self.get_struct_attr_ptr_and_len(node, env, bo)
+        attr_addr, attr_tal = self.get_struct_attr_ptr_and_len(node, env, bo)
 
-        if call:
-            call_node: ast.FuncCall = node.right
-            args = call_node.args.lines.copy()
-            args.insert(0, node.left)
-            res_ptr = self.memory.allocate(PTR_LEN, bo)
-            bo.unpack_addr(res_ptr, attr_addr, PTR_LEN)
-            return self.compile_ptr_call(res_ptr, attr_tal, args, env, bo)
-        else:
-            length = attr_tal.total_len(self.memory)
-            res_ptr = self.memory.allocate(length, bo)
-            bo.unpack_addr(res_ptr, attr_addr, length)
-            return res_ptr
+        # if call:
+        #     call_node: ast.FuncCall = node.right
+        #     args = call_node.right.block.lines.copy()
+        #     args.insert(0, node.left)
+        #     res_ptr = self.memory.allocate(PTR_LEN, bo)
+        #     bo.unpack_addr(res_ptr, attr_addr, PTR_LEN)
+        #     return self.compile_ptr_call(res_ptr, attr_tal, args, env, bo, node.lf())
+        # else:
+        length = attr_tal.total_len(self.memory)
+        res_ptr = self.memory.allocate(length, bo)
+        bo.unpack_addr(res_ptr, attr_addr, length)
+        return res_ptr
 
     def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
 
@@ -1356,7 +1359,7 @@ class Compiler:
         return indexing_addr, tal, length
 
     def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> \
-            (int, en.Type, bool):
+            (int, en.Type):
         left_tal = get_tal_of_evaluated_node(node.left, env)
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:
@@ -1366,14 +1369,15 @@ class Compiler:
         # attr_tal = get_tal_of_evaluated_node(node, env)
         left_ptr = self.compile(node.left, env, bo)
         struct = env.get_struct(ltn)
-        if isinstance(node.right, ast.NameNode):
-            name = node.right.name
-            call = False
-        elif isinstance(node.right, ast.FuncCall):
-            name = node.right.call_obj.name
-            call = True
-        else:
-            raise lib.CompileTimeException()
+        name = node.right.name
+        # if isinstance(node.right, ast.NameNode):
+        #     name = node.right.name
+        #     call = False
+        # elif isinstance(node.right, ast.FuncCall):
+        #     name = node.right.left.name
+        #     call = True
+        # else:
+        #     raise lib.CompileTimeException()
         attr_tal = struct.get_attr_tal(name)
 
         attr_len = attr_tal.total_len(self.memory)
@@ -1382,34 +1386,33 @@ class Compiler:
         if node.dot_count == 1:  # self
             addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.store_addr_to_des(addr_ptr, left_ptr + attr_pos)
-            return addr_ptr, attr_tal, call
+            return addr_ptr, attr_tal
         elif node.dot_count == 2:
             real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.assign(real_addr_ptr, left_ptr, attr_len)
             bo.op_i(ADD, real_addr_ptr, attr_pos)
-            return real_addr_ptr, attr_tal, call
+            return real_addr_ptr, attr_tal
         elif node.dot_count == 3:
             real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.unpack_addr(real_addr_ptr, left_ptr, attr_len)
             bo.op_i(ADD, real_addr_ptr, attr_pos)
-            return real_addr_ptr, attr_tal, call
+            return real_addr_ptr, attr_tal
         else:
             raise lib.CompileTimeException("Pointer too deep.")
 
     def compile_ptr_call(self, ftn: int, ftn_tal: en.FuncType, arg_nodes: list, env: en.Environment,
-                         bo: ByteOutput) -> int:
+                         bo: ByteOutput, lf: tuple) -> int:
 
         if ftn_tal.func_type == "f" and len(arg_nodes) != len(ftn_tal.param_types):
-            raise lib.CompileTimeException("Function requires {} arguments, {} given"
-                                           .format(len(ftn_tal.param_types), len(arg_nodes)))
-
+            raise lib.CompileTimeException("Function requires {} arguments, {} given. In file '{}', at line {}."
+                                           .format(len(ftn_tal.param_types), len(arg_nodes), lf[1], lf[0]))
         args = []  # args tuple
         for i in range(len(arg_nodes)):
             arg_node = arg_nodes[i]
             tal = get_tal_of_evaluated_node(arg_node, env)
             total_len = tal.total_len(self.memory)
 
-            if ftn_tal.func_type == "f":
+            if ftn_tal.func_type == "f" or ftn_tal.func_type == "m":
                 param_tal = ftn_tal.param_types[i]
                 if tal != param_tal:
                     raise lib.CompileTimeException("Argument type does not match the parameter. Expected: '{}', "
@@ -1424,7 +1427,7 @@ class Compiler:
             args.append(tup)
 
         # print(args)
-        if ftn_tal.func_type == "f":
+        if ftn_tal.func_type == "f" or ftn_tal.func_type == "m":
             return self.function_call(ftn, ftn_tal, args, env, bo)
         elif ftn_tal.func_type == "n":
             return self.native_function_call(ftn, ftn_tal, args, env, bo)
@@ -1434,20 +1437,17 @@ class Compiler:
     def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
         # lf = node.line_num, node.file
 
-        # ftn = env.get_function(node.call_obj.name, lf)
-        ftn = self.compile(node.call_obj, env, bo)
-        # ftn = env.get(node.call_obj.name, lf, False)
-        ftn_tal = get_func_call_final_tal(node, env)
-        # ftn_tal: en.FuncType = env.get_type_arr_len(node.call_obj.name, lf)
+        ftn = self.compile(node.left, env, bo)
+        ftn_tal: en.FuncType = get_func_call_final_tal(node, env)
 
         if not isinstance(ftn_tal, en.FuncType):
             raise lib.CompileTimeException("Object is not callable")
 
         if ftn_tal.func_type == "c":
             ftn_tal: CompileTimeFunctionType
-            return self.call_compile_time_functions(ftn, ftn_tal, node.args, env, bo)
+            return self.call_compile_time_functions(ftn, ftn_tal, node.right.block, env, bo)
 
-        return self.compile_ptr_call(ftn, ftn_tal, node.args.lines, env, bo)
+        return self.compile_ptr_call(ftn, ftn_tal, node.right.block.lines, env, bo, node.lf())
 
     def call_main(self, func_ptr: int, args: list, bo: ByteOutput):
         r_ptr = 1
@@ -1908,11 +1908,6 @@ class Compiler:
         for method_name in struct.method_pointers:
             method_ptr = struct.method_pointers[method_name]
             loc_in_struct = struct.get_attr_pos(method_name)
-            # declared_tal = struct.get_attr_tal(method_name)
-            # print(actual_tal)
-            # print(declared_tal)
-            # if actual_tal != declared_tal:
-            #     raise lib.CompileTimeException("Method type does not match declared type")
 
             real_attr_addr = self.memory.allocate(INT_LEN, bo)
             bo.assign(real_attr_addr, malloc_rtn, PTR_LEN)
@@ -1945,11 +1940,16 @@ def index_node_depth(node: ast.IndexingNode):
 
 
 def get_func_call_final_tal(node: ast.FuncCall, env: en.Environment) -> en.FuncType:
-    call = node.call_obj
+    call = node.left
     if isinstance(call, ast.NameNode):
         return env.get_type_arr_len(call.name, node.lf())
     elif isinstance(call, ast.FuncCall):
         return get_func_call_final_tal(call, env).rtype
+    elif isinstance(call, ast.Dot):
+        struct_tal = get_tal_of_evaluated_node(call.left, env)
+        struct = env.get_struct(struct_tal.type_name[call.dot_count - 1:])
+        ftn_tal = struct.get_attr_tal(call.right.name)
+        return ftn_tal
     else:
         raise lib.CompileTimeException("Not a function call")
 
@@ -2049,12 +2049,25 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         return get_tal_of_evaluated_node(node.left, env)
     elif node.node_type == ast.FUNCTION_CALL:
         node: ast.FuncCall
-        call_obj = node.call_obj
+        call_obj = node.left
+        # print(call_obj)
         if call_obj.node_type == ast.NAME_NODE:
-            # func: Function = env.get_function(call_obj.name, (node.line_num, node.file))
-            func_tal: en.FuncType = env.get_type_arr_len(call_obj.name, (node.line_num, node.file))
-            return func_tal.rtype
+            name = call_obj.name
+            if name == "new":  # special case for new
+                args = node.right.block
+                if len(args.lines) != 1:
+                    raise lib.CompileTimeException("Function 'new' takes exactly one argument")
+                elif not isinstance(args.lines[0], ast.NameNode):
+                    raise lib.CompileTimeException("Argument of 'new' must be name of Struct")
+
+                struct_name = args.lines[0].name
+                return en.Type("*" + struct_name)
+            else:
+                func_tal: en.FuncType = env.get_type_arr_len(name, (node.line_num, node.file))
+                return func_tal.rtype
         elif isinstance(call_obj, ast.FuncCall):
+            return get_tal_of_evaluated_node(call_obj, env)
+        elif isinstance(call_obj, ast.Dot):
             return get_tal_of_evaluated_node(call_obj, env)
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
@@ -2080,13 +2093,11 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         real_l_tal = en.Type(left_tal.type_name[ptr_depth:], left_tal.array_lengths)
         if env.is_struct(real_l_tal.type_name):
             struct = env.get_struct(real_l_tal.type_name)
-            if isinstance(node.right, ast.NameNode):
-                return struct.get_attr_tal(node.right.name)
-            elif isinstance(node.right, ast.FuncCall):
-                f_tal: en.FuncType = struct.get_attr_tal(node.right.call_obj.name)
+            if struct.is_method(node.right.name):
+                f_tal: en.FuncType = struct.get_attr_tal(node.right.name)
                 return f_tal.rtype
             else:
-                raise lib.TypeException()
+                return struct.get_attr_tal(node.right.name)
         else:
             raise lib.TypeException()
     elif node.node_type == ast.IN_DECREMENT_OPERATOR:

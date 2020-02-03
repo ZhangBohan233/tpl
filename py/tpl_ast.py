@@ -506,24 +506,35 @@ class StructNode(Node):
         return self.__str__()
 
 
-class FuncCall(Node):
-    call_obj = None
-    args: BlockStmt = None
-
-    def __init__(self, line, call_obj):
+class Arguments(Node):
+    def __init__(self, line, block):
         Node.__init__(self, line)
 
-        self.node_type = FUNCTION_CALL
-        self.call_obj = call_obj
+        self.block = block
 
     def __str__(self):
-        return "call:[{}({})]".format(self.call_obj, self.args)
+        return "args:" + str(self.block)
+
+    def __repr__(self):
+        return "args"
+
+
+class FuncCall(BinaryExpr):
+    right: Arguments
+
+    def __init__(self, line):
+        BinaryExpr.__init__(self, line, "call")
+
+        self.node_type = FUNCTION_CALL
+
+    def __str__(self):
+        return "call:[{} ({})]".format(self.left, self.right)
 
     def __repr__(self):
         return "Call"
 
-    def fulfilled(self):
-        return self.args is not None
+    # def fulfilled(self):
+    #     return self.args is not None
 
 
 class IndexingNode(Node):
@@ -1015,13 +1026,14 @@ class AbstractSyntaxTree:
         if self.inner:
             self.inner.add_call(line)
         else:
-            obj = self.stack.pop()
+            # obj = self.stack.pop()
             # if isinstance(obj, AnnotationNode):
             #     self.stack.append(obj)
             #     self.inner = AbstractSyntaxTree()
             # else:
             #     fc = FuncCall(line, obj)
-            fc = FuncCall(line, obj)
+            self.in_expr = True
+            fc = FuncCall(line)
             self.stack.append(fc)
             self.inner = AbstractSyntaxTree()
 
@@ -1089,10 +1101,12 @@ class AbstractSyntaxTree:
             self.inner.build_line()
             block: BlockStmt = self.inner.get_as_block()
             self.invalidate_inner()
-            call = self.stack.pop()
-            call: FuncCall
-            call.args = block
-            self.stack.append(call)
+            arg = Arguments(block.lf(), block)
+            self.stack.append(arg)
+            # call = self.stack.pop()
+            # call: FuncCall
+            # call.args = block
+            # self.stack.append(call)
 
     def build_condition(self):
         if self.inner.inner:
@@ -1254,7 +1268,6 @@ class AbstractSyntaxTree:
                 return
             self.in_expr = False
             lst = []
-            # print(self.stack)
             while len(self.stack) > 0:
                 node = self.stack[-1]
                 if node is None or \
@@ -1263,10 +1276,10 @@ class AbstractSyntaxTree:
                         isinstance(node, float) or \
                         isinstance(node, LeafNode) or \
                         isinstance(node, Expr) or \
-                        (isinstance(node, FuncCall) and node.fulfilled()) or \
                         (isinstance(node, IndexingNode) and node.fulfilled()) or \
                         isinstance(node, DefStmt) or \
                         isinstance(node, UndefinedNode) or \
+                        isinstance(node, Arguments) or \
                         (isinstance(node, BlockStmt) and node.standalone):
                     lst.append(node)
                     self.stack.pop()

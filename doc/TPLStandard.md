@@ -295,6 +295,7 @@ while i < 10 {
 * `return`
 * `sizeof`
 * `struct`
+* `this`
 * `var`
 * `while`
 

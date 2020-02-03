@@ -1,9 +1,27 @@
-fn test() int {
-
+struct S {
+    var x: int;
+    var foo: fn;
 }
 
+struct T {
+    var s: *S;
+}
+
+fn test(x: int, y: int) int {
+    return x + y;
+}
+
+fn S::foo() fn(int, int)->int {
+    printf("%d\n", this..x);
+    return test;
+}
 
 fn main() int {
-    test();
-    return 0;
+    s := new(S);
+    t := new(T);
+    t..s = s;
+    t..s..x = 6;
+    a := t..s..foo()(3, 2);
+    printf("%d\n", t..s..x);
+    return a;
 }

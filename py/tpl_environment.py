@@ -61,7 +61,8 @@ class FuncType(AbstractFuncType):
 
         self.param_types = param_types
         self.rtype = rtype
-        self.func_type = func_type  # 'f' for function, 'n' for native function, 'c' for compile time function
+        self.func_type = func_type  # 'f' for function, 'm' for member function (method),
+        # 'n' for native function, 'c' for compile time function
 
     def __str__(self):
         return "fn(" + str(self.param_types) + ") -> " + str(self.rtype)
