@@ -28,7 +28,7 @@ RESERVED = {"fn", "if", "else", "return", "break", "continue", "true", "false", 
 RESERVED_FOR_BRACE = {"return"}
 LAZY = {"&&", "||"}
 OMITS = {"\n", "\r", "\t", " "}
-OP_EQ = {"+", "-", "*", "/", "%", "&", "^", "|", "<<", ">>"}
+OP_EQ = {"+", "-", "*", "/", "%", "&", "^", "|", "<<", ">>", ">>>"}
 ESCAPES = {"n": "\n", "t": "\t", "0": "\0", "a": "\a", "r": "\r", "f": "\f", "v": "\v", "b": "\b", "\\": "\\"}
 NO_BUILD_LINE = {"catch", "finally"}
 

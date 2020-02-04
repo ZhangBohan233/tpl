@@ -228,6 +228,21 @@ class BinaryOperator(BinaryExpr):
         self.node_type = BINARY_OPERATOR
 
 
+class BinaryOperatorAssignment(BinaryExpr):
+
+    def __init__(self, line, op):
+        BinaryExpr.__init__(self, line, op)
+
+    def real_op(self):
+        return self.operation[:-1]
+
+    def __str__(self):
+        return "BOA({} {} {})".format(self.left, self.operation, self.right)
+
+    def __repr__(self):
+        return "BOA'{}'".format(self.operation)
+
+
 class LambdaExpression(BinaryExpr):
     def __init__(self, line):
         BinaryExpr.__init__(self, line, "->")
@@ -815,13 +830,20 @@ class AbstractSyntaxTree:
             op_node = TypeNode(line)
             self.stack.append(op_node)
 
-    def add_operator(self, line, op, assignment=False):
+    def add_operator(self, line, op):
         if self.inner:
-            self.inner.add_operator(line, op, assignment)
+            self.inner.add_operator(line, op)
         else:
             self.in_expr = True
             op_node = BinaryOperator(line, op)
-            op_node.assignment = assignment
+            self.stack.append(op_node)
+
+    def add_operator_assignment(self, line, op):
+        if self.inner:
+            self.inner.add_operator_assignment(line, op)
+        else:
+            self.in_expr = True
+            op_node = BinaryOperatorAssignment(line, op)
             self.stack.append(op_node)
 
     def add_quick_assignment(self, line):

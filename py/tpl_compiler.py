@@ -4,7 +4,7 @@ import py.tpl_types as typ
 import py.tpl_lib as lib
 from py.tpl_types import INT_LEN, FLOAT_LEN, PTR_LEN, CHAR_LEN, VOID_LEN
 
-STACK_SIZE = 4096
+STACK_SIZE = 1024
 
 EXIT = 1  # completely exit function
 STOP = 2  # STOP                                  | stop current process
@@ -12,8 +12,8 @@ ASSIGN = 3  # ASSIGN   TARGET    SOURCE   LENGTH    | copy LENGTH bytes from SOU
 CALL = 4  # CALL
 RETURN = 5  # RETURN   VALUE_PTR
 GOTO = 6  # JUMP       CODE_PTR
-LOAD_A = 7  # LOAD_A                             | loads rel_addr + fp to register
-LOAD = 8  # LOAD     %DES_REG   $ADDR                   |
+LOAD_A = 7  # LOAD_A                                | loads <rel_addr + fp> to register.
+LOAD = 8  # LOAD     %DES_REG   $ADDR               | loads value stored in <rel_addr + fp> to register
 STORE = 9  # STORE   %TEMP   %REG   $DES_ADDR
 LOAD_I = 10
 ADD = 11  # ADD     %REG1   %REG2
@@ -66,6 +66,11 @@ LT_F = 57
 NE_F = 58
 NEG_F = 59
 
+INC = 60
+DEC = 61
+INC_F = 62
+DEC_F = 63
+
 LABEL = 128
 GOTO_L = 129
 IF_ZERO_GOTO_L = 130
@@ -104,20 +109,20 @@ BOOL_RESULT_TABLE = {  # this table only used for getting tal
     "<="
 }
 
-INT_RESULT_TABLE_INT_FULL = {
-    **INT_RESULT_TABLE_INT,
-    "+=": ADD,
-    "-=": SUB,
-    "*=": MUL,
-    "/=": DIV,
-    "%=": MOD,
-    ">>=": RSHIFT_A,
-    ">>>=": RSHIFT_L,
-    "<<=": LSHIFT,
-    "&=": B_AND,
-    "|=": B_OR,
-    "^=": B_XOR
-}
+# INT_RESULT_TABLE_INT_FULL = {
+#     **INT_RESULT_TABLE_INT,
+#     "+=": ADD,
+#     "-=": SUB,
+#     "*=": MUL,
+#     "/=": DIV,
+#     "%=": MOD,
+#     ">>=": RSHIFT_A,
+#     ">>>=": RSHIFT_L,
+#     "<<=": LSHIFT,
+#     "&=": B_AND,
+#     "|=": B_OR,
+#     "^=": B_XOR
+# }
 
 EXTENDED_INT_RESULT_TABLE_INT = {
     **INT_RESULT_TABLE_INT,
@@ -137,14 +142,14 @@ FLOAT_RESULT_TABLE_FLOAT = {
     "%": MOD_F
 }
 
-FLOAT_RESULT_TABLE_FLOAT_FULL = {
-    **FLOAT_RESULT_TABLE_FLOAT,
-    "+=": ADD_F,
-    "-=": SUB_F,
-    "*=": MUL_F,
-    "/=": DIV_F,
-    "%=": MOD_F
-}
+# FLOAT_RESULT_TABLE_FLOAT_FULL = {
+#     **FLOAT_RESULT_TABLE_FLOAT,
+#     "+=": ADD_F,
+#     "-=": SUB_F,
+#     "*=": MUL_F,
+#     "/=": DIV_F,
+#     "%=": MOD_F
+# }
 
 INT_RESULT_TABLE_FLOAT = {
     ">": GT_F,
@@ -159,9 +164,9 @@ EXTENDED_INT_RESULT_TABLE_FLOAT = {
     "<=": (LT_F, EQ_F),
 }
 
-WITH_ASSIGN = {
-    "+=", "-=", "*=", "/=", "%=", ">>=", ">>>=", "<<=", "|=", "&=", "^="
-}
+# WITH_ASSIGN = {
+#     "+=", "-=", "*=", "/=", "%=", ">>=", ">>>=", "<<=", "|=", "&=", "^="
+# }
 
 
 # SPE_REGS = {
@@ -246,6 +251,28 @@ class ByteOutput:
         self.write_int(des)
 
         self.manager.append_regs64(temp_reg)
+
+    def increment_decrement(self, op, value_addr):
+        reg1, reg2 = self.manager.require_regs64(2)
+
+        if value_addr < 0:  # register
+            operating_reg = -value_addr - 1
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg1)
+            self.write_int(value_addr)
+            operating_reg = reg1
+
+        self.write_one(op)
+        self.write_one(operating_reg)
+
+        if value_addr >= 0:
+            self.write_one(STORE)
+            self.write_one(reg2)
+            self.write_one(reg1)
+            self.write_int(value_addr)
+
+        self.manager.append_regs64(reg2, reg1)
 
     def assign_i(self, des: int, real_value: int):
         reg1, reg2 = self.manager.require_regs64(2)
@@ -1130,10 +1157,12 @@ class Compiler:
         tal = get_tal_of_evaluated_node(node.right, env)
         length = tal.total_len(self.memory)
         r_ptr = self.memory.allocate(length, bo)
-        # bo.push_stack(length)
         r = self.compile(node.right, env, bo)  # TODO: optimize
         env.define_var(name, tal, r_ptr)
-        bo.assign(r_ptr, r, length)
+        if r < 0:  # right is a register
+            bo.store_from_reg(r_ptr, r)
+        else:
+            bo.assign(r_ptr, r, length)
         return r_ptr
 
     def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
@@ -1424,6 +1453,9 @@ class Compiler:
                 total_len = PTR_LEN
 
             arg_ptr = self.compile(arg_node, env, bo)
+            if arg_ptr < 0:
+                raise lib.CompileTimeException("Register variable cannot be used as function argument. Use 'var' "
+                                               "or 'const' instead." + generate_lf(arg_node))
             tup = arg_ptr, total_len
             args.append(tup)
 
@@ -1536,11 +1568,11 @@ class Compiler:
         r_tal = get_tal_of_evaluated_node(node.right, env)
         # print(l_tal, r_tal, node.operation)
 
-        if node.operation in WITH_ASSIGN:
-            # is assignment
-            lp = self.compile(node.left, env, bo, assign_const=True)
-        else:
-            lp = self.compile(node.left, env, bo)
+        # if node.operation in WITH_ASSIGN:
+        #     # is assignment
+        #     lp = self.compile(node.left, env, bo, assign_const=True)
+        # else:
+        lp = self.compile(node.left, env, bo)
         rp = self.compile(node.right, env, bo)
 
         if l_tal.type_name == "int" or l_tal.type_name[0] == "*" or en.is_array(l_tal):
@@ -1595,18 +1627,12 @@ class Compiler:
         raise lib.CompileTimeException("Unsupported binary operation '{}'".format(node.operation))
 
     def binary_op_float(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
-        if op in FLOAT_RESULT_TABLE_FLOAT_FULL:
-            if op in FLOAT_RESULT_TABLE_FLOAT:
-                res_pos = self.memory.allocate(FLOAT_LEN, bo)
-                # bo.push_stack(FLOAT_LEN)
+        if op in FLOAT_RESULT_TABLE_FLOAT:
+            res_pos = self.memory.allocate(FLOAT_LEN, bo)
 
-                op_code = FLOAT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
-                return res_pos
-            else:
-                op_code = FLOAT_RESULT_TABLE_FLOAT_FULL[op]
-                bo.add_binary_op(op_code, lp, lp, rp)
-                return lp
+            op_code = FLOAT_RESULT_TABLE_FLOAT[op]
+            bo.add_binary_op(op_code, res_pos, lp, rp)
+            return res_pos
         elif op in EXTENDED_INT_RESULT_TABLE_FLOAT:
             res_pos = self.memory.allocate(INT_LEN, bo)
 
@@ -1629,26 +1655,15 @@ class Compiler:
                                            .format(op))
 
     def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
-        if op in INT_RESULT_TABLE_INT_FULL:
-            if op in INT_RESULT_TABLE_INT:
-                res_pos = self.memory.allocate(INT_LEN, bo)
+        if op in INT_RESULT_TABLE_INT:
+            res_pos = self.memory.allocate(INT_LEN, bo)
 
-                op_code = INT_RESULT_TABLE_INT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
-                return res_pos
-            else:
-                op_code = INT_RESULT_TABLE_INT_FULL[op]
-                bo.add_binary_op(op_code, lp, lp, rp)
-                return lp
+            op_code = INT_RESULT_TABLE_INT[op]
+            bo.add_binary_op(op_code, res_pos, lp, rp)
+            return res_pos
         elif op in EXTENDED_INT_RESULT_TABLE_INT:
             res_pos = self.memory.allocate(INT_LEN, bo)
-            # bo.push_stack(INT_LEN)
 
-            # if op in BOOL_RESULT_TABLE_INT:
-            #     op_code = BOOL_RESULT_TABLE_INT[op]
-            #     bo.add_binary_op_int(op_code, res_pos, lp, rp)
-            #     return res_pos
-            # else:
             op_tup = EXTENDED_INT_RESULT_TABLE_INT[op]
             l_res = self.memory.allocate(INT_LEN, bo)
             # bo.push_stack(INT_LEN)
@@ -1788,23 +1803,27 @@ class Compiler:
                     r_ptr = self.memory.allocate(INT_LEN, bo)
                     # bo.push_stack(INT_LEN)
                     bo.assign(r_ptr, ptr, INT_LEN)
-                    bo.op_i(ADD, ptr, 1)
+                    # bo.op_i(ADD, ptr, 1)
+                    bo.increment_decrement(INC, ptr)
                     return r_ptr
             elif node.operation == "--":
                 if tal.type_name == "int":
                     r_ptr = self.memory.allocate(INT_LEN, bo)
                     # bo.push_stack(INT_LEN)
                     bo.assign(r_ptr, ptr, INT_LEN)
-                    bo.op_i(SUB, ptr, 1)
+                    # bo.op_i(SUB, ptr, 1)
+                    bo.increment_decrement(DEC, ptr)
                     return r_ptr
         else:
             if node.operation == "++":
                 if tal.type_name == "int":
-                    bo.op_i(ADD, ptr, 1)
+                    bo.increment_decrement(INC, ptr)
+                    # bo.op_i(ADD, ptr, 1)
                     return ptr
             elif node.operation == "--":
                 if tal.type_name == "int":
-                    bo.op_i(SUB, ptr, 1)
+                    bo.increment_decrement(DEC, ptr)
+                    # bo.op_i(SUB, ptr, 1)
                     return ptr
 
     def compile_goto(self, node: ast.GotoStmt, env: en.Environment, bo: ByteOutput):
@@ -2143,4 +2162,4 @@ def pointer_depth(type_name: str) -> int:
 
 
 def generate_lf(node: ast.Node) -> str:
-    return "In file '{}', at line {}.".format(node.file, node.line_num)
+    return " In file '{}', at line {}.".format(node.file, node.line_num)

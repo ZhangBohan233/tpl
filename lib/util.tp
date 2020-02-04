@@ -27,7 +27,7 @@ fn LinkedList::append(value: *void) void {
     node..value = value;
     node..next = this..head;
     this..head = node;
-    this..size = this..size + 1;
+    this..size += 1;
 }
 
 fn LinkedList::get(index: int) *void {
@@ -41,7 +41,7 @@ fn LinkedList::get(index: int) *void {
 fn LinkedList::pop() *void {
     node := this..head;
     this..head = node..next;
-    this..size = this..size - 1;
+    this..size -= 1;
     return node..value;
 }
 

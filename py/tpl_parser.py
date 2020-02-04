@@ -262,7 +262,7 @@ class Parser:
                         else:
                             parser.add_unary(line, sym)
                     elif sym[:-1] in stl.OP_EQ:
-                        parser.add_operator(line, sym, True)
+                        parser.add_operator_assignment(line, sym)
                     elif stl.is_dots(sym):
                         parser.add_dot(line, len(sym))
                     elif token.is_eol():

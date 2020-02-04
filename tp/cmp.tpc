@@ -1,19 +1,19 @@
 //STACK SIZE
-4096
+1024
 //LITERAL LENGTH:
 86
 //GLOBAL MEMORY LENGTH:
 24
 //FUNCTIONS LENGTH:
-5524
+5638
 //MAIN TAKES ARG:
 %0
 //LITERALS:
-1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 24 16 0 0 0 0 0 0 91 0 34 16 0 0 0 0 0 0 93 10 0 45 16 0 0 0 0 0 0 37 100 32 0 10 0 0 0 0 0 0 0 65 16 0 0 0 0 0 0 115 105 122 101 32 37 100 10 0 82 16 0 0 0 0 0 0 37 100 10 0 
+1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 24 4 0 0 0 0 0 0 91 0 34 4 0 0 0 0 0 0 93 10 0 45 4 0 0 0 0 0 0 37 100 32 0 10 0 0 0 0 0 0 0 65 4 0 0 0 0 0 0 115 105 122 101 32 37 100 10 0 82 4 0 0 0 0 0 0 37 100 10 0 
 //FUNCTIONS COUNT:
 14
 //FUNCTION POINTERS:
-4326 4334 4342 4350 4358 4366 4374 4382 4499 5283 5833 6552 7192 7411 
+1254 1262 1270 1278 1286 1294 1302 1310 1427 2211 2750 3469 4109 4328 
 //NATIVE FUNCTIONS COUNT:
 7
 
@@ -32,7 +32,7 @@
 #329 ADD             %1  %0
 #332 STORE           %2  %1  $8
 #343 LOAD            %0  $8
-#353 LOAD_A          %1  $4104
+#353 LOAD_A          %1  $1032
 #363 LOAD_I          %2  8
 #373 UNPACK_ADDR     %0  %1  %2
 #377 FP_TO_SP
@@ -48,7 +48,7 @@
 #423 LOAD_A          %4  $24
 #433 LOAD_I          %5  8
 #443 ASSIGN          %3  %4  %5
-#447 LOAD_A          %0  $4222
+#447 LOAD_A          %0  $1150
 #457 LOAD_A          %1  $32
 #467 LOAD_I          %2  8
 #477 CALL_NAT        %0  %1  %2
@@ -117,7 +117,7 @@
 #1011 LOAD_I          %2  8
 #1021 UNPACK_ADDR     %0  %1  %2
 #1025 LOAD            %0  $88
-#1035 LOAD            %1  $4096
+#1035 LOAD            %1  $1024
 #1045 ADD             %0  %1
 #1048 STORE           %2  %0  $96
 #1059 LOAD_A          %0  $104
@@ -156,14 +156,14 @@
 #1298 LOAD_I          %2  8
 #1308 ASSIGN          %0  %1  %2
 #1312 LOAD_A          %0  $40
-#1322 LOAD_A          %1  $4104
+#1322 LOAD_A          %1  $1032
 #1332 LOAD_I          %2  8
 #1342 ASSIGN          %0  %1  %2
 #1346 LOAD            %0  $40
 #1356 LOAD            %1  $8
 #1366 LT              %0  %1
 #1369 STORE           %2  %0  $48
-#1380 LOAD_I          %0  182
+#1380 LOAD_I          %0  171
 #1390 LOAD            %1  $48
 #1400 IF_ZERO_GOTO    %0  %1
 #1403 LOAD_A          %0  $56
@@ -182,533 +182,547 @@
 #1515 LOAD_A          %1  $64
 #1525 LOAD_I          %2  8
 #1535 ASSIGN          %0  %1  %2
-#1539 LOAD_I          %0  1
-#1549 LOAD            %1  $40
-#1559 ADD             %1  %0
-#1562 STORE           %2  %1  $40
-#1573 LOAD_I          %0  -239
-#1583 GOTO            %0
-#1585 LOAD_A          %0  $72
-#1595 LOAD_A          %1  $16
-#1605 LOAD_I          %2  8
-#1615 ASSIGN          %0  %1  %2
-#1619 LOAD_I          %0  0
-#1629 LOAD            %1  $72
-#1639 ADD             %1  %0
-#1642 STORE           %2  %1  $72
-#1653 LOAD_A          %0  $80
-#1663 LOAD            %1  $72
-#1673 LOAD_I          %2  8
-#1683 UNPACK_ADDR     %0  %1  %2
-#1687 LOAD_A          %0  $80
-#1697 LOAD_I          %1  8
-#1707 FP_TO_SP
-#1708 RETURN          %0  %1
-#1711 FP_TO_SP
-#1712 STOP
+#1539 LOAD            %0  $40
+#1549 INC             %0
+#1551 STORE           %1  %0  $40
+#1562 LOAD_I          %0  -228
+#1572 GOTO            %0
+#1574 LOAD_A          %0  $72
+#1584 LOAD_A          %1  $16
+#1594 LOAD_I          %2  8
+#1604 ASSIGN          %0  %1  %2
+#1608 LOAD_I          %0  0
+#1618 LOAD            %1  $72
+#1628 ADD             %1  %0
+#1631 STORE           %2  %1  $72
+#1642 LOAD_A          %0  $80
+#1652 LOAD            %1  $72
+#1662 LOAD_I          %2  8
+#1672 UNPACK_ADDR     %0  %1  %2
+#1676 LOAD_A          %0  $80
+#1686 LOAD_I          %1  8
+#1696 FP_TO_SP
+#1697 RETURN          %0  %1
+#1700 FP_TO_SP
+#1701 STOP
 
 //FUNCTION 10:
-#1713 SP_TO_FP
-#1714 LOAD_I          %0  104
-#1724 PUSH            %0
-#1726 LOAD_A          %0  $16
-#1736 LOAD_A          %1  $0
-#1746 LOAD_I          %2  8
-#1756 ASSIGN          %0  %1  %2
-#1760 LOAD_I          %0  8
-#1770 LOAD            %1  $16
-#1780 ADD             %1  %0
-#1783 STORE           %2  %1  $16
-#1794 LOAD_A          %0  $24
-#1804 LOAD            %1  $16
-#1814 LOAD_I          %2  8
-#1824 UNPACK_ADDR     %0  %1  %2
-#1828 LOAD_A          %0  $8
-#1838 LOAD_A          %1  $24
-#1848 LOAD_I          %2  8
-#1858 ASSIGN          %0  %1  %2
-#1862 LOAD_A          %0  $32
-#1872 LOAD_A          %1  $8
-#1882 LOAD_I          %2  8
-#1892 ASSIGN          %0  %1  %2
-#1896 LOAD_I          %0  8
-#1906 LOAD            %1  $32
-#1916 ADD             %1  %0
-#1919 STORE           %2  %1  $32
-#1930 LOAD_A          %0  $40
-#1940 LOAD            %1  $32
-#1950 LOAD_I          %2  8
-#1960 UNPACK_ADDR     %0  %1  %2
-#1964 LOAD_A          %0  $48
-#1974 LOAD_A          %1  $0
-#1984 LOAD_I          %2  8
-#1994 ASSIGN          %0  %1  %2
-#1998 LOAD_I          %0  8
-#2008 LOAD            %1  $48
-#2018 ADD             %1  %0
-#2021 STORE           %2  %1  $48
-#2032 LOAD            %0  $48
-#2042 LOAD_A          %1  $40
-#2052 LOAD_I          %2  8
-#2062 UNPACK_ADDR     %0  %1  %2
-#2066 LOAD_A          %0  $56
-#2076 LOAD_A          %1  $0
-#2086 LOAD_I          %2  8
-#2096 ASSIGN          %0  %1  %2
-#2100 LOAD_I          %0  0
-#2110 LOAD            %1  $56
-#2120 ADD             %1  %0
-#2123 STORE           %2  %1  $56
-#2134 LOAD_A          %0  $64
-#2144 LOAD            %1  $56
-#2154 LOAD_I          %2  8
-#2164 UNPACK_ADDR     %0  %1  %2
-#2168 LOAD            %0  $64
-#2178 LOAD            %1  $4096
-#2188 SUB             %0  %1
-#2191 STORE           %2  %0  $72
-#2202 LOAD_A          %0  $80
-#2212 LOAD_A          %1  $0
-#2222 LOAD_I          %2  8
-#2232 ASSIGN          %0  %1  %2
-#2236 LOAD_I          %0  0
-#2246 LOAD            %1  $80
-#2256 ADD             %1  %0
-#2259 STORE           %2  %1  $80
-#2270 LOAD            %0  $80
-#2280 LOAD_A          %1  $72
-#2290 LOAD_I          %2  8
-#2300 UNPACK_ADDR     %0  %1  %2
-#2304 LOAD_A          %0  $88
-#2314 LOAD_A          %1  $8
-#2324 LOAD_I          %2  8
-#2334 ASSIGN          %0  %1  %2
-#2338 LOAD_I          %0  0
-#2348 LOAD            %1  $88
-#2358 ADD             %1  %0
-#2361 STORE           %2  %1  $88
-#2372 LOAD_A          %0  $96
-#2382 LOAD            %1  $88
-#2392 LOAD_I          %2  8
-#2402 UNPACK_ADDR     %0  %1  %2
-#2406 LOAD_A          %0  $96
-#2416 LOAD_I          %1  8
-#2426 FP_TO_SP
-#2427 RETURN          %0  %1
-#2430 FP_TO_SP
-#2431 STOP
+#1702 SP_TO_FP
+#1703 LOAD_I          %0  104
+#1713 PUSH            %0
+#1715 LOAD_A          %0  $16
+#1725 LOAD_A          %1  $0
+#1735 LOAD_I          %2  8
+#1745 ASSIGN          %0  %1  %2
+#1749 LOAD_I          %0  8
+#1759 LOAD            %1  $16
+#1769 ADD             %1  %0
+#1772 STORE           %2  %1  $16
+#1783 LOAD_A          %0  $24
+#1793 LOAD            %1  $16
+#1803 LOAD_I          %2  8
+#1813 UNPACK_ADDR     %0  %1  %2
+#1817 LOAD_A          %0  $8
+#1827 LOAD_A          %1  $24
+#1837 LOAD_I          %2  8
+#1847 ASSIGN          %0  %1  %2
+#1851 LOAD_A          %0  $32
+#1861 LOAD_A          %1  $8
+#1871 LOAD_I          %2  8
+#1881 ASSIGN          %0  %1  %2
+#1885 LOAD_I          %0  8
+#1895 LOAD            %1  $32
+#1905 ADD             %1  %0
+#1908 STORE           %2  %1  $32
+#1919 LOAD_A          %0  $40
+#1929 LOAD            %1  $32
+#1939 LOAD_I          %2  8
+#1949 UNPACK_ADDR     %0  %1  %2
+#1953 LOAD_A          %0  $48
+#1963 LOAD_A          %1  $0
+#1973 LOAD_I          %2  8
+#1983 ASSIGN          %0  %1  %2
+#1987 LOAD_I          %0  8
+#1997 LOAD            %1  $48
+#2007 ADD             %1  %0
+#2010 STORE           %2  %1  $48
+#2021 LOAD            %0  $48
+#2031 LOAD_A          %1  $40
+#2041 LOAD_I          %2  8
+#2051 UNPACK_ADDR     %0  %1  %2
+#2055 LOAD_A          %0  $56
+#2065 LOAD_A          %1  $0
+#2075 LOAD_I          %2  8
+#2085 ASSIGN          %0  %1  %2
+#2089 LOAD_I          %0  0
+#2099 LOAD            %1  $56
+#2109 ADD             %1  %0
+#2112 STORE           %2  %1  $56
+#2123 LOAD_A          %0  $64
+#2133 LOAD            %1  $56
+#2143 LOAD_I          %2  8
+#2153 UNPACK_ADDR     %0  %1  %2
+#2157 LOAD            %0  $64
+#2167 LOAD            %1  $1024
+#2177 SUB             %0  %1
+#2180 STORE           %2  %0  $72
+#2191 LOAD_A          %0  $80
+#2201 LOAD_A          %1  $0
+#2211 LOAD_I          %2  8
+#2221 ASSIGN          %0  %1  %2
+#2225 LOAD_I          %0  0
+#2235 LOAD            %1  $80
+#2245 ADD             %1  %0
+#2248 STORE           %2  %1  $80
+#2259 LOAD            %0  $80
+#2269 LOAD_A          %1  $72
+#2279 LOAD_I          %2  8
+#2289 UNPACK_ADDR     %0  %1  %2
+#2293 LOAD_A          %0  $88
+#2303 LOAD_A          %1  $8
+#2313 LOAD_I          %2  8
+#2323 ASSIGN          %0  %1  %2
+#2327 LOAD_I          %0  0
+#2337 LOAD            %1  $88
+#2347 ADD             %1  %0
+#2350 STORE           %2  %1  $88
+#2361 LOAD_A          %0  $96
+#2371 LOAD            %1  $88
+#2381 LOAD_I          %2  8
+#2391 UNPACK_ADDR     %0  %1  %2
+#2395 LOAD_A          %0  $96
+#2405 LOAD_I          %1  8
+#2415 FP_TO_SP
+#2416 RETURN          %0  %1
+#2419 FP_TO_SP
+#2420 STOP
 
 //FUNCTION 11:
-#2432 SP_TO_FP
-#2433 LOAD_I          %0  80
-#2443 PUSH            %0
-#2445 LOAD_AS         %3  $0
-#2455 LOAD_A          %4  $4112
-#2465 LOAD_I          %5  8
-#2475 ASSIGN          %3  %4  %5
-#2479 LOAD_A          %0  $4230
-#2489 LOAD_A          %1  $16
-#2499 LOAD_I          %2  8
-#2509 CALL_NAT        %0  %1  %2
-#2513 LOAD_A          %0  $24
-#2523 LOAD_A          %1  $0
-#2533 LOAD_I          %2  8
-#2543 ASSIGN          %0  %1  %2
-#2547 LOAD_I          %0  8
-#2557 LOAD            %1  $24
-#2567 ADD             %1  %0
-#2570 STORE           %2  %1  $24
-#2581 LOAD_A          %0  $32
-#2591 LOAD            %1  $24
-#2601 LOAD_I          %2  8
-#2611 UNPACK_ADDR     %0  %1  %2
-#2615 LOAD_A          %0  $16
-#2625 LOAD_A          %1  $32
-#2635 LOAD_I          %2  8
-#2645 ASSIGN          %0  %1  %2
-#2649 LOAD            %0  $16
-#2659 LOAD            %1  $4198
-#2669 NE              %0  %1
-#2672 STORE           %2  %0  $40
-#2683 LOAD_I          %0  296
-#2693 LOAD            %1  $40
-#2703 IF_ZERO_GOTO    %0  %1
-#2706 LOAD_A          %0  $48
-#2716 LOAD_A          %1  $16
-#2726 LOAD_I          %2  8
-#2736 ASSIGN          %0  %1  %2
-#2740 LOAD_I          %0  0
-#2750 LOAD            %1  $48
-#2760 ADD             %1  %0
-#2763 STORE           %2  %1  $48
-#2774 LOAD_A          %0  $56
-#2784 LOAD            %1  $48
-#2794 LOAD_I          %2  8
-#2804 UNPACK_ADDR     %0  %1  %2
-#2808 LOAD_AS         %2  $0
-#2818 LOAD_A          %3  $56
-#2828 LOAD_I          %4  8
-#2838 ASSIGN          %2  %3  %4
-#2842 LOAD_A          %0  $8
-#2852 CALL            %0
-#2854 LOAD_A          %0  $64
-#2864 LOAD_A          %1  $16
-#2874 LOAD_I          %2  8
-#2884 ASSIGN          %0  %1  %2
-#2888 LOAD_I          %0  8
-#2898 LOAD            %1  $64
-#2908 ADD             %1  %0
-#2911 STORE           %2  %1  $64
-#2922 LOAD_A          %0  $72
-#2932 LOAD            %1  $64
-#2942 LOAD_I          %2  8
-#2952 UNPACK_ADDR     %0  %1  %2
-#2956 LOAD_A          %0  $16
-#2966 LOAD_A          %1  $72
-#2976 LOAD_I          %2  8
-#2986 ASSIGN          %0  %1  %2
-#2990 LOAD_I          %0  -353
-#3000 GOTO            %0
-#3002 LOAD_AS         %3  $0
-#3012 LOAD_A          %4  $4122
-#3022 LOAD_I          %5  8
-#3032 ASSIGN          %3  %4  %5
-#3036 LOAD_A          %0  $4230
-#3046 LOAD_A          %1  $80
-#3056 LOAD_I          %2  8
-#3066 CALL_NAT        %0  %1  %2
-#3070 FP_TO_SP
-#3071 STOP
+#2421 SP_TO_FP
+#2422 LOAD_I          %0  80
+#2432 PUSH            %0
+#2434 LOAD_AS         %3  $0
+#2444 LOAD_A          %4  $1040
+#2454 LOAD_I          %5  8
+#2464 ASSIGN          %3  %4  %5
+#2468 LOAD_A          %0  $1158
+#2478 LOAD_A          %1  $16
+#2488 LOAD_I          %2  8
+#2498 CALL_NAT        %0  %1  %2
+#2502 LOAD_A          %0  $24
+#2512 LOAD_A          %1  $0
+#2522 LOAD_I          %2  8
+#2532 ASSIGN          %0  %1  %2
+#2536 LOAD_I          %0  8
+#2546 LOAD            %1  $24
+#2556 ADD             %1  %0
+#2559 STORE           %2  %1  $24
+#2570 LOAD_A          %0  $32
+#2580 LOAD            %1  $24
+#2590 LOAD_I          %2  8
+#2600 UNPACK_ADDR     %0  %1  %2
+#2604 LOAD_A          %0  $16
+#2614 LOAD_A          %1  $32
+#2624 LOAD_I          %2  8
+#2634 ASSIGN          %0  %1  %2
+#2638 LOAD            %0  $16
+#2648 LOAD            %1  $1126
+#2658 NE              %0  %1
+#2661 STORE           %2  %0  $40
+#2672 LOAD_I          %0  296
+#2682 LOAD            %1  $40
+#2692 IF_ZERO_GOTO    %0  %1
+#2695 LOAD_A          %0  $48
+#2705 LOAD_A          %1  $16
+#2715 LOAD_I          %2  8
+#2725 ASSIGN          %0  %1  %2
+#2729 LOAD_I          %0  0
+#2739 LOAD            %1  $48
+#2749 ADD             %1  %0
+#2752 STORE           %2  %1  $48
+#2763 LOAD_A          %0  $56
+#2773 LOAD            %1  $48
+#2783 LOAD_I          %2  8
+#2793 UNPACK_ADDR     %0  %1  %2
+#2797 LOAD_AS         %2  $0
+#2807 LOAD_A          %3  $56
+#2817 LOAD_I          %4  8
+#2827 ASSIGN          %2  %3  %4
+#2831 LOAD_A          %0  $8
+#2841 CALL            %0
+#2843 LOAD_A          %0  $64
+#2853 LOAD_A          %1  $16
+#2863 LOAD_I          %2  8
+#2873 ASSIGN          %0  %1  %2
+#2877 LOAD_I          %0  8
+#2887 LOAD            %1  $64
+#2897 ADD             %1  %0
+#2900 STORE           %2  %1  $64
+#2911 LOAD_A          %0  $72
+#2921 LOAD            %1  $64
+#2931 LOAD_I          %2  8
+#2941 UNPACK_ADDR     %0  %1  %2
+#2945 LOAD_A          %0  $16
+#2955 LOAD_A          %1  $72
+#2965 LOAD_I          %2  8
+#2975 ASSIGN          %0  %1  %2
+#2979 LOAD_I          %0  -353
+#2989 GOTO            %0
+#2991 LOAD_AS         %3  $0
+#3001 LOAD_A          %4  $1050
+#3011 LOAD_I          %5  8
+#3021 ASSIGN          %3  %4  %5
+#3025 LOAD_A          %0  $1158
+#3035 LOAD_A          %1  $80
+#3045 LOAD_I          %2  8
+#3055 CALL_NAT        %0  %1  %2
+#3059 FP_TO_SP
+#3060 STOP
 
 //FUNCTION 12:
-#3072 SP_TO_FP
-#3073 LOAD_I          %0  24
-#3083 PUSH            %0
-#3085 LOAD_A          %0  $8
-#3095 LOAD_A          %1  $0
-#3105 LOAD_I          %2  8
-#3115 ASSIGN          %0  %1  %2
-#3119 LOAD_I          %0  0
-#3129 LOAD            %1  $8
-#3139 ADD             %1  %0
-#3142 STORE           %2  %1  $8
-#3153 LOAD_A          %0  $16
-#3163 LOAD            %1  $8
-#3173 LOAD_I          %2  8
-#3183 UNPACK_ADDR     %0  %1  %2
-#3187 LOAD_AS         %3  $0
-#3197 LOAD_A          %4  $4133
-#3207 LOAD_I          %5  8
-#3217 ASSIGN          %3  %4  %5
-#3221 LOAD_AS         %3  $8
-#3231 LOAD_A          %4  $16
-#3241 LOAD_I          %5  8
-#3251 ASSIGN          %3  %4  %5
-#3255 LOAD_A          %0  $4230
-#3265 LOAD_A          %1  $24
-#3275 LOAD_I          %2  16
-#3285 CALL_NAT        %0  %1  %2
-#3289 FP_TO_SP
-#3290 STOP
+#3061 SP_TO_FP
+#3062 LOAD_I          %0  24
+#3072 PUSH            %0
+#3074 LOAD_A          %0  $8
+#3084 LOAD_A          %1  $0
+#3094 LOAD_I          %2  8
+#3104 ASSIGN          %0  %1  %2
+#3108 LOAD_I          %0  0
+#3118 LOAD            %1  $8
+#3128 ADD             %1  %0
+#3131 STORE           %2  %1  $8
+#3142 LOAD_A          %0  $16
+#3152 LOAD            %1  $8
+#3162 LOAD_I          %2  8
+#3172 UNPACK_ADDR     %0  %1  %2
+#3176 LOAD_AS         %3  $0
+#3186 LOAD_A          %4  $1061
+#3196 LOAD_I          %5  8
+#3206 ASSIGN          %3  %4  %5
+#3210 LOAD_AS         %3  $8
+#3220 LOAD_A          %4  $16
+#3230 LOAD_I          %5  8
+#3240 ASSIGN          %3  %4  %5
+#3244 LOAD_A          %0  $1158
+#3254 LOAD_A          %1  $24
+#3264 LOAD_I          %2  16
+#3274 CALL_NAT        %0  %1  %2
+#3278 FP_TO_SP
+#3279 STOP
 
 //FUNCTION 13:
-#3291 SP_TO_FP
-#3292 LOAD_I          %0  264
-#3302 PUSH            %0
-#3304 LOAD_I          %0  56
-#3314 STORE           %1  %0  $16
-#3325 LOAD_AS         %3  $0
-#3335 LOAD_A          %4  $16
-#3345 LOAD_I          %5  8
-#3355 ASSIGN          %3  %4  %5
-#3359 LOAD_A          %0  $4222
-#3369 LOAD_A          %1  $24
-#3379 LOAD_I          %2  8
-#3389 CALL_NAT        %0  %1  %2
-#3393 LOAD_A          %0  $32
-#3403 LOAD_A          %1  $24
-#3413 LOAD_I          %2  8
-#3423 ASSIGN          %0  %1  %2
-#3427 LOAD_I          %0  16
-#3437 LOAD            %1  $32
-#3447 ADD             %1  %0
-#3450 STORE           %2  %1  $32
-#3461 LOAD            %0  $32
-#3471 LOAD_A          %1  $4270
-#3481 LOAD_I          %2  8
-#3491 UNPACK_ADDR     %0  %1  %2
-#3495 LOAD_A          %0  $40
-#3505 LOAD_A          %1  $24
-#3515 LOAD_I          %2  8
-#3525 ASSIGN          %0  %1  %2
-#3529 LOAD_I          %0  24
-#3539 LOAD            %1  $40
-#3549 ADD             %1  %0
-#3552 STORE           %2  %1  $40
-#3563 LOAD            %0  $40
-#3573 LOAD_A          %1  $4278
-#3583 LOAD_I          %2  8
-#3593 UNPACK_ADDR     %0  %1  %2
-#3597 LOAD_A          %0  $48
-#3607 LOAD_A          %1  $24
-#3617 LOAD_I          %2  8
-#3627 ASSIGN          %0  %1  %2
-#3631 LOAD_I          %0  32
-#3641 LOAD            %1  $48
-#3651 ADD             %1  %0
-#3654 STORE           %2  %1  $48
-#3665 LOAD            %0  $48
-#3675 LOAD_A          %1  $4286
-#3685 LOAD_I          %2  8
-#3695 UNPACK_ADDR     %0  %1  %2
-#3699 LOAD_A          %0  $56
-#3709 LOAD_A          %1  $24
-#3719 LOAD_I          %2  8
-#3729 ASSIGN          %0  %1  %2
-#3733 LOAD_I          %0  40
-#3743 LOAD            %1  $56
-#3753 ADD             %1  %0
-#3756 STORE           %2  %1  $56
-#3767 LOAD            %0  $56
-#3777 LOAD_A          %1  $4294
-#3787 LOAD_I          %2  8
-#3797 UNPACK_ADDR     %0  %1  %2
-#3801 LOAD_A          %0  $64
-#3811 LOAD_A          %1  $24
-#3821 LOAD_I          %2  8
-#3831 ASSIGN          %0  %1  %2
-#3835 LOAD_I          %0  48
-#3845 LOAD            %1  $64
-#3855 ADD             %1  %0
-#3858 STORE           %2  %1  $64
-#3869 LOAD            %0  $64
-#3879 LOAD_A          %1  $4302
-#3889 LOAD_I          %2  8
-#3899 UNPACK_ADDR     %0  %1  %2
-#3903 LOAD_A          %0  $0
-#3913 LOAD_A          %1  $24
-#3923 LOAD_I          %2  8
-#3933 ASSIGN          %0  %1  %2
-#3937 LOAD_A          %0  $72
-#3947 LOAD_A          %1  $0
-#3957 LOAD_I          %2  8
-#3967 ASSIGN          %0  %1  %2
-#3971 LOAD_I          %0  16
-#3981 LOAD            %1  $72
-#3991 ADD             %1  %0
-#3994 STORE           %2  %1  $72
-#4005 LOAD_A          %0  $80
-#4015 LOAD            %1  $72
-#4025 LOAD_I          %2  8
-#4035 UNPACK_ADDR     %0  %1  %2
-#4039 LOAD_AS         %2  $0
-#4049 LOAD_A          %3  $0
-#4059 LOAD_I          %4  8
-#4069 ASSIGN          %2  %3  %4
-#4073 LOAD_A          %0  $80
-#4083 CALL            %0
-#4085 LOAD_A          %0  $88
-#4095 LOAD_A          %1  $4104
-#4105 LOAD_I          %2  8
-#4115 ASSIGN          %0  %1  %2
-#4119 LOAD            %0  $88
-#4129 LOAD            %1  $4145
-#4139 LT              %0  %1
-#4142 STORE           %2  %0  $96
-#4153 LOAD_I          %0  453
-#4163 LOAD            %1  $96
-#4173 IF_ZERO_GOTO    %0  %1
-#4176 LOAD_I          %0  8
-#4186 STORE           %1  %0  $120
-#4197 LOAD_AS         %3  $0
-#4207 LOAD_A          %4  $120
-#4217 LOAD_I          %5  8
-#4227 ASSIGN          %3  %4  %5
-#4231 LOAD_A          %0  $4222
-#4241 LOAD_A          %1  $128
-#4251 LOAD_I          %2  8
-#4261 CALL_NAT        %0  %1  %2
-#4265 LOAD_A          %0  $104
-#4275 LOAD_A          %1  $128
-#4285 LOAD_I          %2  8
-#4295 ASSIGN          %0  %1  %2
-#4299 LOAD_A          %0  $136
-#4309 LOAD_A          %1  $104
-#4319 LOAD_I          %2  8
-#4329 ASSIGN          %0  %1  %2
-#4333 LOAD_I          %0  0
-#4343 LOAD            %1  $136
-#4353 ADD             %1  %0
-#4356 STORE           %2  %1  $136
-#4367 LOAD            %0  $136
-#4377 LOAD_A          %1  $88
-#4387 LOAD_I          %2  8
-#4397 UNPACK_ADDR     %0  %1  %2
-#4401 LOAD_A          %0  $144
-#4411 LOAD_A          %1  $0
-#4421 LOAD_I          %2  8
-#4431 ASSIGN          %0  %1  %2
-#4435 LOAD_I          %0  24
-#4445 LOAD            %1  $144
-#4455 ADD             %1  %0
-#4458 STORE           %2  %1  $144
-#4469 LOAD_A          %0  $152
-#4479 LOAD            %1  $144
-#4489 LOAD_I          %2  8
-#4499 UNPACK_ADDR     %0  %1  %2
-#4503 LOAD_AS         %2  $0
-#4513 LOAD_A          %3  $0
-#4523 LOAD_I          %4  8
-#4533 ASSIGN          %2  %3  %4
-#4537 LOAD_AS         %2  $8
-#4547 LOAD_A          %3  $104
-#4557 LOAD_I          %4  8
-#4567 ASSIGN          %2  %3  %4
-#4571 LOAD_A          %0  $152
-#4581 CALL            %0
-#4583 LOAD_I          %0  1
-#4593 LOAD            %1  $88
-#4603 ADD             %1  %0
-#4606 STORE           %2  %1  $88
-#4617 LOAD_I          %0  -510
-#4627 GOTO            %0
-#4629 LOAD_A          %0  $160
-#4639 LOAD_A          %1  $0
-#4649 LOAD_I          %2  8
-#4659 ASSIGN          %0  %1  %2
-#4663 LOAD_I          %0  48
-#4673 LOAD            %1  $160
-#4683 ADD             %1  %0
-#4686 STORE           %2  %1  $160
-#4697 LOAD_A          %0  $168
-#4707 LOAD            %1  $160
-#4717 LOAD_I          %2  8
-#4727 UNPACK_ADDR     %0  %1  %2
-#4731 LOAD_AS         %2  $0
-#4741 LOAD_A          %3  $0
-#4751 LOAD_I          %4  8
-#4761 ASSIGN          %2  %3  %4
-#4765 LOAD_AS         %2  $8
-#4775 LOAD_A          %3  $4310
-#4785 LOAD_I          %4  8
-#4795 ASSIGN          %2  %3  %4
-#4799 LOAD_A          %0  $168
-#4809 CALL            %0
-#4811 LOAD_A          %0  $176
-#4821 LOAD_A          %1  $0
-#4831 LOAD_I          %2  8
-#4841 ASSIGN          %0  %1  %2
-#4845 LOAD_I          %0  0
-#4855 LOAD            %1  $176
-#4865 ADD             %1  %0
-#4868 STORE           %2  %1  $176
-#4879 LOAD_A          %0  $184
-#4889 LOAD            %1  $176
-#4899 LOAD_I          %2  8
-#4909 UNPACK_ADDR     %0  %1  %2
-#4913 LOAD_AS         %3  $0
-#4923 LOAD_A          %4  $4153
-#4933 LOAD_I          %5  8
-#4943 ASSIGN          %3  %4  %5
-#4947 LOAD_AS         %3  $8
-#4957 LOAD_A          %4  $184
-#4967 LOAD_I          %5  8
-#4977 ASSIGN          %3  %4  %5
-#4981 LOAD_A          %0  $4230
-#4991 LOAD_A          %1  $192
-#5001 LOAD_I          %2  16
-#5011 CALL_NAT        %0  %1  %2
-#5015 LOAD_A          %0  $192
-#5025 LOAD_A          %1  $0
-#5035 LOAD_I          %2  8
-#5045 ASSIGN          %0  %1  %2
-#5049 LOAD_I          %0  0
-#5059 LOAD            %1  $192
-#5069 ADD             %1  %0
-#5072 STORE           %2  %1  $192
-#5083 LOAD_A          %0  $200
-#5093 LOAD            %1  $192
-#5103 LOAD_I          %2  8
-#5113 UNPACK_ADDR     %0  %1  %2
-#5117 LOAD            %0  $200
-#5127 LOAD            %1  $4104
-#5137 GT              %0  %1
-#5140 STORE           %2  %0  $208
-#5151 LOAD_I          %0  410
-#5161 LOAD            %1  $208
-#5171 IF_ZERO_GOTO    %0  %1
-#5174 LOAD_A          %0  $224
-#5184 LOAD_A          %1  $0
-#5194 LOAD_I          %2  8
-#5204 ASSIGN          %0  %1  %2
-#5208 LOAD_I          %0  40
-#5218 LOAD            %1  $224
-#5228 ADD             %1  %0
-#5231 STORE           %2  %1  $224
-#5242 LOAD_A          %0  $232
-#5252 LOAD            %1  $224
-#5262 LOAD_I          %2  8
-#5272 UNPACK_ADDR     %0  %1  %2
-#5276 LOAD_AS         %2  $0
-#5286 LOAD_A          %3  $0
-#5296 LOAD_I          %4  8
-#5306 ASSIGN          %2  %3  %4
-#5310 LOAD_A          %0  $232
-#5320 LOAD_A          %1  $240
-#5330 SET_RET         %1
-#5332 CALL            %0
-#5334 LOAD_A          %0  $216
-#5344 LOAD_A          %1  $240
-#5354 LOAD_I          %2  8
-#5364 ASSIGN          %0  %1  %2
-#5368 LOAD_A          %0  $248
-#5378 LOAD_A          %1  $216
-#5388 LOAD_I          %2  8
-#5398 ASSIGN          %0  %1  %2
-#5402 LOAD_I          %0  0
-#5412 LOAD            %1  $248
-#5422 ADD             %1  %0
-#5425 STORE           %2  %1  $248
-#5436 LOAD_A          %0  $256
-#5446 LOAD            %1  $248
-#5456 LOAD_I          %2  8
-#5466 UNPACK_ADDR     %0  %1  %2
-#5470 LOAD_AS         %3  $0
-#5480 LOAD_A          %4  $4170
-#5490 LOAD_I          %5  8
-#5500 ASSIGN          %3  %4  %5
-#5504 LOAD_AS         %3  $8
-#5514 LOAD_A          %4  $256
-#5524 LOAD_I          %5  8
-#5534 ASSIGN          %3  %4  %5
-#5538 LOAD_A          %0  $4230
-#5548 LOAD_A          %1  $264
-#5558 LOAD_I          %2  16
-#5568 CALL_NAT        %0  %1  %2
-#5572 LOAD_I          %0  -569
-#5582 GOTO            %0
-#5584 LOAD_A          %0  $4104
-#5594 LOAD_I          %1  8
-#5604 FP_TO_SP
-#5605 RETURN          %0  %1
-#5608 FP_TO_SP
-#5609 STOP
+#3280 SP_TO_FP
+#3281 LOAD_I          %0  264
+#3291 PUSH            %0
+#3293 LOAD_I          %0  56
+#3303 STORE           %1  %0  $16
+#3314 LOAD_AS         %3  $0
+#3324 LOAD_A          %4  $16
+#3334 LOAD_I          %5  8
+#3344 ASSIGN          %3  %4  %5
+#3348 LOAD_A          %0  $1150
+#3358 LOAD_A          %1  $24
+#3368 LOAD_I          %2  8
+#3378 CALL_NAT        %0  %1  %2
+#3382 LOAD_A          %0  $32
+#3392 LOAD_A          %1  $24
+#3402 LOAD_I          %2  8
+#3412 ASSIGN          %0  %1  %2
+#3416 LOAD_I          %0  16
+#3426 LOAD            %1  $32
+#3436 ADD             %1  %0
+#3439 STORE           %2  %1  $32
+#3450 LOAD            %0  $32
+#3460 LOAD_A          %1  $1198
+#3470 LOAD_I          %2  8
+#3480 UNPACK_ADDR     %0  %1  %2
+#3484 LOAD_A          %0  $40
+#3494 LOAD_A          %1  $24
+#3504 LOAD_I          %2  8
+#3514 ASSIGN          %0  %1  %2
+#3518 LOAD_I          %0  24
+#3528 LOAD            %1  $40
+#3538 ADD             %1  %0
+#3541 STORE           %2  %1  $40
+#3552 LOAD            %0  $40
+#3562 LOAD_A          %1  $1206
+#3572 LOAD_I          %2  8
+#3582 UNPACK_ADDR     %0  %1  %2
+#3586 LOAD_A          %0  $48
+#3596 LOAD_A          %1  $24
+#3606 LOAD_I          %2  8
+#3616 ASSIGN          %0  %1  %2
+#3620 LOAD_I          %0  32
+#3630 LOAD            %1  $48
+#3640 ADD             %1  %0
+#3643 STORE           %2  %1  $48
+#3654 LOAD            %0  $48
+#3664 LOAD_A          %1  $1214
+#3674 LOAD_I          %2  8
+#3684 UNPACK_ADDR     %0  %1  %2
+#3688 LOAD_A          %0  $56
+#3698 LOAD_A          %1  $24
+#3708 LOAD_I          %2  8
+#3718 ASSIGN          %0  %1  %2
+#3722 LOAD_I          %0  40
+#3732 LOAD            %1  $56
+#3742 ADD             %1  %0
+#3745 STORE           %2  %1  $56
+#3756 LOAD            %0  $56
+#3766 LOAD_A          %1  $1222
+#3776 LOAD_I          %2  8
+#3786 UNPACK_ADDR     %0  %1  %2
+#3790 LOAD_A          %0  $64
+#3800 LOAD_A          %1  $24
+#3810 LOAD_I          %2  8
+#3820 ASSIGN          %0  %1  %2
+#3824 LOAD_I          %0  48
+#3834 LOAD            %1  $64
+#3844 ADD             %1  %0
+#3847 STORE           %2  %1  $64
+#3858 LOAD            %0  $64
+#3868 LOAD_A          %1  $1230
+#3878 LOAD_I          %2  8
+#3888 UNPACK_ADDR     %0  %1  %2
+#3892 LOAD_A          %0  $0
+#3902 LOAD_A          %1  $24
+#3912 LOAD_I          %2  8
+#3922 ASSIGN          %0  %1  %2
+#3926 LOAD_A          %0  $72
+#3936 LOAD_A          %1  $0
+#3946 LOAD_I          %2  8
+#3956 ASSIGN          %0  %1  %2
+#3960 LOAD_I          %0  16
+#3970 LOAD            %1  $72
+#3980 ADD             %1  %0
+#3983 STORE           %2  %1  $72
+#3994 LOAD_A          %0  $80
+#4004 LOAD            %1  $72
+#4014 LOAD_I          %2  8
+#4024 UNPACK_ADDR     %0  %1  %2
+#4028 LOAD_AS         %2  $0
+#4038 LOAD_A          %3  $0
+#4048 LOAD_I          %4  8
+#4058 ASSIGN          %2  %3  %4
+#4062 LOAD_A          %0  $80
+#4072 CALL            %0
+#4074 LOAD_A          %0  $88
+#4084 LOAD_A          %1  $1032
+#4094 LOAD_I          %2  8
+#4104 ASSIGN          %0  %1  %2
+#4108 LOAD            %0  $88
+#4118 LOAD            %1  $1073
+#4128 LT              %0  %1
+#4131 STORE           %2  %0  $96
+#4142 LOAD_I          %0  442
+#4152 LOAD            %1  $96
+#4162 IF_ZERO_GOTO    %0  %1
+#4165 LOAD_I          %0  8
+#4175 STORE           %1  %0  $120
+#4186 LOAD_AS         %3  $0
+#4196 LOAD_A          %4  $120
+#4206 LOAD_I          %5  8
+#4216 ASSIGN          %3  %4  %5
+#4220 LOAD_A          %0  $1150
+#4230 LOAD_A          %1  $128
+#4240 LOAD_I          %2  8
+#4250 CALL_NAT        %0  %1  %2
+#4254 LOAD_A          %0  $104
+#4264 LOAD_A          %1  $128
+#4274 LOAD_I          %2  8
+#4284 ASSIGN          %0  %1  %2
+#4288 LOAD_A          %0  $136
+#4298 LOAD_A          %1  $104
+#4308 LOAD_I          %2  8
+#4318 ASSIGN          %0  %1  %2
+#4322 LOAD_I          %0  0
+#4332 LOAD            %1  $136
+#4342 ADD             %1  %0
+#4345 STORE           %2  %1  $136
+#4356 LOAD            %0  $136
+#4366 LOAD_A          %1  $88
+#4376 LOAD_I          %2  8
+#4386 UNPACK_ADDR     %0  %1  %2
+#4390 LOAD_A          %0  $144
+#4400 LOAD_A          %1  $0
+#4410 LOAD_I          %2  8
+#4420 ASSIGN          %0  %1  %2
+#4424 LOAD_I          %0  24
+#4434 LOAD            %1  $144
+#4444 ADD             %1  %0
+#4447 STORE           %2  %1  $144
+#4458 LOAD_A          %0  $152
+#4468 LOAD            %1  $144
+#4478 LOAD_I          %2  8
+#4488 UNPACK_ADDR     %0  %1  %2
+#4492 LOAD_AS         %2  $0
+#4502 LOAD_A          %3  $0
+#4512 LOAD_I          %4  8
+#4522 ASSIGN          %2  %3  %4
+#4526 LOAD_AS         %2  $8
+#4536 LOAD_A          %3  $104
+#4546 LOAD_I          %4  8
+#4556 ASSIGN          %2  %3  %4
+#4560 LOAD_A          %0  $152
+#4570 CALL            %0
+#4572 LOAD            %0  $88
+#4582 INC             %0
+#4584 STORE           %1  %0  $88
+#4595 LOAD_I          %0  -499
+#4605 GOTO            %0
+#4607 LOAD_A          %0  $160
+#4617 LOAD_A          %1  $0
+#4627 LOAD_I          %2  8
+#4637 ASSIGN          %0  %1  %2
+#4641 LOAD_I          %0  48
+#4651 LOAD            %1  $160
+#4661 ADD             %1  %0
+#4664 STORE           %2  %1  $160
+#4675 LOAD_A          %0  $168
+#4685 LOAD            %1  $160
+#4695 LOAD_I          %2  8
+#4705 UNPACK_ADDR     %0  %1  %2
+#4709 LOAD_AS         %2  $0
+#4719 LOAD_A          %3  $0
+#4729 LOAD_I          %4  8
+#4739 ASSIGN          %2  %3  %4
+#4743 LOAD_AS         %2  $8
+#4753 LOAD_A          %3  $1238
+#4763 LOAD_I          %4  8
+#4773 ASSIGN          %2  %3  %4
+#4777 LOAD_A          %0  $168
+#4787 CALL            %0
+#4789 LOAD_A          %0  $176
+#4799 LOAD_A          %1  $0
+#4809 LOAD_I          %2  8
+#4819 ASSIGN          %0  %1  %2
+#4823 LOAD_I          %0  0
+#4833 LOAD            %1  $176
+#4843 ADD             %1  %0
+#4846 STORE           %2  %1  $176
+#4857 LOAD_A          %0  $184
+#4867 LOAD            %1  $176
+#4877 LOAD_I          %2  8
+#4887 UNPACK_ADDR     %0  %1  %2
+#4891 LOAD_AS         %3  $0
+#4901 LOAD_A          %4  $1081
+#4911 LOAD_I          %5  8
+#4921 ASSIGN          %3  %4  %5
+#4925 LOAD_AS         %3  $8
+#4935 LOAD_A          %4  $184
+#4945 LOAD_I          %5  8
+#4955 ASSIGN          %3  %4  %5
+#4959 LOAD_A          %0  $1158
+#4969 LOAD_A          %1  $192
+#4979 LOAD_I          %2  16
+#4989 CALL_NAT        %0  %1  %2
+#4993 LOAD_A          %0  $192
+#5003 LOAD_A          %1  $0
+#5013 LOAD_I          %2  8
+#5023 ASSIGN          %0  %1  %2
+#5027 LOAD_I          %0  0
+#5037 LOAD            %1  $192
+#5047 ADD             %1  %0
+#5050 STORE           %2  %1  $192
+#5061 LOAD_A          %0  $200
+#5071 LOAD            %1  $192
+#5081 LOAD_I          %2  8
+#5091 UNPACK_ADDR     %0  %1  %2
+#5095 LOAD            %0  $200
+#5105 LOAD            %1  $1032
+#5115 GT              %0  %1
+#5118 STORE           %2  %0  $208
+#5129 LOAD_I          %0  478
+#5139 LOAD            %1  $208
+#5149 IF_ZERO_GOTO    %0  %1
+#5152 LOAD_A          %0  $224
+#5162 LOAD_A          %1  $0
+#5172 LOAD_I          %2  8
+#5182 ASSIGN          %0  %1  %2
+#5186 LOAD_I          %0  40
+#5196 LOAD            %1  $224
+#5206 ADD             %1  %0
+#5209 STORE           %2  %1  $224
+#5220 LOAD_A          %0  $232
+#5230 LOAD            %1  $224
+#5240 LOAD_I          %2  8
+#5250 UNPACK_ADDR     %0  %1  %2
+#5254 LOAD_AS         %2  $0
+#5264 LOAD_A          %3  $0
+#5274 LOAD_I          %4  8
+#5284 ASSIGN          %2  %3  %4
+#5288 LOAD_A          %0  $232
+#5298 LOAD_A          %1  $240
+#5308 SET_RET         %1
+#5310 CALL            %0
+#5312 LOAD_A          %0  $216
+#5322 LOAD_A          %1  $240
+#5332 LOAD_I          %2  8
+#5342 ASSIGN          %0  %1  %2
+#5346 LOAD_A          %0  $248
+#5356 LOAD_A          %1  $216
+#5366 LOAD_I          %2  8
+#5376 ASSIGN          %0  %1  %2
+#5380 LOAD_I          %0  0
+#5390 LOAD            %1  $248
+#5400 ADD             %1  %0
+#5403 STORE           %2  %1  $248
+#5414 LOAD_A          %0  $256
+#5424 LOAD            %1  $248
+#5434 LOAD_I          %2  8
+#5444 UNPACK_ADDR     %0  %1  %2
+#5448 LOAD_AS         %3  $0
+#5458 LOAD_A          %4  $1098
+#5468 LOAD_I          %5  8
+#5478 ASSIGN          %3  %4  %5
+#5482 LOAD_AS         %3  $8
+#5492 LOAD_A          %4  $256
+#5502 LOAD_I          %5  8
+#5512 ASSIGN          %3  %4  %5
+#5516 LOAD_A          %0  $1158
+#5526 LOAD_A          %1  $264
+#5536 LOAD_I          %2  16
+#5546 CALL_NAT        %0  %1  %2
+#5550 LOAD_AS         %3  $0
+#5560 LOAD_A          %4  $216
+#5570 LOAD_I          %5  8
+#5580 ASSIGN          %3  %4  %5
+#5584 LOAD_A          %0  $1174
+#5594 LOAD_A          %1  $264
+#5604 LOAD_I          %2  8
+#5614 CALL_NAT        %0  %1  %2
+#5618 LOAD_I          %0  -637
+#5628 GOTO            %0
+#5630 LOAD_AS         %3  $0
+#5640 LOAD_A          %4  $0
+#5650 LOAD_I          %5  8
+#5660 ASSIGN          %3  %4  %5
+#5664 LOAD_A          %0  $1174
+#5674 LOAD_A          %1  $264
+#5684 LOAD_I          %2  8
+#5694 CALL_NAT        %0  %1  %2
+#5698 LOAD_A          %0  $1032
+#5708 LOAD_I          %1  8
+#5718 FP_TO_SP
+#5719 RETURN          %0  %1
+#5722 FP_TO_SP
+#5723 STOP
 
 
 //MAIN:
-LOAD_A          %0  $4182
-LOAD_A          %1  $4096
+LOAD_A          %0  $1110
+LOAD_A          %1  $1024
 LOAD_I          %2  8
 ASSIGN          %0  %1  %2
-LOAD_A          %0  $4190
-LOAD_A          %1  $4104
+LOAD_A          %0  $1118
+LOAD_A          %1  $1032
 LOAD_I          %2  8
 ASSIGN          %0  %1  %2
-LOAD_A          %0  $4198
-LOAD_A          %1  $4104
+LOAD_A          %0  $1126
+LOAD_A          %1  $1032
 LOAD_I          %2  8
 ASSIGN          %0  %1  %2
-LOAD_A          %0  $4318
+LOAD_A          %0  $1246
 LOAD_A          %1  $1
 SET_RET         %1
 CALL            %0

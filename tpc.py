@@ -13,7 +13,8 @@ import time
 import py.tpl_compiler as cmp
 import py.tpl_parser as psr
 import py.tpl_lexer as lex
-import py.tpl_ast_optimizer as pre
+import py.ast_preprocessor as prep
+import py.tpl_ast_optimizer as aso
 import py.tpa_generator as decompiler
 import py.tpa_optimizer as optimizer
 import script
@@ -81,7 +82,10 @@ if __name__ == '__main__':
         parser = psr.Parser(tokens)
         root = parser.parse()
 
-        tree_optimizer = pre.AstOptimizer(root, parser, args["optimize"])
+        preprocessor = prep.Preprocessor()
+        preprocessor.preprocess(root)
+
+        tree_optimizer = aso.AstOptimizer(root, parser, args["optimize"])
         tree_optimizer.optimize()
 
         if args["ast"]:

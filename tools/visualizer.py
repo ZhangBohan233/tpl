@@ -3,7 +3,7 @@ import tkinter.ttk
 import argparse
 import os
 import script
-from py import tpl_lexer, tpl_ast as ast, tpl_parser as psr
+from py import tpl_lexer, tpl_ast as ast, tpl_parser as psr, ast_preprocessor as prep
 
 
 class Visualizer:
@@ -145,5 +145,9 @@ if __name__ == "__main__":
     f.close()
     parser = psr.Parser(lexer.get_tokens())
     block = parser.parse()
+
+    preprocessor = prep.Preprocessor()
+    block = preprocessor.preprocess(block)
+
     vsr = Visualizer()
     vsr.show(block, file_name)

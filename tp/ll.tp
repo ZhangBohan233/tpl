@@ -25,7 +25,9 @@ fn main() int {
     while ll..size > 0 {
         var v: *Int = ll..pop();
         printf("%d\n", v..value);
+        free(v);
     }
+    free(ll);
 
     return 0;
 }

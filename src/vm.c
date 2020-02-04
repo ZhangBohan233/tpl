@@ -11,8 +11,8 @@
 #include "lib.h"
 #include "heap.h"
 
-#define STACK_SIZE 4096
-#define MEMORY_SIZE 16384
+#define STACK_SIZE 1024
+#define MEMORY_SIZE 8192
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
 #define true_ptr_sp(ptr) (ptr < LITERAL_START ? ptr + SP : ptr)
@@ -423,11 +423,13 @@ void native_free(int_fast64_t arg_len, const unsigned char *args) {
     }
 
     for (int i = 0; i < alloc_len; i++) {
-        insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_GAP);
+        if (insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_GAP) != 0) {
+            fprintf(stderr, "Heap memory collision");
+            ERROR_CODE = ERR_HEAP_COLLISION;
+            return;
+        }
 //        printf("free %lld \n", real_ptr + i * HEAP_GAP);
     }
-
-//    print_sorted(AVAILABLE, AVA_SIZE);
 }
 
 void native_mem_copy(int_fast64_t arg_len, const unsigned char *args) {
@@ -582,9 +584,8 @@ void vm_run() {
             case 8:  // LOAD
                 reg_p1 = MEMORY[PC++];  // reg index of loading reg
                 memcpy(regs64[reg_p1].bytes, MEMORY + PC, INT_LEN);
-                PC += INT_LEN;
-//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + true_ptr(regs64[reg_p1].int_value));
                 memcpy(regs64[reg_p1].bytes, MEMORY + true_ptr(regs64[reg_p1].int_value), INT_LEN);
+                PC += INT_LEN;
                 break;
             case 9:  // STORE
                 reg_p1 = MEMORY[PC++];  // reg index of value addr
@@ -829,6 +830,23 @@ void vm_run() {
             case 59:  // NEG_F
                 reg_p1 = MEMORY[PC++];
                 regs64[reg_p1].double_value = -regs64[reg_p1].double_value;
+                break;
+            case 60:  // INC
+                reg_p1 = MEMORY[PC++];
+//                printf("%d %lld\n", reg_p1, regs64[reg_p1].int_value);
+                regs64[reg_p1].int_value++;
+                break;
+            case 61:  // DEC
+                reg_p1 = MEMORY[PC++];
+                regs64[reg_p1].int_value--;
+                break;
+            case 62:  // INC_F
+                reg_p1 = MEMORY[PC++];
+                regs64[reg_p1].double_value++;
+                break;
+            case 63:  // DEC_F
+                reg_p1 = MEMORY[PC++];
+                regs64[reg_p1].double_value--;
                 break;
             default:
                 fprintf(stderr, "Unknown instruction %d at byte pos %lld\n", instruction, PC);

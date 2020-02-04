@@ -80,8 +80,9 @@ register r: int = 2;
 ```
 The register variable has the same characteristic as variables declared with `var` except for: 
 
-* `register` variable cannot be used as the returning value of functions
-* `register` variable does not support the address operations since it has no memory address
+* `register` variables cannot be used as the returning value of functions
+* `register` variables cannot be used as the function call arguments
+* `register` variables do not support the address operations since they have no memory address
 
 ## Function declaration:
 
@@ -315,7 +316,7 @@ There are several operations in TPL is undefined.
     ```
     var a: int = 'a';
     ```
-   
+
 3.  Calling a member function of struct returned by another function
     ```
     struct S {
@@ -336,4 +337,12 @@ There are several operations in TPL is undefined.
         s..bar()(1);   // would cause runtime error or undefined behavior
         return 0;
     }
+    ```
+    
+4.  Referencing pointers that are already released
+    ```
+    var a: *int = malloc(8);
+    *a = 2;
+    free(a);
+    printf("%d\n", *a);
     ```

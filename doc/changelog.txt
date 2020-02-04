@@ -1,3 +1,14 @@
+#### Build 1065 ####
+2020/02/03
+
+* Introduced ast preprocessor:
+    * Replace binary operation-assignments to an binary expression and an assignment
+* Bug fixes:
+    * Cannot quick assign (':=') variable from register
+    * Operator '>>>=' not usable
+* Limitation to register variables: cannot being used for function call arguments
+* Added heap memory check for function 'free'
+
 #### Build 1064 ####
 2020/02/03
 

@@ -2,14 +2,18 @@
 
 ## Parser-Compiler
 
-* Nested function types
+* ~~Nested function types~~
 ```
-var f: fn(fn()->void)->int;
+var f: fn(fn()->void)->int;    FIXED
 ```
 
-* Attributes op-assign
+* ~~Attributes op-assign~~
 ```
-this..count += 1;
+this..count += 1;    FIXED
+```
+
+* Attributes increment/decrement
+```
 this..count++;
 ```
 
