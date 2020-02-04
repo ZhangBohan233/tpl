@@ -190,7 +190,7 @@ TPL supports simple object oriented programming. A method of a struct must be de
 ```
 struct Foo {
     ...
-    var bar: fn(int)->void;
+    var bar: fn;
 }
 ```
 Which declared a member function of struct `Foo` which takes an `int` and returns nothing.
@@ -202,7 +202,7 @@ fn Foo::bar(x: int) void {
 }
 ```
 Notice that the compiler should add a parameter to the struct pointer named `this` as the first parameter. So the 
-actual parameters of the example method is `this: *Foo, x: int`
+actual parameters of the example method is `this: *Foo, x: int`.
 
 Use the keyword function `new` to create structs that has member functions. Otherwise, the member functions may remain
 unimplemented. Example:
@@ -214,7 +214,9 @@ The member functions are called via struct attributes. For example:
 foo..bar(5);
 ```
 Which calls the member function `bar` of `Foo` instance 'foo'.
-Notice that the actual first argument is the struct instance.
+Notice that the actual first argument is a copy of the left side of the dot `..`. So when the code segment above is 
+executed, the actual calling is `foo..bar(foo, 5)`. If the left side of the dot is a function call, then the execution
+result might be undefined (see Undefined Behaviors #3).
 
 Inheritance is not supported.
 
@@ -303,15 +305,35 @@ while i < 10 {
 
 There are several operations in TPL is undefined.
 
-1. Accessing an undefined variable
-   ```
-   var a: int;
-   printf("%d", b);
-   ```
+1.  Accessing an undefined variable
+    ```
+    var a: int;
+    printf("%d", b);
+    ```
    
-2. Implicit casting between types
-   ```
-   var a: int = 'a';
-   ```
+2.  Implicit casting between types
+    ```
+    var a: int = 'a';
+    ```
    
-3. 
+3.  Calling a member function of struct returned by another function
+    ```
+    struct S {
+        var foo: fn;
+        var bar: fn;
+    }
+    
+    fn S::foo(x: int) void {
+        printf("%d\n", x);
+    }
+    
+    fn S::bar() fn(int)->void {
+        return this..foo;
+    }
+    
+    fn main() int {
+        var s: *S = new(S);
+        s..bar()(1);   // would cause runtime error or undefined behavior
+        return 0;
+    }
+    ```

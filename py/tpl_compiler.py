@@ -4,7 +4,7 @@ import py.tpl_types as typ
 import py.tpl_lib as lib
 from py.tpl_types import INT_LEN, FLOAT_LEN, PTR_LEN, CHAR_LEN, VOID_LEN
 
-STACK_SIZE = 1024
+STACK_SIZE = 4096
 
 EXIT = 1  # completely exit function
 STOP = 2  # STOP                                  | stop current process
@@ -1403,7 +1403,7 @@ class Compiler:
     def compile_ptr_call(self, ftn: int, ftn_tal: en.FuncType, arg_nodes: list, env: en.Environment,
                          bo: ByteOutput, lf: tuple) -> int:
 
-        if ftn_tal.func_type == "f" and len(arg_nodes) != len(ftn_tal.param_types):
+        if (ftn_tal.func_type == "f" or ftn_tal.func_type == "m") and len(arg_nodes) != len(ftn_tal.param_types):
             raise lib.CompileTimeException("Function requires {} arguments, {} given. In file '{}', at line {}."
                                            .format(len(ftn_tal.param_types), len(arg_nodes), lf[1], lf[0]))
         args = []  # args tuple
@@ -1440,8 +1440,15 @@ class Compiler:
         ftn = self.compile(node.left, env, bo)
         ftn_tal: en.FuncType = get_func_call_final_tal(node, env)
 
+        if ftn_tal.func_type == "m":
+            this_node = node.left.left
+            # if isinstance(this_node, ast.FuncCall):
+            #     raise lib.CompileTimeException("Cannot call a member function via object returned by another "
+            #                                    "function. " + generate_lf(node))
+            node.right.block.lines.insert(0, this_node)  # insert argument 'this'
+
         if not isinstance(ftn_tal, en.FuncType):
-            raise lib.CompileTimeException("Object is not callable")
+            raise lib.CompileTimeException("Object is not callable. " + generate_lf(node))
 
         if ftn_tal.func_type == "c":
             ftn_tal: CompileTimeFunctionType

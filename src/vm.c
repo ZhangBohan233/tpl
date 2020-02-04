@@ -11,7 +11,7 @@
 #include "lib.h"
 #include "heap.h"
 
-#define STACK_SIZE 1024
+#define STACK_SIZE 4096
 #define MEMORY_SIZE 16384
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
@@ -124,13 +124,13 @@ void print_call_stack() {
     printf("\n");
 }
 
-void vm_load(const unsigned char *codes, int read) {
+int vm_load(const unsigned char *codes, int read) {
     int_fast64_t stack_size = bytes_to_int(codes);
 
     if (stack_size != LITERAL_START) {
         fprintf(stderr, "Unmatched stack size\n");
         ERROR_CODE = ERR_VM_OPT;
-        return;
+        return 1;
     }
 
     int_fast64_t literal_size = bytes_to_int(codes + INT_LEN);
@@ -154,6 +154,7 @@ void vm_load(const unsigned char *codes, int read) {
 
     AVAILABLE = build_heap(HEAP_START, MEMORY_SIZE, &AVA_SIZE);
 //    print_memory();
+    return 0;
 }
 
 void vm_shutdown() {
@@ -898,7 +899,7 @@ int run(int argc, char **argv) {
 
     unsigned char *codes = read_file(file_name, &read);
 
-    vm_load(codes, read);
+    if (vm_load(codes, read)) exit(ERR_VM_OPT);
     vm_set_args(vm_argc, vm_argv);
     vm_run();
 

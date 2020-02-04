@@ -45,17 +45,21 @@ class Visualizer:
             elif isinstance(node, ast.LeafNode):
                 self.insert(parent, node, repr(node), note_to_this)
             elif isinstance(node, ast.Expr):
-                if isinstance(node, ast.UnaryOperator):
+                if isinstance(node, ast.UnaryExpr):
                     child = self.insert(parent, node, repr(node), note_to_this)
                     self.add_item(node.value, child, "value")
                 elif isinstance(node, ast.BinaryExpr):
-                    if isinstance(node, ast.AssignmentNode) and node.level == ast.FUNC_DEFINE:
-                        lit = "Function Definition"
+                    if isinstance(node, ast.FuncCall):
+                        lit = "Call"
+                        l_note = "call_obj"
+                        r_note = "args"
                     else:
                         lit = repr(node)
+                        l_note = "left"
+                        r_note = "right"
                     child = self.insert(parent, node, lit, note_to_this)
-                    self.add_item(node.left, child, "left")
-                    self.add_item(node.right, child, "right")
+                    self.add_item(node.left, child, l_note)
+                    self.add_item(node.right, child, r_note)
                 elif isinstance(node, ast.TernaryOperator):
                     child = self.insert(parent, node, repr(node), note_to_this)
                     self.add_item(node.left, child, "left")
@@ -85,10 +89,6 @@ class Visualizer:
                     child = self.insert(parent, node, repr(node), note_to_this)
                     self.add_item(node.condition, child, "condition block")
                     self.add_item(node.body, child, "do block")
-            elif isinstance(node, ast.FuncCall):
-                child = self.insert(parent, node, repr(node), note_to_this)
-                self.add_item(node.call_obj, child, "calling object")
-                self.add_item(node.args, child, "args")
             elif isinstance(node, ast.ImportNode):
                 child = self.insert(parent, node, repr(node), note_to_this)
                 self.add_item(node.import_name, child, "from " + node.path)
@@ -102,8 +102,14 @@ class Visualizer:
                 child = self.insert(parent, node, repr(node), note_to_this)
                 self.add_item(node.params, child, "params")
                 self.add_item(node.body, child, "function body")
+            elif isinstance(node, ast.Arguments):
+                child = self.insert(parent, node, repr(node), note_to_this)
+                self.add_item(node.block, child, "args")
+            elif isinstance(node, ast.StructNode):
+                child = self.insert(parent, node, repr(node), note_to_this)
+                self.add_item(node.block, child, "struct body")
             else:
-                self.tree_view.insert(parent, 'end', text="Unknown Node")
+                self.tree_view.insert(parent, 'end', text="Unknown type " + type(node).__name__)
         else:
             self.insert(parent, node, "", note_to_this)
 

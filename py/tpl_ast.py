@@ -57,7 +57,7 @@ UNARY_EXPR = 101
 ASSIGN = 0
 CONST = 1
 VAR = 2
-FUNC_DEFINE = 3
+# FUNC_DEFINE = 3
 REGISTER = 4
 
 
@@ -259,8 +259,8 @@ class UnaryExpr(Expr):
         return "UE({} {})".format(self.operation, self.value)
 
     def __repr__(self):
-        return self.__str__()
-        # return "UE'{}'".format(self.operation)
+        # return self.__str__()
+        return "UE'{}'".format(self.operation)
 
 
 class UnaryOperator(UnaryExpr):
@@ -487,7 +487,7 @@ class DefStmt(TitleNode):
         return "fn {}(({}) -> {} {})".format(self.title, self.params, self.r_type, self.body)
 
     def __repr__(self):
-        return "function"
+        return "function<{}>".format(self.title)
 
 
 class StructNode(Node):
@@ -626,7 +626,7 @@ class Dot(BinaryOperator):
         return "({} dot*{} {})".format(self.left, self.dot_count, self.right)
 
     def __repr__(self):
-        return "."
+        return "." * self.dot_count
 
 
 class GotoStmt(Node):
@@ -1112,9 +1112,7 @@ class AbstractSyntaxTree:
         if self.inner.inner:
             self.inner.build_condition()
         else:
-            self.inner.build_line()
             expr = self.inner.get_as_block()
-            # print(expr)
             self.invalidate_inner()
             cond_stmt: CondStmt = self.stack.pop()
             cond_stmt.condition = expr

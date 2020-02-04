@@ -1,3 +1,10 @@
+#### Build 1063 ####
+2020/02/03
+
+* Bug fixes:
+    * Member function calling and keyword 'this' are now available
+    * For loop parse error
+
 #### Build 1062 ####
 2020/02/03
 
