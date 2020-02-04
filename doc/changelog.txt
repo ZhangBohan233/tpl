@@ -1,3 +1,11 @@
+#### Build 1064 ####
+2020/02/03
+
+* Bug fixes:
+    * Fixed that the static type check report error when comparing between `*void` and other pointers
+* Library updates:
+    * Updated util.LinedList
+
 #### Build 1063 ####
 2020/02/03
 

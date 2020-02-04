@@ -25,9 +25,9 @@ class Type:
         return self.__str__()
 
     def __eq__(self, other):
-        if not isinstance(other, Type):
-            return False
-        return self.type_name == other.type_name and self.array_lengths == other.array_lengths
+        return isinstance(other, Type) and \
+               (self.type_name == other.type_name or ptr_cast_able(self, other)) and \
+               self.array_lengths == other.array_lengths
 
     def __ne__(self, other):
         return not self == other
@@ -68,9 +68,10 @@ class FuncType(AbstractFuncType):
         return "fn(" + str(self.param_types) + ") -> " + str(self.rtype)
 
     def __eq__(self, other):
-        if not isinstance(other, FuncType):
-            return False
-        return self.func_type == other.func_type and self.param_types == other.param_types and self.rtype == other.rtype
+        return isinstance(other, FuncType) and \
+               self.func_type == other.func_type and \
+               self.param_types == other.param_types and \
+               self.rtype == other.rtype
 
     def __ne__(self, other):
         return not self == other
@@ -100,6 +101,19 @@ def is_array(t: Type) -> bool:
 
 def is_pointer(t: Type) -> bool:
     return t.type_name[0] == "*"
+
+
+def ptr_cast_able(t1: Type, t2: Type) -> bool:
+    """
+    Return True iff t1 and t2 are both pointers and at least of them is *void.
+
+    :param t1:
+    :param t2:
+    :return:
+    """
+    return not is_array(t1) and not is_array(t2) and \
+           is_pointer(t1) and is_pointer(t2) and \
+           (t1.type_name == "*void" or t2.type_name == "*void")
 
 
 UNDEFINED = Undefined()

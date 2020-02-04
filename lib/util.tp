@@ -3,6 +3,11 @@ struct LinkedNode {
     var next: *LinkedNode;
 }
 
+/*
+ * LinkedList
+ *
+ * Implemented as stack.
+ */
 struct LinkedList {
     var size: int;
     var head: *LinkedNode;
@@ -43,7 +48,7 @@ fn LinkedList::pop() *void {
 fn LinkedList::print(p_func: fn(*void)->void) void {
     printf("[");
     for node := this..head; node != NULL; node = node..next {
-        printf("%d, ", node..value);
+        p_func(node..value);
     }
     printf("]\n");
 }

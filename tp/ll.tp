@@ -1,7 +1,11 @@
 include "util"
 
-fn p_int(x: *int) void {
-    printf("%d ", *x);
+struct Int {
+    var value: int;
+}
+
+fn p_int(x: *Int) void {
+    printf("%d ", x..value);
 }
 
 fn main() int {
@@ -9,7 +13,9 @@ fn main() int {
     ll..init();
 
     for i := 0; i < 10; ++i {
-        ll..append(i);
+        v := new(Int);
+        v..value = i;
+        ll..append(v);
     }
 
     ll..print(p_int);
@@ -17,8 +23,8 @@ fn main() int {
     printf("size %d\n", ll..size);
 
     while ll..size > 0 {
-        v := ll..pop();
-        printf("%d\n", v);
+        var v: *Int = ll..pop();
+        printf("%d\n", v..value);
     }
 
     return 0;

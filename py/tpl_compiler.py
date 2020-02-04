@@ -1417,7 +1417,8 @@ class Compiler:
                 if tal != param_tal:
                     raise lib.CompileTimeException("Argument type does not match the parameter. Expected: '{}', "
                                                    "got '{}'.".format(en.type_to_readable(param_tal),
-                                                                      en.type_to_readable(tal)))
+                                                                      en.type_to_readable(tal)) +
+                                                   generate_lf(arg_node))
 
             if en.is_pointer(tal) or en.is_array(tal):
                 total_len = PTR_LEN
