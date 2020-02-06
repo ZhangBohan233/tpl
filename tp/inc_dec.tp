@@ -1,0 +1,10 @@
+fn main() int {
+    register i: int = 1;
+    j := ++i;
+
+    // i += 1
+    // j = i
+    printf("%d\n", i);
+
+    return j;
+}

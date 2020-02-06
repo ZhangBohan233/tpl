@@ -6,7 +6,7 @@ import os
 
 OTHER_ARITHMETIC = {"*", "/", "%"}
 SELF_CONCATENATE = {
-    0, 1, 8, 9, 10, 11, 12, 14, 17, 20, 21
+    0, 1, 8, 9, 10, 11, 12, 14, 17, 19, 20, 21
 }
 CROSS_CONCATENATE = {
     (8, 9),  # >=

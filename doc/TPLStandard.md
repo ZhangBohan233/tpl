@@ -80,8 +80,9 @@ register r: int = 2;
 ```
 The register variable has the same characteristic as variables declared with `var` except for: 
 
-* `register` variable cannot be used as the returning value of functions
-* `register` variable does not support the address operations since it has no memory address
+* `register` variables cannot be used as the returning value of functions
+* `register` variables cannot be used as the function call arguments
+* `register` variables do not support the address operations since they have no memory address
 
 ## Function declaration:
 
@@ -114,6 +115,8 @@ fn foo(n: int) int {
 ```
 
 The implementation should have the same name, return type, and parameter types.
+
+Implementation of function with declared return type other than `void` must terminate by `return` statement(s).
 
 ## Function call:
 
@@ -176,6 +179,48 @@ There are 3 types of conditional statements: `if` statement, `for` statement, an
 ## Native invoke functions
 
 
+## Functional programming
+
+### Passing function pointer as variable:
+
+
+## Object oriented programming:
+
+TPL supports simple object oriented programming. A method of a struct must be declared in the struct body.
+
+```
+struct Foo {
+    ...
+    var bar: fn;
+}
+```
+Which declared a member function of struct `Foo` which takes an `int` and returns nothing.
+
+The declared member function may be implemented by
+```
+fn Foo::bar(x: int) void {
+    ...
+}
+```
+Notice that the compiler should add a parameter to the struct pointer named `this` as the first parameter. So the 
+actual parameters of the example method is `this: *Foo, x: int`.
+
+Use the keyword function `new` to create structs that has member functions. Otherwise, the member functions may remain
+unimplemented. Example:
+```
+var foo: *Foo = new(Foo);
+```
+The member functions are called via struct attributes. For example:
+```
+foo..bar(5);
+```
+Which calls the member function `bar` of `Foo` instance 'foo'.
+Notice that the actual first argument is a copy of the left side of the dot `..`. So when the code segment above is 
+executed, the actual calling is `foo..bar(foo, 5)`. If the left side of the dot is a function call, then the execution
+result might be undefined (see Undefined Behaviors #3).
+
+Inheritance is not supported.
+
 ## Label and goto
 
 A label can be defined as
@@ -214,6 +259,8 @@ while i < 10 {
 }
 ```
 
+**Warning:** do not use `label` or `goto` in any situation other than breaking loops.
+
 ## Table of all native primitive types:
 
 | Type name  | Byte length | Signed | Min value | Max value |
@@ -233,9 +280,11 @@ while i < 10 {
 ## List of all keywords:
 
 * `break`
+* `char`
 * `const`
 * `continue`
 * `else`
+* `exit`
 * `float`
 * `fn`
 * `for`
@@ -244,10 +293,12 @@ while i < 10 {
 * `if`
 * `include`
 * `label`
+* `new`
 * `register`
 * `return`
 * `sizeof`
 * `struct`
+* `this`
 * `var`
 * `while`
 
@@ -255,15 +306,43 @@ while i < 10 {
 
 There are several operations in TPL is undefined.
 
-1. Accessing an undefined variable
-   ```
-   var a: int;
-   printf("%d", b);
-   ```
+1.  Accessing an undefined variable
+    ```
+    var a: int;
+    printf("%d", b);
+    ```
    
-2. Implicit casting between types
-   ```
-   var a: int = 'a';
-   ```
-   
-3. 
+2.  Implicit casting between types
+    ```
+    var a: int = 'a';
+    ```
+
+3.  Calling a member function of struct returned by another function
+    ```
+    struct S {
+        var foo: fn;
+        var bar: fn;
+    }
+    
+    fn S::foo(x: int) void {
+        printf("%d\n", x);
+    }
+    
+    fn S::bar() fn(int)->void {
+        return this..foo;
+    }
+    
+    fn main() int {
+        var s: *S = new(S);
+        s..bar()(1);   // would cause runtime error or undefined behavior
+        return 0;
+    }
+    ```
+    
+4.  Referencing pointers that are already released
+    ```
+    var a: *int = malloc(8);
+    *a = 2;
+    free(a);
+    printf("%d\n", *a);
+    ```

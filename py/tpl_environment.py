@@ -1,4 +1,3 @@
-
 class EnvironmentException(Exception):
     def __init__(self, msg=""):
         Exception.__init__(self, msg)
@@ -25,6 +24,14 @@ class Type:
     def __repr__(self):
         return self.__str__()
 
+    def __eq__(self, other):
+        return isinstance(other, Type) and \
+               (self.type_name == other.type_name or ptr_cast_able(self, other)) and \
+               self.array_lengths == other.array_lengths
+
+    def __ne__(self, other):
+        return not self == other
+
     def total_len(self, mm):
         arr_len = 1
         for x in self.array_lengths:
@@ -37,29 +44,55 @@ class Type:
         return mm.get_type_size(self.type_name)
 
 
-class FuncType(Type):
-    def __init__(self, param_types: list, rtype: Type, func_type="f"):
+class AbstractFuncType(Type):
+    def __init__(self):
         Type.__init__(self, "*")
+
+    def __str__(self):
+        return "fn"
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class FuncType(AbstractFuncType):
+    def __init__(self, param_types: list, rtype: Type, func_type="f"):
+        AbstractFuncType.__init__(self)
 
         self.param_types = param_types
         self.rtype = rtype
-        self.func_type = func_type  # 'f' for function, 'n' for native function, 'c' for compile time function
+        self.func_type = func_type  # 'f' for function, 'm' for member function (method),
+        # 'n' for native function, 'c' for compile time function
 
     def __str__(self):
         return "fn(" + str(self.param_types) + ") -> " + str(self.rtype)
+
+    def __eq__(self, other):
+        return isinstance(other, FuncType) and \
+               self.func_type == other.func_type and \
+               self.param_types == other.param_types and \
+               self.rtype == other.rtype
+
+    def __ne__(self, other):
+        return not self == other
 
     def total_len(self, mm):
         return mm.get_type_size("*")
 
 
 def type_to_readable(t: Type) -> str:
-    if len(t.array_lengths) == 0:
-        return t.type_name
+    if isinstance(t, FuncType):
+        s = "fn(" + ",".join([type_to_readable(p) for p in t.param_types]) + ")->"
+        s += type_to_readable(t.rtype)
+        return s
     else:
-        r = t.type_name
-        for ar in t.array_lengths:
-            r += "[" + str(ar) + "]"
-        return r
+        if len(t.array_lengths) == 0:
+            return t.type_name
+        else:
+            r = t.type_name
+            for ar in t.array_lengths:
+                r += "[" + str(ar) + "]"
+            return r
 
 
 def is_array(t: Type) -> bool:
@@ -68,6 +101,19 @@ def is_array(t: Type) -> bool:
 
 def is_pointer(t: Type) -> bool:
     return t.type_name[0] == "*"
+
+
+def ptr_cast_able(t1: Type, t2: Type) -> bool:
+    """
+    Return True iff t1 and t2 are both pointers and at least of them is *void.
+
+    :param t1:
+    :param t2:
+    :return:
+    """
+    return not is_array(t1) and not is_array(t2) and \
+           is_pointer(t1) and is_pointer(t2) and \
+           (t1.type_name == "*void" or t2.type_name == "*void")
 
 
 UNDEFINED = Undefined()
@@ -170,19 +216,6 @@ class GlobalEnvironment(MainAbstractEnvironment):
         raise VariableException("Variable or constant '{}' is not defined, in file '{}', at line {}"
                                 .format(name, lf[1], lf[0]))
 
-    # def define_function(self, name: str, func):
-    #     self.variables[name] = func
-    #     self.var_types[name] = func.tal
-    #
-    # def contains_function(self, name: str):
-    #     return name in self.functions
-    #
-    # def get_function(self, name: str, lf):
-    #     if name in self.functions:
-    #         return self.functions[name]
-    #     else:
-    #         raise EnvironmentException("Function '{}' not defined".format(name))
-
     def is_global(self):
         return True
 
@@ -219,6 +252,11 @@ class FunctionEnvironment(MainAbstractEnvironment):
 
     def add_register(self, reg_id_neg):
         self.registers.append(reg_id_neg)
+
+
+class StructEnvironment(MainAbstractEnvironment):
+    def __init__(self, outer):
+        MainAbstractEnvironment.__init__(self, outer)
 
 
 class LoopEnvironment(SubAbstractEnvironment):

@@ -1,0 +1,33 @@
+include "util"
+
+struct Int {
+    var value: int;
+}
+
+fn p_int(x: *Int) void {
+    printf("%d ", x..value);
+}
+
+fn main() int {
+    var ll: *LinkedList = new(LinkedList);
+    ll..init();
+
+    for i := 0; i < 10; ++i {
+        v := new(Int);
+        v..value = i;
+        ll..append(v);
+    }
+
+    ll..print(p_int);
+
+    printf("size %d\n", ll..size);
+
+    while ll..size > 0 {
+        var v: *Int = ll..pop();
+        printf("%d\n", v..value);
+        free(v);
+    }
+    free(ll);
+
+    return 0;
+}

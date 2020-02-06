@@ -11,8 +11,8 @@
 #include "lib.h"
 #include "heap.h"
 
-#define STACK_SIZE 4096
-#define MEMORY_SIZE 16384
+#define STACK_SIZE 1024
+#define MEMORY_SIZE 8192
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
 #define true_ptr_sp(ptr) (ptr < LITERAL_START ? ptr + SP : ptr)
@@ -124,13 +124,13 @@ void print_call_stack() {
     printf("\n");
 }
 
-void vm_load(const unsigned char *codes, int read) {
+int vm_load(const unsigned char *codes, int read) {
     int_fast64_t stack_size = bytes_to_int(codes);
 
     if (stack_size != LITERAL_START) {
         fprintf(stderr, "Unmatched stack size\n");
         ERROR_CODE = ERR_VM_OPT;
-        return;
+        return 1;
     }
 
     int_fast64_t literal_size = bytes_to_int(codes + INT_LEN);
@@ -154,6 +154,7 @@ void vm_load(const unsigned char *codes, int read) {
 
     AVAILABLE = build_heap(HEAP_START, MEMORY_SIZE, &AVA_SIZE);
 //    print_memory();
+    return 0;
 }
 
 void vm_shutdown() {
@@ -233,6 +234,107 @@ void native_stringf(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned c
     memcpy(MEMORY + buffer_ptr, builder->array, builder->size);
     int_to_bytes(MEMORY + ret_ptr, builder->size);
     free_string(builder);
+}
+
+void native_scanf(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned char *arg_array) {
+    if (arg_len < 8) {
+        printf("'scanf' takes at least 1 argument\n");
+        ERROR_CODE = ERR_NATIVE_INVOKE;
+        return;
+    }
+
+    int len = 0;
+    int capacity = 8;
+    int cha;
+    char *input = malloc(capacity);
+    while ((cha = fgetc(stdin)) != EOF && cha != '\n') {
+        input[len++] = (char) cha;
+        if (len == capacity) {
+            capacity *= 2;
+            input = realloc(input, capacity);
+        }
+    }
+    input[len] = '\0';
+//    printf("inputs: %s\n", input);
+
+    int_fast64_t fmt_ptr = bytes_to_int(arg_array);
+    int_fast64_t fmt_end = fmt_ptr;
+    while (MEMORY[fmt_end] != 0) fmt_end++;
+
+//    printf("%lld %lld\n", fmt_ptr, fmt_end);
+
+    int_fast64_t i = fmt_ptr;
+
+    int f = 0;
+    int_fast64_t arg_ptr = INT_LEN;
+
+    char *processing = input;
+
+    int_fast64_t success_count = 0;
+
+    for (; i < fmt_end; ++i) {
+        unsigned char ch = MEMORY[i];
+        if (ch == '%') {
+            f = 1;
+        } else if (f) {
+            char *post = processing;
+
+            if (ch == 'd') {
+                f = 0;
+                int_fast64_t ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += PTR_LEN;
+                int_fast64_t scanned = strtoll(processing, &post, 10);
+                int_to_bytes(MEMORY + ptr, scanned);
+                success_count++;
+            } else if (ch == 'f') {
+                f = 0;
+                int_fast64_t ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += PTR_LEN;
+                double scanned = strtod(processing, &post);
+                double_to_bytes(MEMORY + ptr, scanned);
+                success_count++;
+            } else if (ch == 'c') {
+                f = 0;
+                int_fast64_t ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += PTR_LEN;
+                while (*processing == ' ') {
+                    processing++;
+                    post++;
+                }
+                char scanned = *post;
+                if (scanned != '\0' && scanned != '\n')
+                    post++;
+                MEMORY[ptr] = scanned;
+                success_count++;
+            } else if (ch == 's') {
+                f = 0;
+                int_fast64_t ptr = bytes_to_int(arg_array + arg_ptr);
+                arg_ptr += PTR_LEN;
+                while (*processing == ' ') {  // skip spaces
+                    processing++;
+                    post++;
+                }
+                while (*post != ' ' && *post != '\n' && *post != '\0') {
+                    post++;
+                }
+                int_fast64_t str_len = post - processing;
+                memcpy(MEMORY + ptr, processing, str_len);
+                MEMORY[ptr + str_len] = '\0';
+                success_count++;
+            }
+
+            if (post == processing) {  // does not scan anything in this iteration
+                success_count--;
+                break;
+            } else {
+                processing = post;
+            }
+        }
+    }
+
+    int_to_bytes(MEMORY + ret_ptr, success_count);
+
+    free(input);
 }
 
 int_fast64_t find_ava(int length) {
@@ -321,11 +423,13 @@ void native_free(int_fast64_t arg_len, const unsigned char *args) {
     }
 
     for (int i = 0; i < alloc_len; i++) {
-        insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_GAP);
+        if (insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_GAP) != 0) {
+            fprintf(stderr, "Heap memory collision");
+            ERROR_CODE = ERR_HEAP_COLLISION;
+            return;
+        }
 //        printf("free %lld \n", real_ptr + i * HEAP_GAP);
     }
-
-//    print_sorted(AVAILABLE, AVA_SIZE);
 }
 
 void native_mem_copy(int_fast64_t arg_len, const unsigned char *args) {
@@ -361,6 +465,9 @@ void call_native(int_fast64_t func, int_fast64_t ret_ptr, int_fast64_t arg_len, 
             break;
         case 6:  // stringf
             native_stringf(arg_len, ret_ptr, args);
+            break;
+        case 7:  // scanf
+            native_scanf(arg_len, ret_ptr, args);
             break;
         default:
             printf("Unknown native function %lld\n", func);
@@ -414,7 +521,7 @@ void vm_run() {
             case 1:  // EXIT
                 return;
             case 2:  // Stop
-                exit_func;
+            exit_func;
                 break;
             case 3:  // ASSIGN
                 reg_p1 = MEMORY[PC++];  // dest
@@ -426,16 +533,20 @@ void vm_run() {
                 break;
             case 4:  // CALL
                 reg_p1 = MEMORY[PC++];
-                reg_p2 = MEMORY[PC++];
+//                reg_p2 = MEMORY[PC++];
 //                reg_p3 = MEMORY[PC++];
 
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++FSP] = FP;
-                RET_STACK[++RSP] = regs64[reg_p2].int_value;
+//                RET_STACK[++RSP] = regs64[reg_p2].int_value;
 
                 PC = regs64[reg_p1].int_value;
+                break;
+            case 46:  // SET_RET
+                reg_p1 = MEMORY[PC++];
+                RET_STACK[++RSP] = regs64[reg_p1].int_value;
                 break;
             case 31:  // CALL_NAT
                 reg_p1 = MEMORY[PC++];
@@ -473,9 +584,8 @@ void vm_run() {
             case 8:  // LOAD
                 reg_p1 = MEMORY[PC++];  // reg index of loading reg
                 memcpy(regs64[reg_p1].bytes, MEMORY + PC, INT_LEN);
-                PC += INT_LEN;
-//                regs64[reg_p1].int_value = bytes_to_int(MEMORY + true_ptr(regs64[reg_p1].int_value));
                 memcpy(regs64[reg_p1].bytes, MEMORY + true_ptr(regs64[reg_p1].int_value), INT_LEN);
+                PC += INT_LEN;
                 break;
             case 9:  // STORE
                 reg_p1 = MEMORY[PC++];  // reg index of value addr
@@ -721,6 +831,23 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];
                 regs64[reg_p1].double_value = -regs64[reg_p1].double_value;
                 break;
+            case 60:  // INC
+                reg_p1 = MEMORY[PC++];
+//                printf("%d %lld\n", reg_p1, regs64[reg_p1].int_value);
+                regs64[reg_p1].int_value++;
+                break;
+            case 61:  // DEC
+                reg_p1 = MEMORY[PC++];
+                regs64[reg_p1].int_value--;
+                break;
+            case 62:  // INC_F
+                reg_p1 = MEMORY[PC++];
+                regs64[reg_p1].double_value++;
+                break;
+            case 63:  // DEC_F
+                reg_p1 = MEMORY[PC++];
+                regs64[reg_p1].double_value--;
+                break;
             default:
                 fprintf(stderr, "Unknown instruction %d at byte pos %lld\n", instruction, PC);
                 ERROR_CODE = ERR_INSTRUCTION;
@@ -790,7 +917,7 @@ int run(int argc, char **argv) {
 
     unsigned char *codes = read_file(file_name, &read);
 
-    vm_load(codes, read);
+    if (vm_load(codes, read)) exit(ERR_VM_OPT);
     vm_set_args(vm_argc, vm_argv);
     vm_run();
 

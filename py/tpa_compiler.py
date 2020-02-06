@@ -235,7 +235,7 @@ class TpaParser:
         # for fp in self.func_pointers:
         #     out.extend(typ.int_to_bytes(fp))
 
-        first_function_pos = self.func_pointers[cmp.NATIVE_FUNCTION_COUNT]
+        # first_function_pos = self.func_pointers[cmp.NATIVE_FUNCTION_COUNT]
 
         new_func_pointers: list = self.func_pointers[:cmp.NATIVE_FUNCTION_COUNT + 1]  # the starting pos of the first
         # user function will not change
@@ -267,6 +267,7 @@ class TpaParser:
                         nfp_i += 1
         for i in range(self.func_count):
             index = fp_index + (i * 8)
+            # out[index: index + 8] = typ.int_to_bytes(self.func_pointers[i])
             out[index: index + 8] = typ.int_to_bytes(new_func_pointers[i])
 
         return bytes(out)

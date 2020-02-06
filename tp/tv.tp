@@ -1,0 +1,14 @@
+struct S {
+    var n: int;
+    var set: fn()->void;
+}
+
+fn S::set() void {
+    printf("Print\n");
+}
+
+fn main() int {
+    var s: *S = new(S);
+    s..set();
+    return -1;
+}

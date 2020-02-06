@@ -54,11 +54,14 @@ void rise_node(int_fast64_t *heap, int index) {
     }
 }
 
-void insert_heap(int_fast64_t *heap, int *heap_size, int_fast64_t value) {
+int insert_heap(int_fast64_t *heap, int *heap_size, int_fast64_t value) {
     heap[*heap_size] = value;
-//    printf("bef %d", *heap_size);
     rise_node(heap, (*heap_size)++);
-//    printf("aft %d", *heap_size);
+    if ((*heap_size > 1 && heap[0] == heap[1]) ||
+        (*heap_size > 2 && heap[0] == heap[2])) {
+        return 1;
+    }
+    return 0;
 }
 
 int_fast64_t *build_heap(int lower, int upper, int *capacity_ptr) {
@@ -67,7 +70,7 @@ int_fast64_t *build_heap(int lower, int upper, int *capacity_ptr) {
 
     int_fast64_t *heap = malloc(sizeof(int_fast64_t) * capacity);
 
-    for (int i = 0 ; i < capacity; i++) {
+    for (int i = 0; i < capacity; i++) {
         heap[i] = lower + i * HEAP_GAP;
     }
 

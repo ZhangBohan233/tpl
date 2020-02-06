@@ -1,3 +1,104 @@
+#### Build 1065 ####
+2020/02/03
+
+* Introduced ast preprocessor:
+    * Replace binary operation-assignments to an binary expression and an assignment
+* Bug fixes:
+    * Cannot quick assign (':=') variable from register
+    * Operator '>>>=' not usable
+* Limitation to register variables: cannot being used for function call arguments
+* Added heap memory check for function 'free'
+
+#### Build 1064 ####
+2020/02/03
+
+* Bug fixes:
+    * Fixed that the static type check report error when comparing between `*void` and other pointers
+* Library updates:
+    * Updated util.LinedList
+
+#### Build 1063 ####
+2020/02/03
+
+* Bug fixes:
+    * Member function calling and keyword 'this' are now available
+    * For loop parse error
+
+#### Build 1062 ####
+2020/02/03
+
+* Changed the parse and compile logic of function call: call is now a binary expression
+* The return type of 'new' is now determined dynamically be its argument
+* Known issue (severe):
+    * "this" not accessible in member functions
+    * member functions with parameters causes compile error
+
+#### Build 1061 ####
+2020/02/03
+
+* Supports of new syntax:
+    * Directly calling a function returned by another function
+    * Not yet supported for class member functions
+
+#### Build 1060 ####
+2020/02/02
+
+* Bug fixes:
+    * Fixed that the function type in function parameter cannot be function type (nested function parameter type)
+    * Fixed that pre-definition of function causes error. Solved by sorts the function pointers
+* New development tool:
+    * Abstract syntax tree visualizer
+
+===== TPL 1.0 Alpha 3 =====
+#### Build 1059 ####
+2020/01/29
+
+* Syntax change:
+    * Struct member functions are now declared as "var x: fn;"
+* Library updates:
+    * util.LinkedList::print(print_func : fn(*void)->void) now takes one print function as parameter
+
+#### Build 1058 ####
+2020/01/24
+
+* Implemented the '%s' of 'scanf'
+* Implemented library type: util.LinkedList
+
+#### Build 1057 ####
+2020/01/23
+
+* New native function:
+    * scanf:
+        * scans runtime input
+        * Not completely implemented
+
+#### Build 1056 ####
+2020/01/23
+
+* Bug fixes:
+    * Assigning return value of method
+    * Void function (the fix in the last update is problematic)
+
+===== TPL 1.0 Alpha 2 =====
+#### Build 1055 ####
+2020/01/23
+
+* The pointer to struct pointer itself "this" now is automatically added as the first parameter and argument
+* Bug fixes:
+    * void function
+* Syntax added in last update:
+    * Compile time function "new"
+    * The support of void returning statement "return;"
+
+#### Build 1054 ####
+2020/01/23
+
+* Introduced object oriented programming
+* New syntax:
+    * Method implementation: `fn Struct::method(this: *Struct, args...)`
+* Known bugs:
+    * Existence of void function causes addr shift
+
 #### Build 1053 ####
 2020/01/22
 

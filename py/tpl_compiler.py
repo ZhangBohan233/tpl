@@ -1,10 +1,10 @@
 import py.tpl_ast as ast
-import py.spl_environment as en
+import py.tpl_environment as en
 import py.tpl_types as typ
 import py.tpl_lib as lib
 from py.tpl_types import INT_LEN, FLOAT_LEN, PTR_LEN, CHAR_LEN, VOID_LEN
 
-STACK_SIZE = 4096
+STACK_SIZE = 1024
 
 EXIT = 1  # completely exit function
 STOP = 2  # STOP                                  | stop current process
@@ -12,8 +12,8 @@ ASSIGN = 3  # ASSIGN   TARGET    SOURCE   LENGTH    | copy LENGTH bytes from SOU
 CALL = 4  # CALL
 RETURN = 5  # RETURN   VALUE_PTR
 GOTO = 6  # JUMP       CODE_PTR
-LOAD_A = 7  # LOAD_A                             | loads rel_addr + fp to register
-LOAD = 8  # LOAD     %DES_REG   $ADDR                   |
+LOAD_A = 7  # LOAD_A                                | loads <rel_addr + fp> to register.
+LOAD = 8  # LOAD     %DES_REG   $ADDR               | loads value stored in <rel_addr + fp> to register
 STORE = 9  # STORE   %TEMP   %REG   $DES_ADDR
 LOAD_I = 10
 ADD = 11  # ADD     %REG1   %REG2
@@ -44,8 +44,6 @@ UNPACK_ADDR = 33
 STORE_SP = 35
 RES_SP = 36
 MOVE_REG = 37  # MOVE_REG   %DST  %SRC       | copy between registers
-# TO_REL = 37  # | transform absolute addr to
-# ADD_I = 38       # | add with real value
 CAST_INT = 38  # CAST_INT  RESULT_P  SRC_P              | cast int-like to int
 INT_TO_FLOAT = 39
 FLOAT_TO_INT = 40
@@ -55,6 +53,7 @@ PUSH = 42
 SP_TO_FP = 43
 FP_TO_SP = 44
 EXIT_V = 45  # | exit with value
+SET_RET = 46
 
 ADD_F = 50
 SUB_F = 51
@@ -67,15 +66,17 @@ LT_F = 57
 NE_F = 58
 NEG_F = 59
 
+INC = 60
+DEC = 61
+INC_F = 62
+DEC_F = 63
+
 LABEL = 128
 GOTO_L = 129
 IF_ZERO_GOTO_L = 130
 
-LOAD_LEN = 11
-STORE_LEN = 11
-
 # Number of native functions, used for generating tpa
-NATIVE_FUNCTION_COUNT = 6
+NATIVE_FUNCTION_COUNT = 7
 
 INT_RESULT_TABLE_INT = {
     "+": ADD,
@@ -108,20 +109,20 @@ BOOL_RESULT_TABLE = {  # this table only used for getting tal
     "<="
 }
 
-INT_RESULT_TABLE_INT_FULL = {
-    **INT_RESULT_TABLE_INT,
-    "+=": ADD,
-    "-=": SUB,
-    "*=": MUL,
-    "/=": DIV,
-    "%=": MOD,
-    ">>=": RSHIFT_A,
-    ">>>=": RSHIFT_L,
-    "<<=": LSHIFT,
-    "&=": B_AND,
-    "|=": B_OR,
-    "^=": B_XOR
-}
+# INT_RESULT_TABLE_INT_FULL = {
+#     **INT_RESULT_TABLE_INT,
+#     "+=": ADD,
+#     "-=": SUB,
+#     "*=": MUL,
+#     "/=": DIV,
+#     "%=": MOD,
+#     ">>=": RSHIFT_A,
+#     ">>>=": RSHIFT_L,
+#     "<<=": LSHIFT,
+#     "&=": B_AND,
+#     "|=": B_OR,
+#     "^=": B_XOR
+# }
 
 EXTENDED_INT_RESULT_TABLE_INT = {
     **INT_RESULT_TABLE_INT,
@@ -141,14 +142,14 @@ FLOAT_RESULT_TABLE_FLOAT = {
     "%": MOD_F
 }
 
-FLOAT_RESULT_TABLE_FLOAT_FULL = {
-    **FLOAT_RESULT_TABLE_FLOAT,
-    "+=": ADD_F,
-    "-=": SUB_F,
-    "*=": MUL_F,
-    "/=": DIV_F,
-    "%=": MOD_F
-}
+# FLOAT_RESULT_TABLE_FLOAT_FULL = {
+#     **FLOAT_RESULT_TABLE_FLOAT,
+#     "+=": ADD_F,
+#     "-=": SUB_F,
+#     "*=": MUL_F,
+#     "/=": DIV_F,
+#     "%=": MOD_F
+# }
 
 INT_RESULT_TABLE_FLOAT = {
     ">": GT_F,
@@ -163,9 +164,9 @@ EXTENDED_INT_RESULT_TABLE_FLOAT = {
     "<=": (LT_F, EQ_F),
 }
 
-WITH_ASSIGN = {
-    "+=", "-=", "*=", "/=", "%=", ">>=", ">>>=", "<<=", "|=", "&=", "^="
-}
+# WITH_ASSIGN = {
+#     "+=", "-=", "*=", "/=", "%=", ">>=", ">>>=", "<<=", "|=", "&=", "^="
+# }
 
 
 # SPE_REGS = {
@@ -251,6 +252,28 @@ class ByteOutput:
 
         self.manager.append_regs64(temp_reg)
 
+    def increment_decrement(self, op, value_addr):
+        reg1, reg2 = self.manager.require_regs64(2)
+
+        if value_addr < 0:  # register
+            operating_reg = -value_addr - 1
+        else:
+            self.write_one(LOAD)
+            self.write_one(reg1)
+            self.write_int(value_addr)
+            operating_reg = reg1
+
+        self.write_one(op)
+        self.write_one(operating_reg)
+
+        if value_addr >= 0:
+            self.write_one(STORE)
+            self.write_one(reg2)
+            self.write_one(reg1)
+            self.write_int(value_addr)
+
+        self.manager.append_regs64(reg2, reg1)
+
     def assign_i(self, des: int, real_value: int):
         reg1, reg2 = self.manager.require_regs64(2)
 
@@ -291,7 +314,6 @@ class ByteOutput:
         reg1, reg2 = self.manager.require_regs64(2)
         i = 0
         for arg in args:
-
             self.assign_as(i, arg[0], arg[1])
 
             i += arg[1]
@@ -304,26 +326,57 @@ class ByteOutput:
         self.write_one(reg2)
         self.write_int(r_ptr)
 
+        self.write_one(SET_RET)
+        self.write_one(reg2)
+
         self.write_one(CALL)
         self.write_one(reg1)
-        self.write_one(reg2)
+        # self.write_one(reg2)
 
         self.manager.append_regs64(reg2, reg1)
 
-    def call(self, is_native: bool, ftn_ptr: int, r_ptr: int, args: list):
+    def call(self, ftn_ptr: int, not_void: bool, r_ptr: int, args: list):
         """
-
-        :param is_native:
         :param ftn_ptr:
+        :param not_void: True iff the return type of this function is not void
         :param r_ptr: return ptr
         :param args: list of tuple(arg_ptr, arg_len)
         :return:
         """
+        reg1, reg2 = self.manager.require_regs64(2)
+
+        i = 0
+        for arg in args:
+            if arg[0] < 0:  # register:
+                self.store_from_reg(i, arg[0])
+            else:
+                self.assign_as(i, arg[0], arg[1])
+
+            i += arg[1]
+
+        self.write_one(LOAD_A)
+        self.write_one(reg1)  # ftn ptr
+        self.write_int(ftn_ptr)
+
+        if not_void:
+            self.write_one(LOAD_A)
+            self.write_one(reg2)  # return ptr
+            self.write_int(r_ptr)
+
+            self.write_one(SET_RET)
+            self.write_one(reg2)
+
+        self.write_one(CALL)
+        self.write_one(reg1)
+        # self.write_one(reg2)
+
+        self.manager.append_regs64(reg2, reg1)
+
+    def call_nat(self, ftn_ptr: int, r_ptr: int, args: list):
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
         i = 0
         for arg in args:
-
             if arg[0] < 0:  # register:
                 self.store_from_reg(i, arg[0])
             else:
@@ -339,19 +392,14 @@ class ByteOutput:
         self.write_one(reg2)  # return ptr
         self.write_int(r_ptr)
 
-        if is_native:
-            self.write_one(LOAD_I)
-            self.write_one(reg3)
-            self.write_int(i)  # stores arguments length for native functions
+        self.write_one(LOAD_I)
+        self.write_one(reg3)
+        self.write_int(i)  # stores arguments length for native functions
 
-            self.write_one(CALL_NAT)
-            self.write_one(reg1)
-            self.write_one(reg2)
-            self.write_one(reg3)
-        else:
-            self.write_one(CALL)
-            self.write_one(reg1)
-            self.write_one(reg2)
+        self.write_one(CALL_NAT)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
@@ -606,13 +654,12 @@ class ByteOutput:
         self.write_one(LABEL)
         self.write_int(label)
 
-    def if_zero_goto_l(self, label: int, cond_ptr: int) -> int:
+    def if_zero_goto_l(self, label: int, cond_ptr: int):
         """
         Returns the occupied length
 
         :param label:
         :param cond_ptr:
-        :return:
         """
         reg1, reg2, reg3 = self.manager.require_regs64(3)
 
@@ -624,20 +671,16 @@ class ByteOutput:
             self.write_one(MOVE_REG)
             self.write_one(reg2)
             self.write_one(-cond_ptr - 1)
-            length = 16
         else:
             self.write_one(LOAD)
             self.write_one(reg2)  # reg stores cond ptr
             self.write_int(cond_ptr)
-            length = 23
 
         self.write_one(IF_ZERO_GOTO_L)
         self.write_one(reg1)
         self.write_one(reg2)
 
         self.manager.append_regs64(reg3, reg2, reg1)
-
-        return length
 
     def goto_l(self, label: int):
         reg1, = self.manager.require_regs64(1)
@@ -680,11 +723,9 @@ class MemoryManager:
         self.functions = {}
 
         self.blocks = []
-        # self.loop_sp_stack = []
 
         self.label_accumulator = 0
         self.text_labels = {}
-        # self.function_stack_sizes = {}
 
         self.type_sizes = {
             "int": INT_LEN,
@@ -737,14 +778,6 @@ class MemoryManager:
     def restore_stack(self):
         self.sp = self.blocks.pop()
 
-    # def store_sp(self):
-    #     pass
-    #     # self.loop_sp_stack.append(self.sp)
-    #
-    # def restore_sp(self):
-    #     pass
-        # self.sp = self.loop_sp_stack.pop()
-
     def allocate(self, length, bo) -> int:
         if len(self.blocks) == 0:  # global
             ptr = self.gp
@@ -765,7 +798,9 @@ class MemoryManager:
     def compile_all_functions(self):
         # print(self.functions)
         self.functions_bytes[0:INT_LEN] = typ.int_to_bytes(len(self.functions))
-        for ptr in self.functions:
+        ptr_lst = list(self.functions)
+        ptr_lst.sort()  # sorts functions by pointer positions
+        for ptr in ptr_lst:
             fb = self.functions[ptr]
             # print(ptr, self.func_p)
             ptr_in_g = ptr - self.functions_begin
@@ -805,13 +840,25 @@ class CompileTimeFunctionType(en.FuncType):
 class Struct:
     def __init__(self, name: str):
         self.name = name
-        self.vars: {str: (int, en.Type)} = {}  # position, type
+        self.vars: {str: (int, en.Type)} = {}  # position in struct, type
+        self.method_pointers: {str: int} = {}  # absolute addr of real function
 
     def get_attr_pos(self, attr_name: str) -> int:
         return self.vars[attr_name][0]
 
     def get_attr_tal(self, attr_name: str) -> en.Type:
         return self.vars[attr_name][1]
+
+    def is_method(self, attr_name: str) -> bool:
+        return isinstance(self.vars[attr_name][1], en.AbstractFuncType)
+
+    def implement_func_tal(self, func_name, new_tal: en.FuncType):
+        ptr_tal = self.vars[func_name]
+        if not isinstance(ptr_tal[1], en.AbstractFuncType):
+            raise lib.CompileTimeException("Attribute '{}' is not a member function.".format(func_name))
+        if isinstance(ptr_tal[1], en.FuncType):
+            raise lib.CompileTimeException("Member function '{}' is already implemented.".format(func_name))
+        self.vars[func_name] = (ptr_tal[0], new_tal)
 
     def __str__(self):
         return "Struct {}: {}".format(self.name, self.vars)
@@ -859,32 +906,37 @@ class Compiler:
         p1 = self.memory.define_func_ptr()  # 1: clock
         self.memory.implement_func(p1, typ.int_to_bytes(1))
         ft1 = en.FuncType([], en.Type("int"), 'n')
-        env.define_var("clock", ft1, p1)
+        env.define_const("clock", ft1, p1)
 
         p2 = self.memory.define_func_ptr()  # 2: malloc
         self.memory.implement_func(p2, typ.int_to_bytes(2))
         ft2 = en.FuncType([en.Type("int")], en.Type("*void"), 'n')
-        env.define_var("malloc", ft2, p2)
+        env.define_const("malloc", ft2, p2)
 
         p3 = self.memory.define_func_ptr()  # 3: printf
         self.memory.implement_func(p3, typ.int_to_bytes(3))
         ft3 = en.FuncType([en.Type("*void")], en.Type("void"), 'n')
-        env.define_var("printf", ft3, p3)
+        env.define_const("printf", ft3, p3)
 
         p4 = self.memory.define_func_ptr()  # 4: mem_copy
         self.memory.implement_func(p4, typ.int_to_bytes(4))
         ft4 = en.FuncType([en.Type("*char"), en.Type("*char"), en.Type("int")], en.Type("void"), 'n')
-        env.define_var("mem_copy", ft4, p4)
+        env.define_const("mem_copy", ft4, p4)
 
         p5 = self.memory.define_func_ptr()  # 5: free
         self.memory.implement_func(p5, typ.int_to_bytes(5))
         ft5 = en.FuncType([en.Type("*void")], en.Type("void"), 'n')
-        env.define_var("free", ft5, p5)
+        env.define_const("free", ft5, p5)
 
         p6 = self.memory.define_func_ptr()  # 6: stringf
         self.memory.implement_func(p6, typ.int_to_bytes(6))
         ft6 = en.FuncType([en.Type("*void")], en.Type("int"), 'n')
-        env.define_var("stringf", ft6, p6)
+        env.define_const("stringf", ft6, p6)
+
+        p7 = self.memory.define_func_ptr()  # 7: scanf
+        self.memory.implement_func(p7, typ.int_to_bytes(7))
+        ft7 = en.FuncType([en.Type("*void")], en.Type("int"), 'n')
+        env.define_const("scanf", ft7, p7)
 
     def add_compile_time_functions(self, env: en.GlobalEnvironment):
         env.define_const("sizeof", CompileTimeFunctionType([], en.Type("int"), self.function_sizeof), 0)
@@ -892,6 +944,7 @@ class Compiler:
         env.define_const("int", CompileTimeFunctionType([], en.Type("int"), self.function_int), 0)
         env.define_const("float", CompileTimeFunctionType([], en.Type("float"), self.function_float), 0)
         env.define_const("exit", CompileTimeFunctionType([], en.Type("void"), self.function_exit), 0)
+        env.define_const("new", CompileTimeFunctionType([], en.Type("*void"), self.function_new), 0)
 
     def calculate_global_len(self, root: ast.Node, is_child: bool):
         if is_child:
@@ -994,9 +1047,21 @@ class Compiler:
             self.memory.literal[lit_pos: lit_pos + PTR_LEN] = typ.int_to_bytes(new_string_ptr)
         return self.compile(node.literal, env, bo)
 
+    def get_function(self, name: str, env: en.Environment, func_tal: en.Type, lf: tuple) -> int:
+        if env.contains_ptr(name):  # is implementing
+            ftn_ptr: int = env.get(name, lf, False)
+            prev_func_tal = env.get_type_arr_len(name, lf)
+            if prev_func_tal != func_tal:
+                raise lib.CompileTimeException("Incompatible parameter or return types")
+        else:
+            ftn_ptr = self.memory.define_func_ptr()  # pre-defined for recursion
+            env.define_var(name, func_tal, ftn_ptr)
+        return ftn_ptr
+
     def compile_def_stmt(self, node: ast.DefStmt, env: en.Environment, bo: ByteOutput):
         if self.memory.functions_begin == 0:  # not set. 第一次遍历ast获取global长度时用
-            if node.name == "main":
+            if isinstance(node.title, ast.NameNode) and node.title.name == "main":
+                # reserve argc and argv len in global
                 if len(node.params.lines) == 2:
                     argc: ast.TypeNode = node.params.lines[0]
                     argv: ast.TypeNode = node.params.lines[1]
@@ -1015,8 +1080,26 @@ class Compiler:
         scope = en.FunctionEnvironment(env)
         self.memory.push_stack()
 
+        title = node.title
+
         param_pairs = []
         param_types = []
+
+        if isinstance(title, ast.NameNode):
+            is_method = False
+        elif isinstance(title, ast.BinaryOperator) and title.operation == "::" and \
+                isinstance(title.left, ast.NameNode) and isinstance(title.right, ast.NameNode):
+            # add 'this: *Struct' as the first parameter
+            is_method = True
+            tal = en.Type("*" + title.left.name)
+            param_types.append(tal)
+            ptr = self.memory.allocate(PTR_LEN, None)
+            scope.define_const("this", tal, ptr)
+            param_pair = ParameterPair("this", tal)
+            param_pairs.append(param_pair)
+        else:
+            raise lib.CompileTimeException()
+
         for param in node.params.lines:
             tn: ast.TypeNode = param
             name_node: ast.NameNode = tn.left
@@ -1032,17 +1115,15 @@ class Compiler:
             param_pair = ParameterPair(name_node.name, tal)
             param_pairs.append(param_pair)
 
-        func_tal = en.FuncType(param_types, r_tal)
+        func_tal = en.FuncType(param_types, r_tal, "m" if is_method else "f")
 
-        if env.contains_ptr(node.name):  # is implementing
-            ftn_ptr: int = env.get(node.name, (node.line_num, node.file), False)
-            prev_func_tal = env.get_type_arr_len(node.name, (node.line_num, node.file))
-            if prev_func_tal != func_tal:
-                raise lib.CompileTimeException("Incompatible parameter or return types")
+        if is_method:
+            ftn_ptr = self.memory.define_func_ptr()
+            struct = env.get_struct(title.left.name)
+            struct.method_pointers[title.right.name] = ftn_ptr
+            struct.implement_func_tal(title.right.name, func_tal)
         else:
-            ftn_ptr = self.memory.define_func_ptr()  # pre-defined for recursion
-            # print("allocated to", fake_ftn_ptr, self.memory.global_bytes)
-            env.define_var(node.name, func_tal, ftn_ptr)
+            ftn_ptr = self.get_function(title.name, env, func_tal, (node.line_num, node.file))
 
         if node.body is not None:  # implementing
             self.generate_labels(node.body)  # preprocess the labels to make sure future-pointing goto's work
@@ -1052,7 +1133,7 @@ class Compiler:
             inner_bo.write_one(FP_TO_SP)
             inner_bo.write_one(STOP)
 
-            for reg_id_neg in scope.registers:  # return back registers
+            for reg_id_neg in scope.registers:  # restore registers usage
                 self.memory.append_regs64(-reg_id_neg - 1)
 
             stack_len = self.memory.sp - self.memory.blocks[-1]
@@ -1076,10 +1157,12 @@ class Compiler:
         tal = get_tal_of_evaluated_node(node.right, env)
         length = tal.total_len(self.memory)
         r_ptr = self.memory.allocate(length, bo)
-        # bo.push_stack(length)
         r = self.compile(node.right, env, bo)  # TODO: optimize
         env.define_var(name, tal, r_ptr)
-        bo.assign(r_ptr, r, length)
+        if r < 0:  # right is a register
+            bo.store_from_reg(r_ptr, r)
+        else:
+            bo.assign(r_ptr, r, length)
         return r_ptr
 
     def compile_assignment_node(self, node: ast.AssignmentNode, env: en.Environment, bo: ByteOutput):
@@ -1213,18 +1296,6 @@ class Compiler:
                 bo.unpack_addr(arr_addr, r, total_len)
 
         return ptr
-        # else:
-        #     # ptr = self.memory.allocate(PTR_LEN)
-        #     # bo.push_stack(PTR_LEN)
-        #     partial_tal = en.Type(tal.type_name, *tal.array_lengths[1:])
-        #     this_arr_len = tal.array_lengths[0]
-        #     ptr_arr_addr = self.memory.allocate(PTR_LEN * this_arr_len)
-        #     bo.push_stack(PTR_LEN * this_arr_len)
-        #     for i in range(this_arr_len):
-        #         sub_array_addr = self.create_array(partial_tal, bo, False)
-        #         bo.store_addr_to_des(ptr_arr_addr + i * PTR_LEN, sub_array_addr)
-        #     # bo.store_addr_to_des(ptr, ptr_arr_addr)
-        #     return ptr_arr_addr
 
     def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, env: en.Environment, bo: ByteOutput):
         indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
@@ -1240,9 +1311,12 @@ class Compiler:
         return result_ptr
 
     def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: ByteOutput):
-        attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
+        attr_addr, attr_tal = self.get_struct_attr_ptr_and_len(node, env, bo)
 
-        bo.ptr_assign(attr_addr, value_ptr, length)
+        bo.ptr_assign(attr_addr, value_ptr, attr_tal.total_len(self.memory))
+
+    def attr_assign(self, ):
+        pass
 
     def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput, assign_const=False):
         """
@@ -1253,36 +1327,24 @@ class Compiler:
         :param assign_const: must be false since struct does not support constant attributes
         :return:
         """
-        attr_addr, length = self.get_struct_attr_ptr_and_len(node, env, bo)
+        attr_addr, attr_tal = self.get_struct_attr_ptr_and_len(node, env, bo)
 
+        # if call:
+        #     call_node: ast.FuncCall = node.right
+        #     args = call_node.right.block.lines.copy()
+        #     args.insert(0, node.left)
+        #     res_ptr = self.memory.allocate(PTR_LEN, bo)
+        #     bo.unpack_addr(res_ptr, attr_addr, PTR_LEN)
+        #     return self.compile_ptr_call(res_ptr, attr_tal, args, env, bo, node.lf())
+        # else:
+        length = attr_tal.total_len(self.memory)
         res_ptr = self.memory.allocate(length, bo)
-        # bo.push_stack(length)
-
         bo.unpack_addr(res_ptr, attr_addr, length)
-        # print(res_ptr, attr_addr, length)
         return res_ptr
-
-    # def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
-    #     if isinstance(node.call_obj, ast.IndexingNode):
-    #         raise lib.CompileTimeException("High dimensional indexing not supported")
-    #     obj_tal = get_tal_of_evaluated_node(node.call_obj, env)
-    #     unit_len = obj_tal.unit_len(self.memory)
-    #     index_ptr = self.compile(node.arg.lines[0], env, bo)
-    #     unit_len_ptr = self.memory.allocate(INT_LEN)
-    #     bo.push_stack(INT_LEN)
-    #     bo.assign_i(unit_len_ptr, unit_len)
-    #     indexing_ptr = self.memory.allocate(INT_LEN)
-    #     bo.push_stack(INT_LEN)
-    #     bo.add_binary_op(MUL, indexing_ptr, index_ptr, unit_len_ptr)
-    #     array_ptr = self.compile(node.call_obj, env, bo)
-    #     bo.add_binary_op(ADD, indexing_ptr, array_ptr, indexing_ptr)
-    #
-    #     return indexing_ptr, unit_len
 
     def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
 
         indexing_addr, tal, length = self.indexing_ptr(node, env, bo)
-        # print(length)
 
         return indexing_addr, length
 
@@ -1325,7 +1387,8 @@ class Compiler:
 
         return indexing_addr, tal, length
 
-    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> (int, int):
+    def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> \
+            (int, en.Type):
         left_tal = get_tal_of_evaluated_node(node.left, env)
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:
@@ -1335,87 +1398,108 @@ class Compiler:
         # attr_tal = get_tal_of_evaluated_node(node, env)
         left_ptr = self.compile(node.left, env, bo)
         struct = env.get_struct(ltn)
-        attr_tal = struct.get_attr_tal(node.right.name)
+        name = node.right.name
+        # if isinstance(node.right, ast.NameNode):
+        #     name = node.right.name
+        #     call = False
+        # elif isinstance(node.right, ast.FuncCall):
+        #     name = node.right.left.name
+        #     call = True
+        # else:
+        #     raise lib.CompileTimeException()
+        attr_tal = struct.get_attr_tal(name)
 
         attr_len = attr_tal.total_len(self.memory)
-        attr_pos = struct.get_attr_pos(node.right.name)
-
-        # print(struct, attr_tal, struct_ptr)
+        attr_pos = struct.get_attr_pos(name)
 
         if node.dot_count == 1:  # self
             addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.store_addr_to_des(addr_ptr, left_ptr + attr_pos)
-            return addr_ptr, attr_len
+            return addr_ptr, attr_tal
         elif node.dot_count == 2:
             real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.assign(real_addr_ptr, left_ptr, attr_len)
             bo.op_i(ADD, real_addr_ptr, attr_pos)
-            return real_addr_ptr, attr_len
+            return real_addr_ptr, attr_tal
         elif node.dot_count == 3:
             real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
             bo.unpack_addr(real_addr_ptr, left_ptr, attr_len)
             bo.op_i(ADD, real_addr_ptr, attr_pos)
-            return real_addr_ptr, attr_len
+            return real_addr_ptr, attr_tal
         else:
             raise lib.CompileTimeException("Pointer too deep.")
 
-    def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
-        assert isinstance(node.call_obj, ast.NameNode)
+    def compile_ptr_call(self, ftn: int, ftn_tal: en.FuncType, arg_nodes: list, env: en.Environment,
+                         bo: ByteOutput, lf: tuple) -> int:
 
-        lf = node.line_num, node.file
-
-        # ftn = env.get_function(node.call_obj.name, lf)
-        ftn = env.get(node.call_obj.name, lf, False)
-        ftn_tal: en.FuncType = env.get_type_arr_len(node.call_obj.name, lf)
-
-        if not isinstance(ftn_tal, en.FuncType):
-            raise lib.CompileTimeException("Object is not callable")
-
-        if ftn_tal.func_type == "c":
-            ftn_tal: CompileTimeFunctionType
-            return self.call_compile_time_functions(ftn, ftn_tal, node.args, env, bo)
-
-        # if isinstance(ftn, CompileTimeFunction):
-        #     return self.call_compile_time_functions(ftn, node.args, env, bo)
-
+        if (ftn_tal.func_type == "f" or ftn_tal.func_type == "m") and len(arg_nodes) != len(ftn_tal.param_types):
+            raise lib.CompileTimeException("Function requires {} arguments, {} given. In file '{}', at line {}."
+                                           .format(len(ftn_tal.param_types), len(arg_nodes), lf[1], lf[0]))
         args = []  # args tuple
-        for arg_node in node.args.lines:
+        for i in range(len(arg_nodes)):
+            arg_node = arg_nodes[i]
             tal = get_tal_of_evaluated_node(arg_node, env)
             total_len = tal.total_len(self.memory)
+
+            if ftn_tal.func_type == "f" or ftn_tal.func_type == "m":
+                param_tal = ftn_tal.param_types[i]
+                if tal != param_tal:
+                    raise lib.CompileTimeException("Argument type does not match the parameter. Expected: '{}', "
+                                                   "got '{}'.".format(en.type_to_readable(param_tal),
+                                                                      en.type_to_readable(tal)) +
+                                                   generate_lf(arg_node))
 
             if en.is_pointer(tal) or en.is_array(tal):
                 total_len = PTR_LEN
 
             arg_ptr = self.compile(arg_node, env, bo)
+            if arg_ptr < 0:
+                raise lib.CompileTimeException("Register variable cannot be used as function argument. Use 'var' "
+                                               "or 'const' instead." + generate_lf(arg_node))
             tup = arg_ptr, total_len
             args.append(tup)
 
         # print(args)
-        if ftn_tal.func_type == "f":
+        if ftn_tal.func_type == "f" or ftn_tal.func_type == "m":
             return self.function_call(ftn, ftn_tal, args, env, bo)
         elif ftn_tal.func_type == "n":
             return self.native_function_call(ftn, ftn_tal, args, env, bo)
         else:
             raise lib.CompileTimeException("Unexpected function type")
 
+    def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
+        # lf = node.line_num, node.file
+
+        ftn = self.compile(node.left, env, bo)
+        ftn_tal: en.FuncType = get_func_call_final_tal(node, env)
+
+        if ftn_tal.func_type == "m":
+            this_node = node.left.left
+            # if isinstance(this_node, ast.FuncCall):
+            #     raise lib.CompileTimeException("Cannot call a member function via object returned by another "
+            #                                    "function. " + generate_lf(node))
+            node.right.block.lines.insert(0, this_node)  # insert argument 'this'
+
+        if not isinstance(ftn_tal, en.FuncType):
+            raise lib.CompileTimeException("Object is not callable. " + generate_lf(node))
+
+        if ftn_tal.func_type == "c":
+            ftn_tal: CompileTimeFunctionType
+            return self.call_compile_time_functions(ftn, ftn_tal, node.right.block, env, bo)
+
+        return self.compile_ptr_call(ftn, ftn_tal, node.right.block.lines, env, bo, node.lf())
+
     def call_main(self, func_ptr: int, args: list, bo: ByteOutput):
-        # self.memory.push_stack()
         r_ptr = 1
         bo.call_main(func_ptr, r_ptr, args)
-        # self.memory.restore_stack()
 
     def function_call(self, func_ptr: int, func_tal: en.FuncType, args: list,
                       call_env: en.Environment, bo: ByteOutput):
-        if len(args) != len(func_tal.param_types):
-            raise lib.CompileTimeException("Function requires {} arguments, {} given"
-                                           .format(len(func_tal.param_types), len(args)))
 
         r_len = func_tal.rtype.total_len(self.memory)
-
         r_ptr = self.memory.allocate(r_len, bo)
-        # bo.push_stack(r_len)
 
-        bo.call(False, func_ptr, r_ptr, args)
+        bo.call(func_ptr, r_len > 0, r_ptr, args)
 
         return r_ptr
 
@@ -1425,7 +1509,7 @@ class Compiler:
         r_ptr = self.memory.allocate(r_len, bo)
         # bo.push_stack(r_len)
 
-        bo.call(True, func, r_ptr, args)
+        bo.call_nat(func, r_ptr, args)
 
         return r_ptr
 
@@ -1484,11 +1568,11 @@ class Compiler:
         r_tal = get_tal_of_evaluated_node(node.right, env)
         # print(l_tal, r_tal, node.operation)
 
-        if node.operation in WITH_ASSIGN:
-            # is assignment
-            lp = self.compile(node.left, env, bo, assign_const=True)
-        else:
-            lp = self.compile(node.left, env, bo)
+        # if node.operation in WITH_ASSIGN:
+        #     # is assignment
+        #     lp = self.compile(node.left, env, bo, assign_const=True)
+        # else:
+        lp = self.compile(node.left, env, bo)
         rp = self.compile(node.right, env, bo)
 
         if l_tal.type_name == "int" or l_tal.type_name[0] == "*" or en.is_array(l_tal):
@@ -1543,21 +1627,14 @@ class Compiler:
         raise lib.CompileTimeException("Unsupported binary operation '{}'".format(node.operation))
 
     def binary_op_float(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
-        if op in FLOAT_RESULT_TABLE_FLOAT_FULL:
-            if op in FLOAT_RESULT_TABLE_FLOAT:
-                res_pos = self.memory.allocate(FLOAT_LEN, bo)
-                # bo.push_stack(FLOAT_LEN)
+        if op in FLOAT_RESULT_TABLE_FLOAT:
+            res_pos = self.memory.allocate(FLOAT_LEN, bo)
 
-                op_code = FLOAT_RESULT_TABLE_FLOAT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
-                return res_pos
-            else:
-                op_code = FLOAT_RESULT_TABLE_FLOAT_FULL[op]
-                bo.add_binary_op(op_code, lp, lp, rp)
-                return lp
+            op_code = FLOAT_RESULT_TABLE_FLOAT[op]
+            bo.add_binary_op(op_code, res_pos, lp, rp)
+            return res_pos
         elif op in EXTENDED_INT_RESULT_TABLE_FLOAT:
             res_pos = self.memory.allocate(INT_LEN, bo)
-            # bo.push_stack(INT_LEN)
 
             if op in INT_RESULT_TABLE_FLOAT:
                 op_code = INT_RESULT_TABLE_FLOAT[op]
@@ -1578,27 +1655,15 @@ class Compiler:
                                            .format(op))
 
     def binary_op_int(self, op: str, lp: int, rp: int, bo: ByteOutput) -> int:
-        if op in INT_RESULT_TABLE_INT_FULL:
-            if op in INT_RESULT_TABLE_INT:
-                res_pos = self.memory.allocate(INT_LEN, bo)
-                # bo.push_stack(INT_LEN)
+        if op in INT_RESULT_TABLE_INT:
+            res_pos = self.memory.allocate(INT_LEN, bo)
 
-                op_code = INT_RESULT_TABLE_INT[op]
-                bo.add_binary_op(op_code, res_pos, lp, rp)
-                return res_pos
-            else:
-                op_code = INT_RESULT_TABLE_INT_FULL[op]
-                bo.add_binary_op(op_code, lp, lp, rp)
-                return lp
+            op_code = INT_RESULT_TABLE_INT[op]
+            bo.add_binary_op(op_code, res_pos, lp, rp)
+            return res_pos
         elif op in EXTENDED_INT_RESULT_TABLE_INT:
             res_pos = self.memory.allocate(INT_LEN, bo)
-            # bo.push_stack(INT_LEN)
 
-            # if op in BOOL_RESULT_TABLE_INT:
-            #     op_code = BOOL_RESULT_TABLE_INT[op]
-            #     bo.add_binary_op_int(op_code, res_pos, lp, rp)
-            #     return res_pos
-            # else:
             op_tup = EXTENDED_INT_RESULT_TABLE_INT[op]
             l_res = self.memory.allocate(INT_LEN, bo)
             # bo.push_stack(INT_LEN)
@@ -1613,10 +1678,11 @@ class Compiler:
                                            .format(op))
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
-        r = self.compile(node.value, env, bo)
-        tal = get_tal_of_evaluated_node(node.value, env)
-        bo.add_return(r, tal.total_len(self.memory))
-        return r
+        if node.value is not None:
+            r = self.compile(node.value, env, bo)
+            tal = get_tal_of_evaluated_node(node.value, env)
+            bo.add_return(r, tal.total_len(self.memory))
+            return r
 
     def compile_if(self, node: ast.IfStmt, env: en.Environment, bo: ByteOutput):
         # print(node.condition.lines[0])
@@ -1643,17 +1709,12 @@ class Compiler:
         step_label = self.memory.generate_label()
         end_label = self.memory.generate_label()
 
-        # self.memory.store_sp()
-        # bo.write_one(STORE_SP)  # before loop
-
         title_env = en.LoopEnvironment(env, step_label, end_label)
         body_env = en.BlockEnvironment(title_env)
 
         self.compile(node.condition.lines[0], title_env, bo)  # start
         bo.add_label(body_label)
 
-        # self.memory.store_sp()
-        # bo.write_one(STORE_SP)
         cond_ptr = self.compile_condition(node.condition.lines[1], title_env, bo)
 
         bo.if_zero_goto_l(end_label, cond_ptr)
@@ -1661,15 +1722,9 @@ class Compiler:
         self.compile(node.body, body_env, bo)
         bo.add_label(step_label)
         self.compile(node.condition.lines[2], title_env, bo)  # step
-        # bo.write_one(RES_SP)
 
         bo.goto_l(body_label)
         bo.add_label(end_label)
-
-        # bo.write_one(RES_SP)
-        # self.memory.restore_sp()
-        # bo.write_one(RES_SP)
-        # self.memory.restore_sp()
 
     def compile_while_loop(self, node: ast.WhileStmt, env: en.Environment, bo: ByteOutput):
         if len(node.condition.lines) != 1:
@@ -1679,12 +1734,7 @@ class Compiler:
         step_label = self.memory.generate_label()
         end_label = self.memory.generate_label()
 
-        # self.memory.store_sp()  # 进loop之前
-        # bo.write_one(STORE_SP)
-
         bo.add_label(body_label)
-        # self.memory.store_sp()  # 循环开始
-        # bo.write_one(STORE_SP)
 
         title_env = en.LoopEnvironment(env, step_label, end_label)
         body_env = en.BlockEnvironment(title_env)
@@ -1693,18 +1743,10 @@ class Compiler:
         bo.if_zero_goto_l(end_label, cond_ptr)
 
         self.compile(node.body, body_env, bo)
-        # self.memory.restore_sp()
         bo.add_label(step_label)
-        # bo.write_one(RES_SP)
 
         bo.goto_l(body_label)
         bo.add_label(end_label)
-
-        # self.memory.restore_sp()
-        # bo.write_one(RES_SP)
-        #
-        # self.memory.restore_sp()
-        # bo.write_one(RES_SP)
 
     def compile_condition(self, node: ast.Expr, env: en.Environment, bo: ByteOutput):
         tal = get_tal_of_evaluated_node(node, env)
@@ -1742,6 +1784,8 @@ class Compiler:
                                                generate_lf(node))
             type_node: ast.TypeNode = line.left
             tal = get_tal_of_defining_node(type_node.right, env, self.memory)
+            # if isinstance(tal, en.AbstractFuncType):  # is a method, add pointer to struct as the first parameter
+            #     tal.param_types.insert(0, en.Type("*" + node.name))
             name = type_node.left.name
             struct.vars[name] = pos, tal
             total_len = tal.total_len(self.memory)
@@ -1759,23 +1803,27 @@ class Compiler:
                     r_ptr = self.memory.allocate(INT_LEN, bo)
                     # bo.push_stack(INT_LEN)
                     bo.assign(r_ptr, ptr, INT_LEN)
-                    bo.op_i(ADD, ptr, 1)
+                    # bo.op_i(ADD, ptr, 1)
+                    bo.increment_decrement(INC, ptr)
                     return r_ptr
             elif node.operation == "--":
                 if tal.type_name == "int":
                     r_ptr = self.memory.allocate(INT_LEN, bo)
                     # bo.push_stack(INT_LEN)
                     bo.assign(r_ptr, ptr, INT_LEN)
-                    bo.op_i(SUB, ptr, 1)
+                    # bo.op_i(SUB, ptr, 1)
+                    bo.increment_decrement(DEC, ptr)
                     return r_ptr
         else:
             if node.operation == "++":
                 if tal.type_name == "int":
-                    bo.op_i(ADD, ptr, 1)
+                    bo.increment_decrement(INC, ptr)
+                    # bo.op_i(ADD, ptr, 1)
                     return ptr
             elif node.operation == "--":
                 if tal.type_name == "int":
-                    bo.op_i(SUB, ptr, 1)
+                    bo.increment_decrement(DEC, ptr)
+                    # bo.op_i(SUB, ptr, 1)
                     return ptr
 
     def compile_goto(self, node: ast.GotoStmt, env: en.Environment, bo: ByteOutput):
@@ -1868,6 +1916,33 @@ class Compiler:
             raise lib.CompileTimeException("Function 'exit' takes 0 to 1 arguments, {} given."
                                            .format(arg_len))
 
+    def function_new(self, r_ptr: int, env: en.Environment, bo: ByteOutput, args: list):
+        lf = (0, "compiler")
+        if len(args) != 1:
+            raise lib.CompileTimeException("Function 'new' takes exactly 1 argument.")
+        arg = args[0]
+        struct = self.compile(arg, env, bo)
+        if not isinstance(struct, Struct):
+            raise lib.CompileTimeException("Argument of 'new' must be struct name.")
+
+        size_ptr = self.memory.allocate(INT_LEN, bo)
+        size_ptr = self.function_sizeof(size_ptr, env, bo, args)
+
+        malloc = env.get("malloc", lf, False)
+        malloc_tal = env.get_type_arr_len("malloc", lf)
+        malloc_rtn = self.native_function_call(malloc, malloc_tal, [(size_ptr, INT_LEN)], env, bo)
+
+        for method_name in struct.method_pointers:
+            method_ptr = struct.method_pointers[method_name]
+            loc_in_struct = struct.get_attr_pos(method_name)
+
+            real_attr_addr = self.memory.allocate(INT_LEN, bo)
+            bo.assign(real_attr_addr, malloc_rtn, PTR_LEN)
+            bo.op_i(ADD, real_attr_addr, loc_in_struct)
+            bo.ptr_assign(real_attr_addr, method_ptr, PTR_LEN)
+
+        return malloc_rtn
+
     def generate_labels(self, node: ast.Node):
         if isinstance(node, ast.LabelStmt):
             if node.label not in self.memory.text_labels:
@@ -1891,10 +1966,28 @@ def index_node_depth(node: ast.IndexingNode):
         return 1
 
 
+def get_func_call_final_tal(node: ast.FuncCall, env: en.Environment) -> en.FuncType:
+    call = node.left
+    if isinstance(call, ast.NameNode):
+        return env.get_type_arr_len(call.name, node.lf())
+    elif isinstance(call, ast.FuncCall):
+        return get_func_call_final_tal(call, env).rtype
+    elif isinstance(call, ast.Dot):
+        struct_tal = get_tal_of_evaluated_node(call.left, env)
+        struct = env.get_struct(struct_tal.type_name[call.dot_count - 1:])
+        ftn_tal = struct.get_attr_tal(call.right.name)
+        return ftn_tal
+    else:
+        raise lib.CompileTimeException("Not a function call")
+
+
 def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryManager) -> en.Type:
     if node.node_type == ast.NAME_NODE:
         node: ast.NameNode
-        return en.Type(node.name)
+        if node.name == "fn":
+            return en.AbstractFuncType()
+        else:
+            return en.Type(node.name)
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
         tn_al_inner: en.Type = get_tal_of_defining_node(node.call_obj, env, mem)
@@ -1919,6 +2012,8 @@ def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryMan
     elif node.node_type == ast.BINARY_OPERATOR:
         node: ast.BinaryOperator
         if node.operation == "->":
+            # print(node.left)
+            # print("===================")
             left: ast.BlockStmt = node.left.expr
             lst = []
             for param_t in left.lines:
@@ -1981,11 +2076,26 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         return get_tal_of_evaluated_node(node.left, env)
     elif node.node_type == ast.FUNCTION_CALL:
         node: ast.FuncCall
-        call_obj = node.call_obj
+        call_obj = node.left
+        # print(call_obj)
         if call_obj.node_type == ast.NAME_NODE:
-            # func: Function = env.get_function(call_obj.name, (node.line_num, node.file))
-            func_tal: en.FuncType = env.get_type_arr_len(call_obj.name, (node.line_num, node.file))
-            return func_tal.rtype
+            name = call_obj.name
+            if name == "new":  # special case for new
+                args = node.right.block
+                if len(args.lines) != 1:
+                    raise lib.CompileTimeException("Function 'new' takes exactly one argument")
+                elif not isinstance(args.lines[0], ast.NameNode):
+                    raise lib.CompileTimeException("Argument of 'new' must be name of Struct")
+
+                struct_name = args.lines[0].name
+                return en.Type("*" + struct_name)
+            else:
+                func_tal: en.FuncType = env.get_type_arr_len(name, (node.line_num, node.file))
+                return func_tal.rtype
+        elif isinstance(call_obj, ast.FuncCall):
+            return get_tal_of_evaluated_node(call_obj, env)
+        elif isinstance(call_obj, ast.Dot):
+            return get_tal_of_evaluated_node(call_obj, env)
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
         # return get_tal_of_ordinary_node(node.call_obj, env)
@@ -2010,7 +2120,11 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         real_l_tal = en.Type(left_tal.type_name[ptr_depth:], left_tal.array_lengths)
         if env.is_struct(real_l_tal.type_name):
             struct = env.get_struct(real_l_tal.type_name)
-            return struct.get_attr_tal(node.right.name)
+            if struct.is_method(node.right.name):
+                f_tal: en.FuncType = struct.get_attr_tal(node.right.name)
+                return f_tal.rtype
+            else:
+                return struct.get_attr_tal(node.right.name)
         else:
             raise lib.TypeException()
     elif node.node_type == ast.IN_DECREMENT_OPERATOR:
@@ -2048,13 +2162,4 @@ def pointer_depth(type_name: str) -> int:
 
 
 def generate_lf(node: ast.Node) -> str:
-    return "In file '{}', at line {}.".format(node.file, node.line_num)
-
-# def indexing_remain_depth(node: ast.IndexingNode, tal: en.Type):
-#     i = 0
-#     while len(tal.array_lengths) > 0:
-#         print(12312313131)
-#         node = node.call_obj
-#         tal.array_lengths = tal.array_lengths[1:]
-#         i += 1
-#     return i
+    return " In file '{}', at line {}.".format(node.file, node.line_num)

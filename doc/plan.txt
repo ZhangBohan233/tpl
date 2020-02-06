@@ -1,7 +1,22 @@
+===== Before release =====
+
+* Rebuild parser and ast
+
+===== 1.0 Alpha 4 =====
+
+* ast preprocessor to expand operators like +=, ++
+* tpa optimizer to optimize operators like +=, ++
+
+===== 1.0 Alpha 3 =====
+
+* scanf     ...done
+
+==========
+
 * const     ...done
 * Loop conditions in register if enough     ...done
 * bitwise operators     ...done
 * global variables     ...done
 * tail call optimization      ...discarded
-* label and goto
-* fp: frame pointer
+* label and goto     ...done
+* fp: frame pointer     ...done

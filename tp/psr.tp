@@ -1,0 +1,18 @@
+struct S {
+    var foo: fn;
+    var bar: fn;
+}
+
+fn foo(x: int) void {
+    printf("%d\n", x);
+}
+
+fn S::bar() fn(int)->void {
+    return foo;
+}
+
+fn main() int {
+    var s: *S = new(S);
+    s..bar()(1);
+    return 0;
+}

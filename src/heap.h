@@ -12,7 +12,10 @@ extern const int HEAP_GAP;
 int_fast64_t *AVAILABLE;
 int AVA_SIZE;
 
-void insert_heap(int_fast64_t *heap, int *heap_size, int_fast64_t value);
+/**
+ * Return 0 iff insertion succeed.
+ */
+int insert_heap(int_fast64_t *heap, int *heap_size, int_fast64_t value);
 
 int_fast64_t *build_heap(int lower, int upper, int *capacity_ptr);
 

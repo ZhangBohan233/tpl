@@ -3,29 +3,52 @@ struct LinkedNode {
     var next: *LinkedNode;
 }
 
+/*
+ * LinkedList
+ *
+ * Implemented as stack.
+ */
 struct LinkedList {
     var size: int;
     var head: *LinkedNode;
+    var init: fn;
+    var append: fn;
+    var get: fn;
+    var pop: fn;
+    var print: fn;
 }
 
-fn make_ll() *LinkedList {
-    var list: *LinkedList = malloc(sizeof(LinkedList));
-    list..size = 0;
-    return list;
+fn LinkedList::init() void {
+    this..size = 0;
 }
 
-fn append_ll(list: *LinkedList, value: *void) void {
+fn LinkedList::append(value: *void) void {
     var node: *LinkedNode = malloc(sizeof(LinkedNode));
     node..value = value;
-    node..next = list..head;
-    list..head = node;
-    list..size += 1;
+    node..next = this..head;
+    this..head = node;
+    this..size += 1;
 }
 
-fn get_ll(list: *LinkedList, index: int) *void {
-    var node: *LinkedNode = list..head;
+fn LinkedList::get(index: int) *void {
+    var node: *LinkedNode = this..head;
     for i := 0; i < index; ++i {
         node = node..next;
     }
     return node..value;
+}
+
+fn LinkedList::pop() *void {
+    node := this..head;
+    this..head = node..next;
+    this..size -= 1;
+    return node..value;
+}
+
+fn LinkedList::print(p_func: fn(*void)->void) void {
+    printf("[");
+    for node := this..head; node != NULL; node = node..next {
+        p_func(node..value);
+    }
+    printf("]\n");
 }

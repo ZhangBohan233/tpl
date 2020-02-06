@@ -116,10 +116,7 @@ StringBuilder *create_string() {
 
 void string_expand(StringBuilder *list) {
     list->capacity *= 2;
-    unsigned char *new_array = malloc(sizeof(unsigned char) * list->capacity);
-    memcpy(new_array, list->array, sizeof(unsigned char) * list->size);
-    free(list->array);
-    list->array = new_array;
+    list->array = realloc(list->array, sizeof(unsigned char) * list->capacity);
 }
 
 void append_string(StringBuilder *list, unsigned char value) {
