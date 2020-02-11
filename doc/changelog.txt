@@ -1,3 +1,10 @@
+#### Build 1066 ####
+2020/02/10
+
+* Bug fixes:
+    * Fixed that error in native functions does not terminate program
+    * Fixed a memory leak in "util.LinkedList.pop"
+
 #### Build 1065 ####
 2020/02/03
 

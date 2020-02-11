@@ -1392,7 +1392,7 @@ class Compiler:
         left_tal = get_tal_of_evaluated_node(node.left, env)
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:
-            raise lib.CompileTimeException("Must be struct")
+            raise lib.CompileTimeException("Expected a struct. " + generate_lf(node))
 
         ltn = left_tal.type_name[ptr_depth:]
         # attr_tal = get_tal_of_evaluated_node(node, env)

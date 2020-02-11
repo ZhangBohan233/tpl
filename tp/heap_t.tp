@@ -1,0 +1,31 @@
+include "util"
+
+struct Int {
+    var value: int;
+}
+
+fn p_int(x: *Int) void {
+    printf("%d ", x..value);
+}
+
+fn main() int {
+    const a: int = clock();
+
+    var lst: *LinkedList = new(LinkedList);
+
+    for i := 0; i < 100000; ++i {
+        inti := new(Int);
+        inti..value = i;
+        lst..append(inti);
+    }
+
+    for i := 0; i < 100000; ++i {
+        lst..pop();
+    }
+
+    free(lst);
+
+    const b: int = clock();
+    printf("time used: %d\n", b - a);
+    return 0;
+}

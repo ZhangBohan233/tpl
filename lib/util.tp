@@ -42,7 +42,9 @@ fn LinkedList::pop() *void {
     node := this..head;
     this..head = node..next;
     this..size -= 1;
-    return node..value;
+    value := node..value;
+    free(node);
+    return value;
 }
 
 fn LinkedList::print(p_func: fn(*void)->void) void {

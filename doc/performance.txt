@@ -1,3 +1,8 @@
+#### Build 1066 ####
+
+Under IDE, memory=16MB
+100k linked-list append and pop with ptr type: 400 ms
+
 #### Build 1065 ####
 === C vm ===
 

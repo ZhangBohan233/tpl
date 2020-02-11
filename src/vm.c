@@ -12,7 +12,7 @@
 #include "heap.h"
 
 #define STACK_SIZE 1024
-#define MEMORY_SIZE 8192
+#define MEMORY_SIZE 16777216
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
 #define true_ptr_sp(ptr) (ptr < LITERAL_START ? ptr + SP : ptr)
@@ -514,7 +514,7 @@ void vm_run() {
 
     register unsigned char instruction;
 
-    while (1) {
+    while (ERROR_CODE == 0) {
         instruction = MEMORY[PC++];
 //        printf("ins: %d ", instruction);
         switch (instruction) {
