@@ -1,3 +1,8 @@
+#### Build 1067 ####
+2020/02/11
+
+* Implemented linked-list based heap memory management system. But not yet in used since its long launching time
+
 #### Build 1066 ####
 2020/02/10
 

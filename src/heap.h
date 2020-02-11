@@ -9,8 +9,15 @@
 
 extern const int HEAP_GAP;
 
+typedef struct LinkedNode {
+    int_fast64_t addr;
+    struct LinkedNode *next;
+} LinkedNode;
+
 int_fast64_t *AVAILABLE;
 int AVA_SIZE;
+
+LinkedNode *AVAILABLE2;
 
 /**
  * Return 0 iff insertion succeed.
@@ -24,5 +31,11 @@ int_fast64_t peek_heap(int_fast64_t *heap);
 int_fast64_t extract_heap(int_fast64_t *heap, int *heap_size);
 
 void print_sorted(int_fast64_t *heap, int heap_size);
+
+LinkedNode *build_ava_link(int_fast64_t lower, int_fast64_t upper);
+
+void print_link(LinkedNode *head);
+
+void free_link(LinkedNode *head);
 
 #endif //TPL_HEAP_H

@@ -7,7 +7,7 @@
 #include <string.h>
 #include "heap.h"
 
-const int HEAP_GAP = 8;
+const int HEAP_GAP = 16;
 
 #define swap(heap, i, j) {\
 int_fast64_t temp = heap[i];\
@@ -120,4 +120,37 @@ void print_sorted(int_fast64_t *heap, int heap_size) {
     printf("]\n");
 
     free(cpy_heap);
+}
+
+LinkedNode *build_ava_link(int_fast64_t lower, int_fast64_t upper) {
+    int_fast64_t capacity = upper - lower - HEAP_GAP;
+    while (capacity % HEAP_GAP != 0) capacity--;
+    int_fast64_t last = capacity + lower;
+    LinkedNode *head = NULL;
+    LinkedNode *ava = malloc(sizeof(LinkedNode));
+    ava->addr = 0;
+    for (int_fast64_t i = last; i >= lower; i -= HEAP_GAP) {
+        LinkedNode *next = malloc(sizeof(LinkedNode));
+        next->addr = i;
+        next->next = head;
+        head = next;
+    }
+    ava->next = head;  // the peek element is the smallest addr
+    return ava;  // the returning value is the real head, never changed
+}
+
+void print_link(LinkedNode *head) {
+    printf("LinkedList[");
+    for (LinkedNode *node = head; node != NULL; node = node->next) {
+        printf("%lld, ", node->addr);
+    }
+    printf("]\n");
+}
+
+void free_link(LinkedNode *head) {
+    while (head != NULL) {
+        LinkedNode *next = head->next;
+        free(head);
+        head = next;
+    }
 }

@@ -13,13 +13,15 @@ fn main() int {
 
     var lst: *LinkedList = new(LinkedList);
 
-    for i := 0; i < 100000; ++i {
+    for i := 0; i < 100_000; ++i {
         inti := new(Int);
         inti..value = i;
         lst..append(inti);
     }
 
-    for i := 0; i < 100000; ++i {
+    //lst..print(p_int);
+
+    for i := 0; i < 100_000; ++i {
         lst..pop();
     }
 

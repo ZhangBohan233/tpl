@@ -12,7 +12,9 @@
 #include "heap.h"
 
 #define STACK_SIZE 1024
-#define MEMORY_SIZE 16777216
+#define MEMORY_SIZE 134217728
+#define RECURSION_LIMIT 1000
+#define USE_HEAP_MEM 1  // whether to use a 'heap' data structure to manage heap memory
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
 #define true_ptr_sp(ptr) (ptr < LITERAL_START ? ptr + SP : ptr)
@@ -50,17 +52,14 @@ uint_fast64_t SP = 9;  // stack pointer
 uint_fast64_t FP = 1;  // frame pointer
 uint_fast64_t PC = STACK_SIZE;
 
-uint_fast64_t CALL_STACK[1000];  // recursion limit
+uint_fast64_t CALL_STACK[RECURSION_LIMIT];  // recursion limit
 int FSP = -1;
 
-int PC_STACK[1000];
+int PC_STACK[RECURSION_LIMIT];
 int PSP = -1;
 
-uint_fast64_t RET_STACK[1000];
+uint_fast64_t RET_STACK[RECURSION_LIMIT];
 int RSP = -1;
-
-//int LOOP_STACK[1000];  // 1000 nested loop
-//int LSP = -1;
 
 // The error code, set by virtual machine. Used to tell the main loop that the process is interrupted
 // Interrupt the vm if the code is not 0
@@ -148,17 +147,29 @@ int vm_load(const unsigned char *codes, int read) {
     int_fast64_t func_and_code_len = read - head_len - literal_size;
     HEAP_START = FUNCTIONS_START + func_and_code_len;
 
+    if (HEAP_START >= MEMORY_SIZE) {
+        fprintf(stderr, "Not enough memory to start vm\n");
+        ERROR_CODE = ERR_VM_OPT;
+        return 1;
+    }
+
     memcpy(MEMORY + LITERAL_START, codes + head_len, literal_size);  // copy literal
     memcpy(MEMORY + FUNCTIONS_START, codes + head_len + literal_size, func_and_code_len);
 //    memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 4 + 1, copy_len);
 
-    AVAILABLE = build_heap(HEAP_START, MEMORY_SIZE, &AVA_SIZE);
+    if (USE_HEAP_MEM)
+        AVAILABLE = build_heap(HEAP_START, MEMORY_SIZE, &AVA_SIZE);
+    else
+        AVAILABLE2 = build_ava_link(HEAP_START, MEMORY_SIZE);
 //    print_memory();
     return 0;
 }
 
 void vm_shutdown() {
-    free(AVAILABLE);
+    if (USE_HEAP_MEM)
+        free(AVAILABLE);
+    else
+        free_link(AVAILABLE2);
 }
 
 StringBuilder *str_format(int_fast64_t arg_len, const unsigned char *arg_array) {
@@ -337,6 +348,39 @@ void native_scanf(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned cha
     free(input);
 }
 
+int_fast64_t find_ava_link(int length) {
+    LinkedNode *head = AVAILABLE2;
+    while (head->next != NULL) {
+        int i = 0;
+        LinkedNode *cur = head->next;
+        for (; i < length - 1; ++i) {
+            LinkedNode *next = cur->next;
+            if (next == NULL || next->addr != cur->addr + HEAP_GAP) {
+                break;
+            }
+            cur = next;
+        }
+        if (i == length - 1) {  // found!
+            LinkedNode *node = head->next;
+            int_fast64_t found = node->addr;
+            head->next = cur->next;
+            for (int j = 0; j < length; ++j) {
+                LinkedNode *next_free = node->next;
+                free(node);
+                node = next_free;
+            }
+            return found;
+        } else {
+            head = cur;
+        }
+    }
+    return 0;  // not enough space in heap, ask for re-manage
+}
+
+void manage_heap() {
+
+}
+
 int_fast64_t find_ava(int length) {
     Int64List *pool = create_list();
     int found = 0;
@@ -375,9 +419,36 @@ int_fast64_t find_ava(int length) {
     }
 }
 
+int_fast64_t _inner_malloc_link(int_fast64_t allocate_len) {
+    int_fast64_t location = find_ava_link(allocate_len);
+//    printf("%lld, ", location);
+    if (location == 0) {
+        manage_heap();
+        // TODO
+
+        return -1;
+    }
+    return location;
+}
+
+void _native_malloc_link(int_fast64_t ret_ptr, int_fast64_t asked_len) {
+    int_fast64_t real_len = asked_len + INT_LEN;
+    int_fast64_t allocate_len = real_len % HEAP_GAP == 0 ? real_len / HEAP_GAP : real_len / HEAP_GAP + 1;
+    int_fast64_t location = _inner_malloc_link(allocate_len);
+
+    if (location <= 0) {
+        fprintf(stderr, "Cannot allocate length %lld, available memory %d\n", asked_len, AVA_SIZE);
+        ERROR_CODE = ERR_HEAP_COLLISION;
+        return;
+    }
+
+    int_to_bytes(MEMORY + location, allocate_len);  // stores the allocated length
+    int_to_bytes(MEMORY + ret_ptr, location + INT_LEN);
+}
+
 void _native_malloc(int_fast64_t ret_ptr, int_fast64_t asked_len) {
     int_fast64_t real_len = asked_len + INT_LEN;
-    int_fast64_t allocate_len = real_len % 8 == 0 ? real_len / 8 : real_len / 8 + 1;
+    int_fast64_t allocate_len = real_len % HEAP_GAP == 0 ? real_len / HEAP_GAP : real_len / HEAP_GAP + 1;
 
     int_fast64_t location = find_ava(allocate_len);
 
@@ -393,7 +464,10 @@ void native_malloc(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned ch
     }
 
     int_fast64_t asked_len = bytes_to_int(args);
-    _native_malloc(ret_ptr, asked_len);
+    if (USE_HEAP_MEM)
+        _native_malloc(ret_ptr, asked_len);
+    else
+        _native_malloc_link(ret_ptr, asked_len);
 }
 
 void native_clock(int_fast64_t arg_len, int_fast64_t ret_ptr) {
@@ -404,6 +478,40 @@ void native_clock(int_fast64_t arg_len, int_fast64_t ret_ptr) {
     }
     int_fast64_t t = clock();
     int_to_bytes(MEMORY + ret_ptr, t);
+}
+
+void _free_link(int_fast64_t real_ptr, int_fast64_t alloc_len) {
+    LinkedNode *head = AVAILABLE2;
+    LinkedNode *after = AVAILABLE2;
+    while (after->addr < real_ptr) {
+        head = after;
+        after = after->next;
+    }
+//    printf("%lld, %lld\n", head->addr, after->addr);
+    for (int i = 0; i < alloc_len; ++i) {
+        LinkedNode *node = malloc(sizeof(LinkedNode));
+        node->addr = real_ptr + i * HEAP_GAP;
+        head->next = node;
+        head = node;
+    }
+    if (head->addr >= after->addr) {
+        fprintf(stderr, "Heap memory collision");
+        ERROR_CODE = ERR_HEAP_COLLISION;
+        head->next = NULL;  // avoid cyclic reference
+        return;
+    }
+    head->next = after;
+}
+
+void _free_heap(int_fast64_t real_ptr, int_fast64_t alloc_len) {
+    for (int i = 0; i < alloc_len; i++) {
+        if (insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_GAP) != 0) {
+            fprintf(stderr, "Heap memory collision");
+            ERROR_CODE = ERR_HEAP_COLLISION;
+            return;
+        }
+//        printf("free %lld \n", real_ptr + i * HEAP_GAP);
+    }
 }
 
 void native_free(int_fast64_t arg_len, const unsigned char *args) {
@@ -422,14 +530,11 @@ void native_free(int_fast64_t arg_len, const unsigned char *args) {
         return;
     }
 
-    for (int i = 0; i < alloc_len; i++) {
-        if (insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_GAP) != 0) {
-            fprintf(stderr, "Heap memory collision");
-            ERROR_CODE = ERR_HEAP_COLLISION;
-            return;
-        }
-//        printf("free %lld \n", real_ptr + i * HEAP_GAP);
-    }
+    if (USE_HEAP_MEM)
+        _free_heap(real_ptr, alloc_len);
+    else
+        _free_link(real_ptr, alloc_len);
+
 }
 
 void native_mem_copy(int_fast64_t arg_len, const unsigned char *args) {
@@ -921,9 +1026,9 @@ int run(int argc, char **argv) {
     vm_set_args(vm_argc, vm_argv);
     vm_run();
 
-//    uint_fast64_t main_rtn_ptr = CALL_STACK[0] - INT_LEN;
+//    print_link(AVAILABLE2);
+
     int_fast64_t main_rtn_ptr = 1;
-//    printf("mrp %lld\n", main_rtn_ptr);
 
     if (ERROR_CODE != 0) int_to_bytes(MEMORY + main_rtn_ptr, ERROR_CODE);
 
@@ -936,11 +1041,24 @@ int run(int argc, char **argv) {
     return 0;
 }
 
+void test() {
+    AVAILABLE2 = build_ava_link(HEAP_START, MEMORY_SIZE);
+    AVAILABLE2->next->next->next = AVAILABLE2->next->next->next->next->next;
+    print_link(AVAILABLE2);
+    int_fast64_t ava = find_ava_link(3);
+    printf("%lld\n", ava);
+    print_link(AVAILABLE2);
+    _free_link(ava, 3);
+    print_link(AVAILABLE2);
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         printf("Usage: tpl.exe [VM_FLAGS] FILE [PROGRAM_FLAGS]");
         exit(1);
     }
+
+//    test();
 
     return run(argc, argv);
 }
