@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-extern const int HEAP_GAP;
+extern const int HEAP_BLOCK_SIZE;
 
 typedef struct LinkedNode {
     int_fast64_t addr;
@@ -18,6 +18,7 @@ int_fast64_t *AVAILABLE;
 int AVA_SIZE;
 
 LinkedNode *AVAILABLE2;
+LinkedNode *POOL_LINKS;
 
 /**
  * Return 0 iff insertion succeed.
@@ -36,6 +37,6 @@ LinkedNode *build_ava_link(int_fast64_t lower, int_fast64_t upper);
 
 void print_link(LinkedNode *head);
 
-void free_link(LinkedNode *head);
+void free_link(LinkedNode *pool);
 
 #endif //TPL_HEAP_H

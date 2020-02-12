@@ -1,3 +1,9 @@
+#### Build 1068 ####
+2020/02/11
+
+* Optimized linked-list implementation of heap memory management system: using memory pool
+* Used linked-list implementation as the default memory management: not finished
+
 #### Build 1067 ####
 2020/02/11
 

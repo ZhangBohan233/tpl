@@ -7,7 +7,7 @@
 #include <string.h>
 #include "heap.h"
 
-const int HEAP_GAP = 16;
+const int HEAP_BLOCK_SIZE = 16;
 
 #define swap(heap, i, j) {\
 int_fast64_t temp = heap[i];\
@@ -65,13 +65,13 @@ int insert_heap(int_fast64_t *heap, int *heap_size, int_fast64_t value) {
 }
 
 int_fast64_t *build_heap(int lower, int upper, int *capacity_ptr) {
-    int capacity = (upper - lower) / HEAP_GAP;
+    int capacity = (upper - lower) / HEAP_BLOCK_SIZE;
     *capacity_ptr = capacity;
 
     int_fast64_t *heap = malloc(sizeof(int_fast64_t) * capacity);
 
     for (int i = 0; i < capacity; i++) {
-        heap[i] = lower + i * HEAP_GAP;
+        heap[i] = lower + i * HEAP_BLOCK_SIZE;
     }
 
     int mid = capacity / 2 - 1;
@@ -123,20 +123,20 @@ void print_sorted(int_fast64_t *heap, int heap_size) {
 }
 
 LinkedNode *build_ava_link(int_fast64_t lower, int_fast64_t upper) {
-    int_fast64_t capacity = upper - lower - HEAP_GAP;
-    while (capacity % HEAP_GAP != 0) capacity--;
-    int_fast64_t last = capacity + lower;
-    LinkedNode *head = NULL;
-    LinkedNode *ava = malloc(sizeof(LinkedNode));
-    ava->addr = 0;
-    for (int_fast64_t i = last; i >= lower; i -= HEAP_GAP) {
-        LinkedNode *next = malloc(sizeof(LinkedNode));
-        next->addr = i;
-        next->next = head;
-        head = next;
+    int_fast64_t capacity = upper - lower;
+    while (capacity % HEAP_BLOCK_SIZE != 0) capacity--;
+    int_fast64_t num_nodes = capacity / HEAP_BLOCK_SIZE + 1;
+    POOL_LINKS = malloc(sizeof(LinkedNode) * num_nodes);
+    POOL_LINKS->addr = 0;
+    LinkedNode *prev = POOL_LINKS;
+    for (int_fast64_t i = 1; i < num_nodes; ++i) {
+        LinkedNode *node = &POOL_LINKS[i];
+        node->addr = lower + (i - 1) * HEAP_BLOCK_SIZE;
+        prev->next = node;
+        prev = node;
     }
-    ava->next = head;  // the peek element is the smallest addr
-    return ava;  // the returning value is the real head, never changed
+    prev->next = NULL;  // last node
+    return POOL_LINKS;
 }
 
 void print_link(LinkedNode *head) {
@@ -147,10 +147,6 @@ void print_link(LinkedNode *head) {
     printf("]\n");
 }
 
-void free_link(LinkedNode *head) {
-    while (head != NULL) {
-        LinkedNode *next = head->next;
-        free(head);
-        head = next;
-    }
+void free_link(LinkedNode *pool) {
+    free(pool);
 }

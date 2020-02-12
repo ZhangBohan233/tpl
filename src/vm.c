@@ -355,7 +355,7 @@ int_fast64_t find_ava_link(int length) {
         LinkedNode *cur = head->next;
         for (; i < length - 1; ++i) {
             LinkedNode *next = cur->next;
-            if (next == NULL || next->addr != cur->addr + HEAP_GAP) {
+            if (next == NULL || next->addr != cur->addr + HEAP_BLOCK_SIZE) {
                 break;
             }
             cur = next;
@@ -364,11 +364,11 @@ int_fast64_t find_ava_link(int length) {
             LinkedNode *node = head->next;
             int_fast64_t found = node->addr;
             head->next = cur->next;
-            for (int j = 0; j < length; ++j) {
-                LinkedNode *next_free = node->next;
-                free(node);
-                node = next_free;
-            }
+//            for (int j = 0; j < length; ++j) {
+//                LinkedNode *next_free = node->next;
+//                free(node);
+//                node = next_free;
+//            }
             return found;
         } else {
             head = cur;
@@ -395,7 +395,7 @@ int_fast64_t find_ava(int length) {
             append_list(pool, x);
             int_fast64_t y = peek_heap(AVAILABLE);
 //            printf("x %lld y %lld\n", x, y);
-            if (x != y - HEAP_GAP) {
+            if (x != y - HEAP_BLOCK_SIZE) {
                 break;
             }
         }
@@ -433,7 +433,8 @@ int_fast64_t _inner_malloc_link(int_fast64_t allocate_len) {
 
 void _native_malloc_link(int_fast64_t ret_ptr, int_fast64_t asked_len) {
     int_fast64_t real_len = asked_len + INT_LEN;
-    int_fast64_t allocate_len = real_len % HEAP_GAP == 0 ? real_len / HEAP_GAP : real_len / HEAP_GAP + 1;
+    int_fast64_t allocate_len =
+            real_len % HEAP_BLOCK_SIZE == 0 ? real_len / HEAP_BLOCK_SIZE : real_len / HEAP_BLOCK_SIZE + 1;
     int_fast64_t location = _inner_malloc_link(allocate_len);
 
     if (location <= 0) {
@@ -448,7 +449,8 @@ void _native_malloc_link(int_fast64_t ret_ptr, int_fast64_t asked_len) {
 
 void _native_malloc(int_fast64_t ret_ptr, int_fast64_t asked_len) {
     int_fast64_t real_len = asked_len + INT_LEN;
-    int_fast64_t allocate_len = real_len % HEAP_GAP == 0 ? real_len / HEAP_GAP : real_len / HEAP_GAP + 1;
+    int_fast64_t allocate_len =
+            real_len % HEAP_BLOCK_SIZE == 0 ? real_len / HEAP_BLOCK_SIZE : real_len / HEAP_BLOCK_SIZE + 1;
 
     int_fast64_t location = find_ava(allocate_len);
 
@@ -488,12 +490,20 @@ void _free_link(int_fast64_t real_ptr, int_fast64_t alloc_len) {
         after = after->next;
     }
 //    printf("%lld, %lld\n", head->addr, after->addr);
-    for (int i = 0; i < alloc_len; ++i) {
-        LinkedNode *node = malloc(sizeof(LinkedNode));
-        node->addr = real_ptr + i * HEAP_GAP;
+    int_fast64_t index_in_pool = (real_ptr - HEAP_START) / HEAP_BLOCK_SIZE + 1;
+//    printf("%lld\n", index_in_pool);
+    for (int_fast64_t i = 0; i < alloc_len; ++i) {
+        LinkedNode *node = &POOL_LINKS[index_in_pool++];
+        node->addr = real_ptr + i * HEAP_BLOCK_SIZE;
         head->next = node;
         head = node;
     }
+//    for (int i = 0; i < alloc_len; ++i) {
+//        LinkedNode *node = malloc(sizeof(LinkedNode));
+//        node->addr = real_ptr + i * HEAP_BLOCK_SIZE;
+//        head->next = node;
+//        head = node;
+//    }
     if (head->addr >= after->addr) {
         fprintf(stderr, "Heap memory collision");
         ERROR_CODE = ERR_HEAP_COLLISION;
@@ -505,12 +515,12 @@ void _free_link(int_fast64_t real_ptr, int_fast64_t alloc_len) {
 
 void _free_heap(int_fast64_t real_ptr, int_fast64_t alloc_len) {
     for (int i = 0; i < alloc_len; i++) {
-        if (insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_GAP) != 0) {
+        if (insert_heap(AVAILABLE, &AVA_SIZE, real_ptr + i * HEAP_BLOCK_SIZE) != 0) {
             fprintf(stderr, "Heap memory collision");
             ERROR_CODE = ERR_HEAP_COLLISION;
             return;
         }
-//        printf("free %lld \n", real_ptr + i * HEAP_GAP);
+//        printf("free %lld \n", real_ptr + i * HEAP_BLOCK_SIZE);
     }
 }
 
@@ -1050,6 +1060,7 @@ void test() {
     print_link(AVAILABLE2);
     _free_link(ava, 3);
     print_link(AVAILABLE2);
+    free_link(POOL_LINKS);
 }
 
 int main(int argc, char **argv) {
@@ -1059,6 +1070,9 @@ int main(int argc, char **argv) {
     }
 
 //    test();
+    clock_t t0 = clock();
+    int res = run(argc, argv);
+    printf("Total vm time: %ld\n", clock() - t0);
 
-    return run(argc, argv);
+    return res;
 }

@@ -1,3 +1,9 @@
+#### Build 1067 ####
+
+Under IDE, memory=128MB
+100k linked-list append and pop with ptr type: 220 ms (ll memory)
+100k linked-list append and pop with ptr type: 400 ms (heap memory)
+
 #### Build 1066 ####
 
 Under IDE, memory=16MB
