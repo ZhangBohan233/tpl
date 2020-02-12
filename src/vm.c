@@ -14,7 +14,7 @@
 #define STACK_SIZE 1024
 #define MEMORY_SIZE 134217728
 #define RECURSION_LIMIT 1000
-#define USE_HEAP_MEM 1  // whether to use a 'heap' data structure to manage heap memory
+#define USE_HEAP_MEM 0  // whether to use a 'heap' data structure to manage heap memory
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
 #define true_ptr_sp(ptr) (ptr < LITERAL_START ? ptr + SP : ptr)
