@@ -124,7 +124,7 @@ class Visualizer:
 
     def show(self, node: ast.Node, main_path: str):
         self.window.title(main_path + " - SPL Abstract Syntax Tree Visualizer")
-        self.add_item(node, "")
+        self.add_item(node, "", "root")
         self.window.mainloop()
 
 

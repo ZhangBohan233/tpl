@@ -530,7 +530,7 @@ class StructNode(Node):
         return "Struct {} {}".format(self.name, self.block)
 
     def __repr__(self):
-        return self.__str__()
+        return "Struct {}".format(self.name)
 
 
 class Arguments(Node):
