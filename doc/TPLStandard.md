@@ -120,6 +120,8 @@ Implementation of function with declared return type other than `void` must term
 
 ## Function call:
 
+## Unary operators:
+
 ## Binary operators:
 
 There are binary operators in TPL
@@ -141,7 +143,11 @@ Operator  | Left type  | Right type | Return type | Description
 \>>>      | int        | int        | int         | Logical right shift
 <<        | 
 
-## Unary operators:
+Note that the operator `&&` and `||` uses short-circuiting evaluation. For the operator `&&`, if the left side is
+false (evaluates as 0), then the right side would never be executed. For `||`, if the left side is true, then the 
+right side is not executed.
+
+## Ternary operators
 
 ## Conditional statements:
 

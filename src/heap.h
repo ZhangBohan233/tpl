@@ -37,6 +37,10 @@ LinkedNode *build_ava_link(int_fast64_t lower, int_fast64_t upper);
 
 void print_link(LinkedNode *head);
 
+LinkedNode *sort_link(LinkedNode *head);
+
+int link_len(LinkedNode *head);
+
 void free_link(LinkedNode *pool);
 
 #endif //TPL_HEAP_H

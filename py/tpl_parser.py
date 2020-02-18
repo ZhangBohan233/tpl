@@ -6,12 +6,22 @@ ABSTRACT_IDENTIFIER = {"fn", "class"}
 
 PTR_LEN = 8
 
+LIT_TYPE_INT = 0
+LIT_TYPE_FLOAT = 1
+LIT_TYPE_STR = 3
+LIT_TYPE_CHAR = 4
+
+LIT_INT_0 = 0
+LIT_INT_1 = 8
+
 
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
 
-        self.literal_bytes = bytearray()
+        self.literal_bytes = bytearray(
+            typ.int_to_bytes(0) + typ.int_to_bytes(1)
+        )
         self.string_lengths = {}  # ptr: length
         self.literals = {}  # lit: position
         self.bool_literals = {}
@@ -238,13 +248,13 @@ class Parser:
                         parser.add_increment_decrement(line, sym)
                     elif sym == ":=":
                         parser.add_quick_assignment(line)
-                    elif sym in stl.TERNARY_OPERATORS and \
-                            (parser.is_in_ternary() or stl.TERNARY_OPERATORS[sym]):
-                        # This check should go strictly before the check of binary ops
-                        if parser.is_in_ternary():
-                            parser.finish_ternary(line, sym)
-                        else:
-                            parser.add_ternary(line, sym)
+                    # elif sym in stl.TERNARY_OPERATORS and \
+                    #         (parser.is_in_ternary() or stl.TERNARY_OPERATORS[sym]):
+                    #     # This check should go strictly before the check of binary ops
+                    #     if parser.is_in_ternary():
+                    #         parser.finish_ternary(line, sym)
+                    #     else:
+                    #         parser.add_ternary(line, sym)
                     elif sym in stl.BINARY_OPERATORS:
                         if sym == "-" and (i == 0 or is_unary(self.tokens[i - 1])):
                             parser.add_unary(line, "neg")
@@ -254,6 +264,8 @@ class Parser:
                             parser.add_unary(line, "pack")
                         elif sym == ":":
                             parser.add_type_node(line)
+                        elif sym == "?":
+                            parser.add_ternary(line, sym)
                         else:
                             parser.add_operator(line, sym)
                     elif sym in stl.UNARY_OPERATORS:
@@ -354,21 +366,21 @@ class Parser:
         #     lit_type = 2
         if isinstance(lit, int):
             b = typ.int_to_bytes(lit)
-            lit_type = 0
+            lit_type = LIT_TYPE_INT
         elif isinstance(lit, float):
             b = typ.float_to_bytes(lit)
-            lit_type = 1
+            lit_type = LIT_TYPE_FLOAT
         elif isinstance(lit, str):
             b = typ.string_to_bytes(lit)
             if make_string:
-                lit_type = 3
+                lit_type = LIT_TYPE_STR
                 ptr = len(self.literal_bytes) + PTR_LEN
                 b = typ.int_to_bytes(ptr) + b  # string pointer
                 b += bytes(1)  # add the string terminator
             else:
                 if len(b) != 1:
                     raise stl.ParseException("Only ascii characters can be char")
-                lit_type = 4
+                lit_type = LIT_TYPE_CHAR
         else:
             raise stl.ParseException("Unexpected literal type")
 

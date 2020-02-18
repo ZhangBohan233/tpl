@@ -147,6 +147,61 @@ void print_link(LinkedNode *head) {
     printf("]\n");
 }
 
+void split_halves(LinkedNode *node, LinkedNode **back) {
+    LinkedNode *fast = node->next;
+    LinkedNode *slow = node;
+    while (fast != NULL) {
+        fast = fast->next;
+        if (fast != NULL) {
+            slow = slow->next;
+            fast = fast->next;
+        }
+    }
+    *back = slow->next;
+    slow->next = NULL;
+}
+
+LinkedNode *merge_link(LinkedNode *a, LinkedNode *b) {
+    if (a == NULL) return b;
+    else if (b == NULL) return a;
+
+    LinkedNode *result;
+    if (a->addr < b->addr) {
+        result = a;
+        result->next = merge_link(a->next, b);
+    } else {
+        result = b;
+        result->next = merge_link(a, b->next);
+    }
+    return result;
+}
+
+/**
+ * returns the new head.
+ */
+LinkedNode *sort_link(LinkedNode *head) {
+    if (head == NULL || head->next == NULL) {
+        return head;
+    } else {
+        LinkedNode *front = head;
+        LinkedNode *back;
+        split_halves(head, &back);
+
+        LinkedNode *left_sorted = sort_link(front);
+        LinkedNode *right_sorted = sort_link(back);
+
+        LinkedNode *result = merge_link(left_sorted, right_sorted);
+
+        return result;
+    }
+}
+
+int link_len(LinkedNode *head) {
+    int len = 0;
+    for (LinkedNode *node = head; node != NULL; node = node->next, len++);
+    return len;
+}
+
 void free_link(LinkedNode *pool) {
     free(pool);
 }

@@ -1,3 +1,11 @@
+===== TPL 1.0 Alpha 4 =====
+#### Build 1069 ####
+2020/02/17
+
+* Introduced short-circuiting evaluation for operator `&&` and `||`
+* Implemented support for ternary operator `cond ? if_true : if_false`
+* Completed new heap memory management system
+
 #### Build 1068 ####
 2020/02/11
 

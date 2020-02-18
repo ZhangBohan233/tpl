@@ -8,7 +8,7 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "=": 1, "+=": 3, "-=": 3, "*=": 3, "/=": 3, "%=": 3,
               "&=": 3, "^=": 3, "|=": 3, "<<=": 3, ">>=": 3, ">>>=": 3,
               "===": 20, "!==": 20, "instanceof": 25, "subclassof": 25, "assert": 0,
-              "?": 4, "++": 300, "--": 300, ":": 3, "->": 4, "<-": 2, ":=": 1, "::": 500, "call": 400}
+              "?": 2, "++": 300, "--": 300, ":": 3, "->": 4, "<-": 2, ":=": 1, "::": 500, "call": 400}
 
 MULTIPLIER = 1000
 
@@ -196,31 +196,43 @@ class TitleNode(Node):
         Node.__init__(self, line)
 
 
-class TernaryOperator(Expr):
-    first_op: str
-    second_op: str = None
-    left: Node = None
-    mid: Node = None
-    right: Node = None
+# class TernaryOperator(Expr):
+#     first_op: str
+#     second_op: str = None
+#     left: Node = None
+#     mid: Node = None
+#     right: Node = None
+#
+#     def __init__(self, line, first_op):
+#         Expr.__init__(self, line)
+#
+#         self.node_type = TERNARY_OPERATOR
+#         self.first_op = first_op
+#
+#     def precedence(self):
+#         return PRECEDENCE[self.first_op]
+#
+#     def __str__(self):
+#         return "TE({} {} {} {} {})".format(self.left, self.first_op, self.mid, self.second_op, self.right)
+#
+#     def __repr__(self):
+#         return "TE'{} {}'".format(self.first_op, self.second_op)
 
-    def __init__(self, line, first_op):
-        Expr.__init__(self, line)
+
+class TernaryOperator(BinaryExpr):
+    def __init__(self, line, op):
+        BinaryExpr.__init__(self, line, op)
 
         self.node_type = TERNARY_OPERATOR
-        self.first_op = first_op
-
-    def precedence(self):
-        return PRECEDENCE[self.first_op]
 
     def __str__(self):
-        return "TE({} {} {} {} {})".format(self.left, self.first_op, self.mid, self.second_op, self.right)
+        return "TE({} {} {})".format(self.left, self.operation, self.right)
 
     def __repr__(self):
-        return "TE'{} {}'".format(self.first_op, self.second_op)
+        return "TE"
 
 
 class BinaryOperator(BinaryExpr):
-    assignment = False
 
     def __init__(self, line, op):
         BinaryExpr.__init__(self, line, op)
@@ -728,7 +740,7 @@ class AbstractSyntaxTree:
         self.stack = []
         self.inner = None
         self.in_expr = False
-        self.in_ternary = False
+        # self.in_ternary = False
 
     def __str__(self):
         return str(self.elements)
@@ -902,17 +914,16 @@ class AbstractSyntaxTree:
             self.inner.add_ternary(line, op1)
         else:
             self.in_expr = True
-            self.in_ternary = True
             node = TernaryOperator(line, op1)
             self.stack.append(node)
 
-    def finish_ternary(self, line, op2):
-        if self.inner:
-            self.inner.finish_ternary(line, op2)
-        else:
-            self.in_ternary = False
-            node: TernaryOperator = self.stack[-2]
-            node.second_op = op2
+    # def finish_ternary(self, line, op2):
+    #     if self.inner:
+    #         self.inner.finish_ternary(line, op2)
+    #     else:
+    #         self.in_ternary = False
+    #         node: TernaryOperator = self.stack[-2]
+    #         node.second_op = op2
 
     def add_increment_decrement(self, line, op):
         if self.inner:
@@ -1311,6 +1322,7 @@ class AbstractSyntaxTree:
                 node = parse_expr(lst)
                 self.stack.append(node)
             # print(self.stack)
+
     #
     # def build_section(self):
     #     if self.inner:

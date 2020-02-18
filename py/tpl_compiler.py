@@ -2,6 +2,7 @@ import py.tpl_ast as ast
 import py.tpl_environment as en
 import py.tpl_types as typ
 import py.tpl_lib as lib
+import py.tpl_parser as psr
 from py.tpl_types import INT_LEN, FLOAT_LEN, PTR_LEN, CHAR_LEN, VOID_LEN
 
 STACK_SIZE = 1024
@@ -107,6 +108,11 @@ BOOL_RESULT_TABLE = {  # this table only used for getting tal
     "||",
     ">=",
     "<="
+}
+
+LAZY_EVAL_TABLE = {
+    "&&",
+    "||"
 }
 
 # INT_RESULT_TABLE_INT_FULL = {
@@ -880,6 +886,7 @@ class Compiler:
             ast.FUNCTION_CALL: self.compile_call,
             ast.BINARY_OPERATOR: self.compile_binary_op,
             ast.UNARY_OPERATOR: self.compile_unary_op,
+            ast.TERNARY_OPERATOR: self.compile_ternary_op,
             ast.RETURN_STMT: self.compile_return,
             ast.ASSIGNMENT_NODE: self.compile_assignment_node,
             ast.IF_STMT: self.compile_if,
@@ -1564,14 +1571,13 @@ class Compiler:
             raise lib.CompileTimeException("Not implemented")
 
     def compile_binary_op(self, node: ast.BinaryOperator, env: en.Environment, bo: ByteOutput):
+        if node.operation in LAZY_EVAL_TABLE:
+            return self.compile_binary_op_lazy_eval(node.operation, node.left, node.right, env, bo)
+
         l_tal = get_tal_of_evaluated_node(node.left, env)
         r_tal = get_tal_of_evaluated_node(node.right, env)
         # print(l_tal, r_tal, node.operation)
 
-        # if node.operation in WITH_ASSIGN:
-        #     # is assignment
-        #     lp = self.compile(node.left, env, bo, assign_const=True)
-        # else:
         lp = self.compile(node.left, env, bo)
         rp = self.compile(node.right, env, bo)
 
@@ -1676,6 +1682,64 @@ class Compiler:
         else:
             raise lib.CompileTimeException("Binary operator '{}' between ints is unsupported"
                                            .format(op))
+
+    def compile_binary_op_lazy_eval(self, op: str, left_node: ast.Node, right_node: ast.Node,
+                                    env: en.Environment, bo: ByteOutput):
+        l_tal = get_tal_of_evaluated_node(left_node, env)
+
+        # a && b ==> a ? b : 0;
+        # a || b ==> a ? 1 : b;
+
+        if l_tal.type_name == "int" or en.is_pointer(l_tal):
+            ter = ast.TernaryOperator(left_node.lf(), "?")
+            ter.left = left_node
+            val = ast.TypeNode(left_node.lf())
+            if op == "&&":
+                val.left = right_node
+                val.right = ast.Literal(left_node.lf(), psr.LIT_INT_0, psr.LIT_TYPE_INT)
+            elif op == "||":
+                val.left = ast.Literal(left_node.lf(), psr.LIT_INT_1, psr.LIT_TYPE_INT)
+                val.right = right_node
+            else:
+                raise lib.CompileTimeException()
+            ter.right = val
+            return self.compile_ternary_op(ter, env, bo)
+        else:
+            raise lib.CompileTimeException()
+
+    def compile_ternary_op(self, node: ast.TernaryOperator, env: en.Environment, bo: ByteOutput):
+        if node.operation == "?" and isinstance(node.right, ast.TypeNode):
+            cond_node = node.left
+            node1 = node.right.left
+            node2 = node.right.right
+
+            res_tal = get_tal_of_evaluated_node(node, env)
+            total_len = res_tal.total_len(self.memory)
+            res_ptr = self.memory.allocate(total_len, bo)
+
+            cond_tal = get_tal_of_evaluated_node(cond_node, env)
+            if cond_tal.type_name != "int":
+                raise lib.CompileTimeException("Must be condition")
+
+            cond_ptr = self.compile(cond_node, env, bo)
+            else_begin_label = self.memory.generate_label()
+            end_label = self.memory.generate_label()
+
+            bo.if_zero_goto_l(else_begin_label, cond_ptr)
+            value_p1 = self.compile(node1, env, bo)
+            bo.assign(res_ptr, value_p1, total_len)
+            bo.goto_l(end_label)
+
+            bo.add_label(else_begin_label)
+            value_p2 = self.compile(node2, env, bo)
+            bo.assign(res_ptr, value_p2, total_len)
+
+            bo.add_label(end_label)
+
+            return res_ptr
+        else:
+            raise lib.CompileTimeException("Unsupported ternary operator {}. "
+                                           .format(node.operation) + generate_lf(node))
 
     def compile_return(self, node: ast.ReturnStmt, env: en.Environment, bo: ByteOutput):
         if node.value is not None:
@@ -2024,10 +2088,10 @@ def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryMan
 
 
 LITERAL_TYPE_TABLE = {
-    0: en.Type("int"),
-    1: en.Type("float"),
-    3: en.Type("string"),
-    4: en.Type("char")
+    psr.LIT_TYPE_INT: en.Type("int"),
+    psr.LIT_TYPE_FLOAT: en.Type("float"),
+    psr.LIT_TYPE_STR: en.Type("string"),
+    psr.LIT_TYPE_CHAR: en.Type("char")
 }
 
 
@@ -2074,6 +2138,12 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         if node.operation in BOOL_RESULT_TABLE:
             return en.Type("int")
         return get_tal_of_evaluated_node(node.left, env)
+    elif node.node_type == ast.TERNARY_OPERATOR:
+        node: ast.TernaryOperator
+        if node.operation == "?" and isinstance(node.right, ast.TypeNode):
+            return get_tal_of_evaluated_node(node.right.left, env)
+        else:
+            raise lib.CompileTimeException("Unknown ternary operator")
     elif node.node_type == ast.FUNCTION_CALL:
         node: ast.FuncCall
         call_obj = node.left

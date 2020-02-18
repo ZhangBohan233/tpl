@@ -1,0 +1,28 @@
+struct S {
+    var x: int;
+    var f: fn;
+}
+
+fn S::f() int {
+    return 1;
+}
+
+
+fn main() int {
+    s := new(S);
+    s..x = 3;
+
+    var g: int = s..x == 1 ? 2 : 3;
+    if 1 == 0 || 2 == 1 {
+        printf("yes!\n");
+    } else {
+        printf("no..\n");
+    }
+
+    var r: *S = NULL;
+    if r != NULL && r..f() == 1 {
+        printf("sss\n");
+    }
+
+    return 0;
+}

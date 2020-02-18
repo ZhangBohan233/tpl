@@ -12,7 +12,7 @@
 #include "heap.h"
 
 #define STACK_SIZE 1024
-#define MEMORY_SIZE 134217728
+#define MEMORY_SIZE 32768
 #define RECURSION_LIMIT 1000
 #define USE_HEAP_MEM 0  // whether to use a 'heap' data structure to manage heap memory
 
@@ -364,11 +364,6 @@ int_fast64_t find_ava_link(int length) {
             LinkedNode *node = head->next;
             int_fast64_t found = node->addr;
             head->next = cur->next;
-//            for (int j = 0; j < length; ++j) {
-//                LinkedNode *next_free = node->next;
-//                free(node);
-//                node = next_free;
-//            }
             return found;
         } else {
             head = cur;
@@ -378,7 +373,7 @@ int_fast64_t find_ava_link(int length) {
 }
 
 void manage_heap() {
-
+    AVAILABLE2 = sort_link(AVAILABLE2);
 }
 
 int_fast64_t find_ava(int length) {
@@ -421,12 +416,10 @@ int_fast64_t find_ava(int length) {
 
 int_fast64_t _inner_malloc_link(int_fast64_t allocate_len) {
     int_fast64_t location = find_ava_link(allocate_len);
-//    printf("%lld, ", location);
     if (location == 0) {
         manage_heap();
-        // TODO
-
-        return -1;
+        location = find_ava_link(allocate_len);
+        if (location == 0) return -1;  // cannot find enough space
     }
     return location;
 }
@@ -438,7 +431,8 @@ void _native_malloc_link(int_fast64_t ret_ptr, int_fast64_t asked_len) {
     int_fast64_t location = _inner_malloc_link(allocate_len);
 
     if (location <= 0) {
-        fprintf(stderr, "Cannot allocate length %lld, available memory %d\n", asked_len, AVA_SIZE);
+        int ava_size = link_len(AVAILABLE2) * HEAP_BLOCK_SIZE - INT_LEN;
+        fprintf(stderr, "Cannot allocate length %lld, available memory %d\n", asked_len, ava_size);
         ERROR_CODE = ERR_HEAP_COLLISION;
         return;
     }
@@ -774,16 +768,16 @@ void vm_run() {
 
                 regs64[reg_p1].int_value = regs64[reg_p1].int_value < 0 ? 1 : 0;
                 break;
-            case 19:  // AND
-                reg_p1 = MEMORY[PC++];
-                reg_p2 = MEMORY[PC++];
-                regs64[reg_p1].int_value = regs64[reg_p1].int_value && regs64[reg_p2].int_value;
-                break;
-            case 20:  // OR
-                reg_p1 = MEMORY[PC++];
-                reg_p2 = MEMORY[PC++];
-                regs64[reg_p1].int_value = regs64[reg_p1].int_value || regs64[reg_p2].int_value;
-                break;
+//            case 19:  // AND
+//                reg_p1 = MEMORY[PC++];
+//                reg_p2 = MEMORY[PC++];
+//                regs64[reg_p1].int_value = regs64[reg_p1].int_value && regs64[reg_p2].int_value;
+//                break;
+//            case 20:  // OR
+//                reg_p1 = MEMORY[PC++];
+//                reg_p2 = MEMORY[PC++];
+//                regs64[reg_p1].int_value = regs64[reg_p1].int_value || regs64[reg_p2].int_value;
+//                break;
             case 21:  // NOT
                 reg_p1 = MEMORY[PC++];
                 regs64[reg_p1].int_value = !regs64[reg_p1].int_value;
@@ -1063,13 +1057,20 @@ void test() {
     free_link(POOL_LINKS);
 }
 
+void test2() {
+    AVAILABLE2 = build_ava_link(0, 128);
+    print_link(AVAILABLE2);
+    AVAILABLE2 = sort_link(AVAILABLE2);
+    print_link(AVAILABLE2);
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         printf("Usage: tpl.exe [VM_FLAGS] FILE [PROGRAM_FLAGS]");
         exit(1);
     }
 
-//    test();
+//    test2();
     clock_t t0 = clock();
     int res = run(argc, argv);
     printf("Total vm time: %ld\n", clock() - t0);
