@@ -1,0 +1,21 @@
+struct S {
+    var a: int;
+    var b: int;
+}
+
+
+fn main() int {
+
+    var arr: int[4];
+    var p: **S = malloc(16);
+
+    var it: *S = malloc(16);
+    it..a = 6;
+    it..b = 77;
+
+    p[1] = it;
+
+    printf("%d\n", p[1]..b);
+
+    return 0;
+}

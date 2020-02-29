@@ -141,7 +141,7 @@ Operator  | Left type  | Right type | Return type | Description
 !=        |
 \>>       | int        | int        | int         | Arithmetic right shift
 \>>>      | int        | int        | int         | Logical right shift
-<<        | 
+<<        | int        | int        | int         | Left shift
 
 Note that the operator `&&` and `||` uses short-circuiting evaluation. For the operator `&&`, if the left side is
 false (evaluates as 0), then the right side would never be executed. For `||`, if the left side is true, then the 

@@ -197,7 +197,8 @@ class Parser:
                         elif len(func_obj_nest_list) > 0:
                             parser.build_line()
                         else:
-                            raise stl.ParseException()
+                            raise stl.ParseException("Unexpected comma. In file '{}', at line {}"
+                                                     .format(line[1], line[0]))
                     # elif sym == "~":  # a special mark
                     #     pass
                     elif sym == "fn":

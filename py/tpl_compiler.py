@@ -1364,8 +1364,11 @@ class Compiler:
             # bo.push_stack(PTR_LEN)
             bo.store_addr_to_des(arr_addr_ptr, arr_self_addr)
             tal = get_tal_of_evaluated_node(node.call_obj, env)
+        elif isinstance(node.call_obj, ast.Dot):
+            arr_addr_ptr = self.compile(node.call_obj, env, bo)
+            tal = get_tal_of_evaluated_node(node.call_obj, env)
         else:
-            raise lib.CompileTimeException()
+            raise lib.CompileTimeException("Unexpected node " + str(type(node.call_obj)))
 
         if len(node.arg.lines) != 1:
             raise lib.CompileTimeException("Indexing takes exactly 1 argument")

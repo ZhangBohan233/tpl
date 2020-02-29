@@ -1,3 +1,9 @@
+#### Build 1070 ####
+2020/02/28
+
+* New library: array.tp
+* New syntax supported: (s..array)[x] = ...;  # Not tested
+
 ===== TPL 1.0 Alpha 4 =====
 #### Build 1069 ####
 2020/02/17

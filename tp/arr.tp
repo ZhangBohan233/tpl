@@ -1,0 +1,15 @@
+include "array"
+
+struct S {
+    var a: int;
+}
+
+fn main() int {
+    var arr: *Array = create_array(4);
+    var sa: *S = malloc(8);
+    sa..a = 123;
+    arr..set(1, sa);
+
+    var gg: *S = arr..get(1);
+    return gg..a;
+}

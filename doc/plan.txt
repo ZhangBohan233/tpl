@@ -1,6 +1,11 @@
+===== 1.0 Alpha 5 =====
+
+* Re-implement pointer system
+* Template system
+
 ===== Before release =====
 
-* Rebuild parser and ast
+* Rebuild parser and ast    ...discarded
 
 ===== 1.0 Alpha 4 =====
 
