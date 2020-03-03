@@ -1,54 +1,58 @@
 //STACK SIZE
 1024
 //LITERAL LENGTH:
-40
+48
 //GLOBAL MEMORY LENGTH:
 48
 //CLASS INFO LENGTH:
 24
 //FUNCTIONS LENGTH:
-167
+201
 //MAIN TAKES ARG:
 %0
 //LITERALS:
-0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 77 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 66 0 0 0 0 0 0 0 77 0 0 0 0 0 0 0 
 //CLASS HEADERS
 0 0 0 
 //FUNCTIONS COUNT:
 8
 //FUNCTION POINTERS:
-1184 1192 1200 1208 1216 1224 1232 1240 
+1192 1200 1208 1216 1224 1232 1240 1248 
 //NATIVE FUNCTIONS COUNT:
 7
 
 //FUNCTIONS: 
 
 //FUNCTION 7:
-#192 SP_TO_FP
-#193 LOAD_I          %0  0
-#203 PUSH            %0
-#205 LOAD_A          %0  $1056
-#215 LOAD_I          %1  8
-#225 FP_TO_SP
-#226 RETURN          %0  %1
-#229 FP_TO_SP
-#230 STOP
+#200 SP_TO_FP
+#201 LOAD_I          %0  8
+#211 PUSH            %0
+#213 LOAD_A          %0  $0
+#223 LOAD_A          %1  $1056
+#233 LOAD_I          %2  8
+#243 ASSIGN          %0  %1  %2
+#247 LOAD_A          %0  $1064
+#257 LOAD_I          %1  8
+#267 FP_TO_SP
+#268 RETURN          %0  %1
+#271 FP_TO_SP
+#272 STOP
 
 
 //MAIN:
-LOAD_A          %0  $1064
-LOAD_A          %1  $1040
-LOAD_I          %2  8
-ASSIGN          %0  %1  %2
 LOAD_A          %0  $1072
-LOAD_A          %1  $1048
+LOAD_A          %1  $1040
 LOAD_I          %2  8
 ASSIGN          %0  %1  %2
 LOAD_A          %0  $1080
 LOAD_A          %1  $1048
 LOAD_I          %2  8
 ASSIGN          %0  %1  %2
-LOAD_A          %0  $1176
+LOAD_A          %0  $1088
+LOAD_A          %1  $1048
+LOAD_I          %2  8
+ASSIGN          %0  %1  %2
+LOAD_A          %0  $1184
 LOAD_A          %1  $1
 SET_RET         %1
 CALL            %0

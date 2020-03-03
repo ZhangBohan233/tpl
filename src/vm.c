@@ -148,11 +148,11 @@ int vm_load(const unsigned char *codes, int read) {
 
     GLOBAL_START = LITERAL_START + literal_size;
     CLASS_INFO_START = GLOBAL_START + global_len;
-    FUNCTIONS_START = CLASS_INFO_START + global_len;
+    FUNCTIONS_START = CLASS_INFO_START + class_info_size;
     CODE_START = FUNCTIONS_START + functions_size;
     PC = CODE_START;
 
-    int_fast64_t func_and_code_len = read - head_len - literal_size;
+    int_fast64_t func_and_code_len = read - head_len - literal_size - class_info_size;
     HEAP_START = FUNCTIONS_START + func_and_code_len;
 
     if (HEAP_START >= MEMORY_SIZE) {
@@ -163,7 +163,9 @@ int vm_load(const unsigned char *codes, int read) {
 
     memcpy(MEMORY + LITERAL_START, codes + head_len, literal_size);  // copy literal
     memcpy(MEMORY + CLASS_INFO_START, codes + head_len + literal_size, class_info_size);
-    memcpy(MEMORY + FUNCTIONS_START, codes + head_len + literal_size + class_info_size, func_and_code_len);
+    memcpy(MEMORY + FUNCTIONS_START,
+            codes + head_len + literal_size + class_info_size,
+            func_and_code_len);
 //    memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 4 + 1, copy_len);
 
     if (USE_HEAP_MEM)
@@ -655,6 +657,7 @@ void vm_run() {
 //                reg_p3 = MEMORY[PC++];
 
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
+                printf("%lld\n", regs64[reg_p1].int_value);
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++FSP] = FP;

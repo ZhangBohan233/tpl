@@ -3,7 +3,7 @@ class A {
 
 
 fn main() int {
-    //var a: int = 66;
+    var a: int = 66;
 
     //var b: A = new A();
 
