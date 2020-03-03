@@ -8,6 +8,8 @@ PTR_LEN = 8
 # BOOLEAN_LEN = 1
 CHAR_LEN = 1
 VOID_LEN = 0
+CLASS_INFO_LEN = 24
+OBJECT_PTR_LEN = 24
 
 
 class Type:

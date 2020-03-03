@@ -11,7 +11,7 @@ BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
                     "<<": "lshift", ">>": "rshift_a", ">>>": "rshift_l", "===": "", "!==": "",
                     ":": "", "->": "lambda", ":=": "quickass", "::": "attr", "=": "", "?": ""}
-UNARY_OPERATORS = {"!": "not"}
+UNARY_OPERATORS = {"!": "not", "new": "new"}
 OTHERS = {"=", ":", ":="}
 ALL = [SYMBOLS, UNARY_OPERATORS, BINARY_OPERATORS, TERNARY_OPERATORS, OTHERS, MIDDLE]
 # ALL = set().union(SYMBOLS) \
@@ -24,7 +24,8 @@ ALL = [SYMBOLS, UNARY_OPERATORS, BINARY_OPERATORS, TERNARY_OPERATORS, OTHERS, MI
 #             "true", "false", "null", "operator", "while", "for", "import", "namespace", "throw", "try", "catch",
 #             "finally", "abstract", "const", "var", "assert", "as", "struct"}
 RESERVED = {"fn", "if", "else", "return", "break", "continue", "true", "false", "null", "while", "for",
-            "const", "var", "assert", "struct", "include", "register", "goto", "label"}
+            "const", "var", "assert", "struct", "include", "register", "goto", "label", "static", "class",
+            "extends", "abstract"}
 RESERVED_FOR_BRACE = {"return"}
 LAZY = {"&&", "||"}
 OMITS = {"\n", "\r", "\t", " "}

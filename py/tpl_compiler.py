@@ -720,13 +720,17 @@ class MemoryManager:
         self.literal_begins = STACK_SIZE
         self.global_begins = STACK_SIZE + len(literal_bytes)
         self.functions_begin = 0
+        self.class_p = 0  # classes header before functions header
         self.func_p = 0
         self.gp = self.global_begins
+        self.class_count = 0
 
         self.literal: bytearray = literal_bytes
         self.global_bytes = bytearray()
         self.functions_bytes = bytearray(INT_LEN)  # function counts
         self.functions = {}
+        self.class_info_ptr_bytes = bytearray()
+        # self.clazz_info = {}
 
         self.blocks = []
 
@@ -743,8 +747,9 @@ class MemoryManager:
 
         self.available_regs64 = [7, 6, 5, 4, 3, 2, 1, 0]
 
-    def set_global_length(self, gl):
-        self.functions_begin = self.global_begins + gl
+    def set_global_length(self, gl, class_header_len):
+        self.class_p = self.global_begins + gl
+        self.functions_begin = self.class_p + class_header_len  # class header
         self.func_p = self.functions_begin + INT_LEN  # reserve space for functions count
 
     def get_global_len(self):
@@ -823,6 +828,19 @@ class MemoryManager:
     def implement_func(self, func_ptr: int, fn_bytes: bytes):
         self.functions[func_ptr] = fn_bytes
 
+    def compile_all_classes(self):
+        pass
+        # self.class_info_ptr_bytes[0:INT_LEN] = typ.int_to_bytes(self.class_count)
+
+    def define_class_ptr(self):
+        i = self.class_p
+        self.class_info_ptr_bytes.extend(bytes(typ.CLASS_INFO_LEN))
+        self.class_p += typ.CLASS_INFO_LEN
+        return i
+
+    def implement_class(self, clazz_ptr):
+        pass
+
 
 class ParameterPair:
     def __init__(self, name: str, tal: en.Type):
@@ -870,6 +888,41 @@ class Struct:
         return "Struct {}: {}".format(self.name, self.vars)
 
 
+class Class:
+    def __init__(self, name: str, clazz_ptr: int):
+        self.name = name
+
+        self.clazz_ptr = clazz_ptr
+        self.vars: {str: (int, en.Type)} = {}  # position in struct, type
+        self.static_vars: {str: (int, en.Type)} = {}
+        self.method_pointers: {str: int} = {}  # absolute addr of real function
+        self.static_method_pointers: {str: int} = {}
+
+        self.instant_size = 0
+        # self.static_size = 0
+        # self.static_ptr_in_mem = 0
+
+    def get_attr_pos(self, attr_name: str) -> int:
+        return self.vars[attr_name][0]
+
+    def get_attr_tal(self, attr_name: str) -> en.Type:
+        return self.vars[attr_name][1]
+
+    def is_method(self, attr_name: str) -> bool:
+        return isinstance(self.vars[attr_name][1], en.AbstractFuncType)
+
+    def implement_func_tal(self, func_name, new_tal: en.FuncType):
+        ptr_tal = self.vars[func_name]
+        if not isinstance(ptr_tal[1], en.AbstractFuncType):
+            raise lib.CompileTimeException("Attribute '{}' is not a member function.".format(func_name))
+        if isinstance(ptr_tal[1], en.FuncType):
+            raise lib.CompileTimeException("Member function '{}' is already implemented.".format(func_name))
+        self.vars[func_name] = (ptr_tal[0], new_tal)
+
+    def __str__(self):
+        return "Class {}: {}".format(self.name, self.vars)
+
+
 class Compiler:
     def __init__(self, literal_bytes: bytearray):
         self.memory = MemoryManager(literal_bytes)
@@ -902,7 +955,8 @@ class Compiler:
             ast.QUICK_ASSIGNMENT: self.compile_quick_assignment,
             ast.IN_DECREMENT_OPERATOR: self.compile_in_decrement,
             ast.LABEL: self.compile_label,
-            ast.GOTO: self.compile_goto
+            ast.GOTO: self.compile_goto,
+            ast.CLASS_STMT: self.compile_class_stmt
         }
 
     def configs(self, **kwargs):
@@ -953,21 +1007,21 @@ class Compiler:
         env.define_const("exit", CompileTimeFunctionType([], en.Type("void"), self.function_exit), 0)
         env.define_const("new", CompileTimeFunctionType([], en.Type("*void"), self.function_new), 0)
 
-    def calculate_global_len(self, root: ast.Node, is_child: bool):
+    def calculate_global_len_cla_len(self, root: ast.Node, is_child: bool):
         if is_child:
             test_env = en.GlobalEnvironment()
             test_bo = ByteOutput(self.memory)
 
             self.compile(root, test_env, test_bo)
-            return self.memory.gp - self.memory.global_begins
+            return self.memory.gp - self.memory.global_begins, self.memory.class_count * typ.CLASS_INFO_LEN
         else:
             child = Compiler(self.memory.literal.copy())
-            return child.calculate_global_len(root, True)
+            return child.calculate_global_len_cla_len(root, True)
 
     def compile_all(self, root: ast.Node) -> bytes:
-        global_len = self.calculate_global_len(root, False)
+        global_len, class_header_len = self.calculate_global_len_cla_len(root, False)
 
-        self.memory.set_global_length(global_len)
+        self.memory.set_global_length(global_len, class_header_len)
         bo = ByteOutput(self.memory)
 
         env = en.GlobalEnvironment()
@@ -1006,9 +1060,11 @@ class Compiler:
         final_result.write_int(STACK_SIZE)
         final_result.write_int(len(self.memory.literal))
         final_result.write_int(self.memory.get_global_len())
+        final_result.write_int(len(self.memory.class_info_ptr_bytes))
         final_result.write_int(len(self.memory.functions_bytes))
         final_result.write_one(main_take_arg)
         final_result.codes.extend(self.memory.literal)
+        final_result.codes.extend(self.memory.class_info_ptr_bytes)
         final_result.codes.extend(self.memory.functions_bytes)
         final_result.codes.extend(bo.codes)
         final_result.write_one(EXIT)
@@ -1570,6 +1626,8 @@ class Compiler:
                 return res_ptr
             else:
                 raise lib.CompileTimeException("Cannot take negation of type '{}'".format(v_tal.type_name))
+        elif node.operation == "new":
+            return self.compile_new(node.value, env, bo)
         else:  # normal unary operators
             raise lib.CompileTimeException("Not implemented")
 
@@ -1860,6 +1918,75 @@ class Compiler:
 
         self.memory.add_type(node.name, pos)
         env.add_struct(node.name, struct)
+
+    def compile_class_stmt(self, node: ast.ClassStmt, env: en.Environment, bo: ByteOutput):
+        # this_class_id = self.memory.class_count
+        # self.memory.class_count += 1
+
+        self.memory.class_count += 1
+        if self.memory.functions_begin == 0:  # 第一次遍历获取长度
+            return 0
+
+        # self.memory.clazz_info[node.class_name] = this_class_id
+        clazz_ptr = self.memory.define_class_ptr()
+
+        static_size = 0  # total length of static variable in this class
+        instant_size = 0  # total length of instant variable in this class
+
+        clazz = Class(node.class_name, clazz_ptr)
+        env.add_struct(node.class_name, clazz)
+        for line in node.block.lines:
+            if isinstance(line, ast.AssignmentNode):  # variable declaration
+                type_node: ast.TypeNode = line.left
+                tal = get_tal_of_defining_node(type_node.right, env, self.memory)
+                total_len = tal.total_len(self.memory)
+                name = type_node.left.name
+                if line.is_static:
+                    pass
+                else:
+                    clazz.vars[name] = instant_size, tal
+                    instant_size += total_len
+
+            elif isinstance(line, ast.DefStmt):  # methods
+                # TODO: check static
+                tal = en.AbstractFuncType()
+                solo_name: ast.NameNode = line.title
+                clazz.vars[solo_name.name] = instant_size, tal
+
+                fake_title = ast.BinaryOperator(line.lf(), "::")
+                fake_title.left = ast.NameNode(line.lf(), node.class_name)
+                fake_title.right = solo_name
+                line.title = fake_title
+                self.compile_def_stmt(line, env, bo)
+            else:
+                raise lib.CompileTimeException("Unexpected syntax in class. " + generate_lf(line))
+
+        clazz.instant_size = instant_size
+        clazz.static_size = static_size
+        # size of instance: instant variables + clazz pointer
+        self.memory.add_type(node.class_name, instant_size + 8)
+
+        # clazz.static_ptr_in_mem = self.memory.allocate(static_size)
+
+    def compile_new(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
+        lf = node.lf()
+        clazz_name = node.left.name
+        obj_size = self.memory.get_type_size(clazz_name)
+        clazz: Class = env.get_struct(clazz_name)
+        clazz_info_ptr = clazz.clazz_ptr
+        print(clazz, clazz_info_ptr)
+
+        size_ptr = self.memory.allocate(INT_LEN, bo)
+        bo.assign_i(size_ptr, obj_size)
+
+        malloc = env.get("malloc", lf, False)
+        malloc_tal = env.get_type_arr_len("malloc", lf)
+        malloc_rtn = self.native_function_call(malloc, malloc_tal, [(size_ptr, INT_LEN)], env, bo)
+
+        # TODO: is array
+        bo.assign_i(malloc_rtn, clazz_info_ptr)
+
+        return malloc_rtn
 
     def compile_in_decrement(self, node: ast.InDecrementOperator, env: en.Environment, bo: ByteOutput):
         ptr = self.compile(node.value, env, bo, assign_const=True)
@@ -2162,6 +2289,8 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
 
                 struct_name = args.lines[0].name
                 return en.Type("*" + struct_name)
+            elif env.is_struct(name):
+                return en.Type("*" + name)
             else:
                 func_tal: en.FuncType = env.get_type_arr_len(name, (node.line_num, node.file))
                 return func_tal.rtype

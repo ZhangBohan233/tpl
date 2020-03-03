@@ -12,15 +12,17 @@ VOID_LEN = 0
 class TPAssemblyCompiler:
     def __init__(self, codes: bytes):
 
-        self.codes = codes[INT_LEN * 4 + 1:]
+        self.codes = codes[INT_LEN * 5 + 1:]
 
-        self.stack_size, self.literal_len, self.global_len, self.func_len = \
+        self.stack_size, self.literal_len, self.global_len, self.class_info_len, self.func_len = \
             typ.bytes_to_int(codes[:INT_LEN]), \
             typ.bytes_to_int(codes[INT_LEN: INT_LEN * 2]), \
             typ.bytes_to_int(codes[INT_LEN * 2: INT_LEN * 3]), \
-            typ.bytes_to_int(codes[INT_LEN * 3: INT_LEN * 4])
-        self.main_take_arg = codes[INT_LEN * 4]
-        self.func_code_begins = self.literal_len
+            typ.bytes_to_int(codes[INT_LEN * 3: INT_LEN * 4]), \
+            typ.bytes_to_int(codes[INT_LEN * 4: INT_LEN * 5])
+        self.main_take_arg = codes[INT_LEN * 5]
+        self.class_info_begins = self.literal_len
+        self.func_code_begins = self.class_info_begins + self.class_info_len
         self.code_begin = self.func_code_begins + self.func_len
         self.pc = self.func_code_begins
 
@@ -37,12 +39,14 @@ class TPAssemblyCompiler:
         out_stream.write(str(self.literal_len))
         out_stream.write("\n//GLOBAL MEMORY LENGTH:\n")
         out_stream.write(str(self.global_len))
+        out_stream.write("\n//CLASS INFO LENGTH:\n")
+        out_stream.write(str(self.class_info_len))
         out_stream.write("\n//FUNCTIONS LENGTH:\n")
         out_stream.write(str(self.func_len))
         out_stream.write("\n//MAIN TAKES ARG:\n")
         out_stream.write("%" + str(self.main_take_arg))
         out_stream.write("\n//LITERALS:\n")
-        for i in range(self.func_code_begins):
+        for i in range(self.class_info_begins):  # write literals
             out_stream.write(str(self.codes[i]) + " ")
         out_stream.write("\n")
 
@@ -50,9 +54,17 @@ class TPAssemblyCompiler:
         # self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
         # self.in_func = True
 
+        class_count = self.class_info_len // typ.CLASS_INFO_LEN
+        out_stream.write("//CLASS HEADERS\n")
+        for i in range(class_count):
+            this_begin = self.class_info_begins + i * typ.CLASS_INFO_LEN
+            class_info = self.codes[this_begin: this_begin + typ.INT_LEN]
+            for j in range(3):
+                out_stream.write(str(class_info[j]) + " ")
+
         self.total_function_count = self.read_1_int()
 
-        out_stream.write("//FUNCTIONS COUNT:\n")
+        out_stream.write("\n//FUNCTIONS COUNT:\n")
         out_stream.write(str(self.total_function_count))
 
         out_stream.write("\n//FUNCTION POINTERS:\n")

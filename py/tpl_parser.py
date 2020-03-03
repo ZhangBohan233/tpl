@@ -43,14 +43,16 @@ class Parser:
         param_nest_list = []
         func_obj_nest_list = []
         square_nest_list = []
-        # is_abstract = False
+        is_abstract = False
         is_extending = False
         is_conditional = False
         is_type_param = False
         is_func_def = False
+        is_static = False
         var_level = ast.ASSIGN
         brace_count = 0
         struct_braces = []
+        class_braces = []
         # import_braces = []
         labels = set()
 
@@ -127,6 +129,9 @@ class Parser:
                             # parser.build_class()
                             parser.build_struct()
                             struct_braces.pop()
+                        elif is_this_list(class_braces, brace_count):
+                            parser.build_class()
+                            class_braces.pop()
                         next_token = self.tokens[i + 1]
                         if not (isinstance(next_token, stl.IdToken) and next_token.symbol in stl.NO_BUILD_LINE):
                             parser.build_line()
@@ -189,7 +194,7 @@ class Parser:
                     elif sym == "=":
                         # parser.build_expr()
                         # print(parser.get_last())
-                        parser.add_assignment(line, var_level)
+                        parser.add_assignment(line, var_level, is_static)
                         var_level = ast.ASSIGN
                     elif sym == ",":
                         if var_level == ast.ASSIGN:  # the normal level
@@ -223,6 +228,27 @@ class Parser:
                         #     labels.clear()
                         #     par_count += 1
                         # is_abstract = False
+                    elif sym == "class":
+                        class_doc = self.get_doc(i)
+                        i += 1
+                        c_token: stl.IdToken = self.tokens[i]
+                        class_name = c_token.symbol
+                        if class_name in stl.NO_CLASS_NAME:
+                            raise stl.ParseException("Name '{}' is forbidden for class name".format(class_name))
+                        parser.add_class(
+                            (c_token.line_number(), c_token.file_name()),
+                            class_name,
+                            is_abstract,
+                            class_doc
+                        )
+                        class_braces.append(brace_count)
+                        is_abstract = False
+                    elif sym == "extends":
+                        parser.add_extends()
+                        is_extending = True
+                    elif sym == "static":
+                        is_static = True
+
                     elif sym == "struct":
                         i += 1
                         name_token: stl.IdToken = self.tokens[i]
@@ -292,12 +318,13 @@ class Parser:
                             # # active.build_line()
                             # active.build_expr()
                             # parser.add
-                            parser.add_assignment(line, var_level)
+                            parser.add_assignment(line, var_level, is_static)
                             parser.add_undefined(line)
                             parser.build_line()
                             # print(parser.get_last())
 
                             var_level = ast.ASSIGN
+                            is_static = False
                         parser.build_line()
                     else:
                         parser.add_name(line, sym)

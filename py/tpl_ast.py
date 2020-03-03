@@ -341,11 +341,12 @@ class QuickAssignmentNode(BinaryExpr):
 class AssignmentNode(BinaryExpr):
     level = ASSIGN
 
-    def __init__(self, line, level):
+    def __init__(self, line, level, is_static):
         BinaryExpr.__init__(self, line, "=")
 
         self.node_type = ASSIGNMENT_NODE
         self.level = level
+        self.is_static = is_static
 
     def __str__(self):
         if self.level == VAR:
@@ -531,6 +532,13 @@ class StructNode(Node):
 
     def __repr__(self):
         return "Struct {}".format(self.name)
+
+
+# class ClassNode(Node):
+#     def __init__(self, line, name, extends_names):
+#         Node.__init__(self, line)
+#
+#         self.node_type = CLAS
 
 
 class Arguments(Node):
@@ -898,15 +906,15 @@ class AbstractSyntaxTree:
             node = ReturnStmt(line)
             self.stack.append(node)
 
-    def add_assignment(self, line, var_level: int):
+    def add_assignment(self, line, var_level: int, is_static):
         if self.inner:
-            self.inner.add_assignment(line, var_level)
+            self.inner.add_assignment(line, var_level, is_static)
         else:
             self.in_expr = True
             # if var_level != ASSIGN and var_type is None:
             #     raise stl.ParseException("Variable declaration must have a type, in file '{}', at line {}"
             #                              .format(line[1], line[0]))
-            ass_node = AssignmentNode(line, var_level)
+            ass_node = AssignmentNode(line, var_level, is_static)
             self.stack.append(ass_node)
 
     def add_ternary(self, line, op1):

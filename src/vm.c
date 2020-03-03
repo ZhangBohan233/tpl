@@ -40,6 +40,7 @@ const int INT_LEN_2 = 16;
 //int_fast64_t CALL_STACK_BEGINS = 1;
 int_fast64_t LITERAL_START = STACK_SIZE;
 int_fast64_t GLOBAL_START = STACK_SIZE;
+int_fast64_t CLASS_INFO_START = STACK_SIZE;
 int_fast64_t FUNCTIONS_START = STACK_SIZE;
 int_fast64_t CODE_START = STACK_SIZE;
 int_fast64_t HEAP_START = STACK_SIZE;
@@ -91,6 +92,11 @@ void print_memory() {
     }
 
     printf("\nGlobal %lld: ", GLOBAL_START);
+    for (; i < CLASS_INFO_START; ++i) {
+        printf("%d ", MEMORY[i]);
+    }
+
+    printf("\nClass info %lld: ", CLASS_INFO_START);
     for (; i < FUNCTIONS_START; ++i) {
         printf("%d ", MEMORY[i]);
     }
@@ -134,13 +140,15 @@ int vm_load(const unsigned char *codes, int read) {
 
     int_fast64_t literal_size = bytes_to_int(codes + INT_LEN);
     int_fast64_t global_len = bytes_to_int(codes + INT_LEN * 2);
-    int_fast64_t functions_size = bytes_to_int(codes + INT_LEN * 3);
-    MAIN_HAS_ARG = codes[INT_LEN * 4];
+    int_fast64_t class_info_size = bytes_to_int(codes + INT_LEN * 3);
+    int_fast64_t functions_size = bytes_to_int(codes + INT_LEN * 4);
+    MAIN_HAS_ARG = codes[INT_LEN * 5];
 
-    int head_len = INT_LEN * 4 + 1;
+    int head_len = INT_LEN * 5 + 1;
 
     GLOBAL_START = LITERAL_START + literal_size;
-    FUNCTIONS_START = GLOBAL_START + global_len;
+    CLASS_INFO_START = GLOBAL_START + global_len;
+    FUNCTIONS_START = CLASS_INFO_START + global_len;
     CODE_START = FUNCTIONS_START + functions_size;
     PC = CODE_START;
 
@@ -154,7 +162,8 @@ int vm_load(const unsigned char *codes, int read) {
     }
 
     memcpy(MEMORY + LITERAL_START, codes + head_len, literal_size);  // copy literal
-    memcpy(MEMORY + FUNCTIONS_START, codes + head_len + literal_size, func_and_code_len);
+    memcpy(MEMORY + CLASS_INFO_START, codes + head_len + literal_size, class_info_size);
+    memcpy(MEMORY + FUNCTIONS_START, codes + head_len + literal_size + class_info_size, func_and_code_len);
 //    memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 4 + 1, copy_len);
 
     if (USE_HEAP_MEM)

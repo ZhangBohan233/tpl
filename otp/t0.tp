@@ -1,0 +1,11 @@
+class A {
+}
+
+
+fn main() int {
+    //var a: int = 66;
+
+    //var b: A = new A();
+
+    return 77;
+}

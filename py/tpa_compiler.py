@@ -134,7 +134,7 @@ class TpaParser:
         tokens: [Line] = []
         self.instructions: [InstructionSet] = []
 
-        self.ins_begins = 9
+        self.ins_begins = 11
         self.label_indices = {}
 
         for line in lines:
@@ -170,12 +170,15 @@ class TpaParser:
         self.stack_size = tokens[0][0]
         self.lit_len = tokens[1][0]
         self.global_len = tokens[2][0]
-        self.ori_function_length = tokens[3][0]  # This includes the LABEL's, so is not accurate
-        self.main_takes_arg = tokens[4][0]
-        self.literal = tokens[5]
-        self.func_count = tokens[6][0]
-        self.func_pointers = tokens[7]
-        self.nat_func_count = tokens[8][0]
+        self.class_info_len = tokens[3][0]
+        self.ori_function_length = tokens[4][0]  # This includes the LABEL's, so is not accurate
+        self.main_takes_arg = tokens[5][0]
+        self.literal = tokens[6]
+        self.class_info = tokens[7]
+        self.func_count = tokens[8][0]
+        self.func_pointers = tokens[9]
+        self.nat_func_count = tokens[10][0]
+        assert self.nat_func_count == cmp.NATIVE_FUNCTION_COUNT
 
         self.make_instructions(tokens)
         self.calculate_labels()
@@ -222,12 +225,15 @@ class TpaParser:
         out.extend(typ.int_to_bytes(self.stack_size))
         out.extend(typ.int_to_bytes(self.lit_len))
         out.extend(typ.int_to_bytes(self.global_len))
+        out.extend(typ.int_to_bytes(self.class_info_len))
         out.extend(typ.int_to_bytes(self.ori_function_length - len(self.label_indices) * 9))
         out.append(self.main_takes_arg)
 
         for ch in self.literal:  # write literal
             out.append(int(ch))
 
+        for i in range(len(self.class_info)):
+            out.extend(typ.int_to_bytes(self.class_info[i]))
         out.extend(typ.int_to_bytes(self.func_count))
 
         fp_index = len(out)
@@ -265,6 +271,7 @@ class TpaParser:
                         new_func_pointers.append(self.func_pointers[nfp_i + 1] - len_diff - len_diff_sum)
                         len_diff_sum += len_diff
                         nfp_i += 1
+
         for i in range(self.func_count):
             index = fp_index + (i * 8)
             # out[index: index + 8] = typ.int_to_bytes(self.func_pointers[i])
