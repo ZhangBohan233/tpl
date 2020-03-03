@@ -144,6 +144,8 @@ int vm_load(const unsigned char *codes, int read) {
     int_fast64_t functions_size = bytes_to_int(codes + INT_LEN * 4);
     MAIN_HAS_ARG = codes[INT_LEN * 5];
 
+//    printf("%lld\n", class_info_size);
+
     int head_len = INT_LEN * 5 + 1;
 
     GLOBAL_START = LITERAL_START + literal_size;
