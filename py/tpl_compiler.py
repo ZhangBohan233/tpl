@@ -72,6 +72,9 @@ DEC = 61
 INC_F = 62
 DEC_F = 63
 
+NEW_OBJ = 70  # NEW_OBJ   %CLAZZ_INFO   %REF_ADDR   | creates an object in heap and puts its reference in %REF
+PTR_ASSIGN_I = 71  # | assigns real value to <addr + offset> pointed by a ptr
+
 LABEL = 128
 GOTO_L = 129
 IF_ZERO_GOTO_L = 130
@@ -115,21 +118,6 @@ LAZY_EVAL_TABLE = {
     "||"
 }
 
-# INT_RESULT_TABLE_INT_FULL = {
-#     **INT_RESULT_TABLE_INT,
-#     "+=": ADD,
-#     "-=": SUB,
-#     "*=": MUL,
-#     "/=": DIV,
-#     "%=": MOD,
-#     ">>=": RSHIFT_A,
-#     ">>>=": RSHIFT_L,
-#     "<<=": LSHIFT,
-#     "&=": B_AND,
-#     "|=": B_OR,
-#     "^=": B_XOR
-# }
-
 EXTENDED_INT_RESULT_TABLE_INT = {
     **INT_RESULT_TABLE_INT,
     ">=": (GT, EQ),
@@ -148,15 +136,6 @@ FLOAT_RESULT_TABLE_FLOAT = {
     "%": MOD_F
 }
 
-# FLOAT_RESULT_TABLE_FLOAT_FULL = {
-#     **FLOAT_RESULT_TABLE_FLOAT,
-#     "+=": ADD_F,
-#     "-=": SUB_F,
-#     "*=": MUL_F,
-#     "/=": DIV_F,
-#     "%=": MOD_F
-# }
-
 INT_RESULT_TABLE_FLOAT = {
     ">": GT_F,
     "==": EQ_F,
@@ -170,15 +149,12 @@ EXTENDED_INT_RESULT_TABLE_FLOAT = {
     "<=": (LT_F, EQ_F),
 }
 
-# WITH_ASSIGN = {
-#     "+=", "-=", "*=", "/=", "%=", ">>=", ">>>=", "<<=", "|=", "&=", "^="
-# }
-
-
-# SPE_REGS = {
-#     "SP": 1,
-#     "FP": 2
-# }
+PRIMITIVE_TYPES = {
+    "int": INT_LEN,
+    "float": FLOAT_LEN,
+    "char": CHAR_LEN,
+    "void": VOID_LEN
+}
 
 
 class ByteOutput:
@@ -656,6 +632,46 @@ class ByteOutput:
 
         self.manager.append_regs64(reg1)
 
+    def new_object(self, clazz_info_ptr: int, rtn_ptr_addr: int):
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg1)
+        self.write_int(clazz_info_ptr)
+
+        self.write_one(NEW_OBJ)
+        self.write_one(reg1)
+        self.write_one(reg2)
+
+        self.write_one(STORE)
+        self.write_one(reg3)
+        self.write_one(reg2)
+        self.write_int(rtn_ptr_addr)
+
+        self.manager.append_regs64(reg3, reg2, reg1)
+
+    def ptr_assign_i(self, dst_ptr, real_val, offset):
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
+
+        self.write_one(LOAD)
+        self.write_one(reg1)
+        self.write_int(dst_ptr)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg2)
+        self.write_int(real_val)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg3)
+        self.write_int(offset)
+
+        self.write_one(PTR_ASSIGN_I)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
+
+        self.manager.append_regs64(reg3, reg2, reg1)
+
     def add_label(self, label: int):
         self.write_one(LABEL)
         self.write_int(label)
@@ -719,6 +735,7 @@ class MemoryManager:
         self.sp = 9
         self.literal_begins = STACK_SIZE
         self.global_begins = STACK_SIZE + len(literal_bytes)
+        self.class_info_begins = 0
         self.functions_begin = 0
         self.class_p = 0  # classes header before functions header
         self.func_p = 0
@@ -729,7 +746,7 @@ class MemoryManager:
         self.global_bytes = bytearray()
         self.functions_bytes = bytearray(INT_LEN)  # function counts
         self.functions = {}
-        self.class_info_ptr_bytes = bytearray()
+        self.class_info_bytes = bytearray()
         # self.clazz_info = {}
 
         self.blocks = []
@@ -737,23 +754,19 @@ class MemoryManager:
         self.label_accumulator = 0
         self.text_labels = {}
 
-        self.type_sizes = {
-            "int": INT_LEN,
-            "float": FLOAT_LEN,
-            "char": CHAR_LEN,
-            "void": VOID_LEN
-        }
+        self.type_sizes = PRIMITIVE_TYPES.copy()
         self.pointer_length = PTR_LEN
 
         self.available_regs64 = [7, 6, 5, 4, 3, 2, 1, 0]
 
     def set_global_length(self, gl, class_header_len):
-        self.class_p = self.global_begins + gl
-        self.functions_begin = self.class_p + class_header_len  # class header
+        self.class_info_begins = self.global_begins + gl
+        self.class_p = self.class_info_begins
+        self.functions_begin = self.class_info_begins + class_header_len  # class header
         self.func_p = self.functions_begin + INT_LEN  # reserve space for functions count
 
     def get_global_len(self):
-        return self.functions_begin - self.global_begins
+        return self.class_info_begins - self.global_begins
 
     def require_regs64(self, count):
         if count > len(self.available_regs64):
@@ -832,14 +845,22 @@ class MemoryManager:
         pass
         # self.class_info_ptr_bytes[0:INT_LEN] = typ.int_to_bytes(self.class_count)
 
-    def define_class_ptr(self):
+    def define_class_ptr(self, clazz_info_size, superclasses):
         i = self.class_p
-        self.class_info_ptr_bytes.extend(bytes(typ.CLASS_INFO_LEN))
-        self.class_p += typ.CLASS_INFO_LEN
+        clazz_bytes = bytearray(clazz_info_size)
+        clazz_bytes[0:8] = typ.int_to_bytes(clazz_info_size)
+        index = 16
+        for sc in superclasses:
+            # sc: Class
+            clazz_bytes[index: index + 8] = typ.int_to_bytes(sc.clazz_ptr)
+            index += 8
+        self.class_info_bytes.extend(clazz_bytes)
+        self.class_p += clazz_info_size
         return i
 
-    def implement_class(self, clazz_ptr):
-        pass
+    def set_class_size(self, clazz_ptr: int, byte_size: int):
+        temp_clazz_ptr = clazz_ptr - self.class_info_begins
+        self.class_info_bytes[temp_clazz_ptr + 8: temp_clazz_ptr + 16] = typ.int_to_bytes(byte_size)
 
 
 class ParameterPair:
@@ -889,18 +910,25 @@ class Struct:
 
 
 class Class:
-    def __init__(self, name: str, clazz_ptr: int):
+    def __init__(self, name: str, clazz_ptr: int, clazz_id: int, superclasses: list):
         self.name = name
 
+        self.superclasses: [Class] = superclasses
+
+        self.id = clazz_id
         self.clazz_ptr = clazz_ptr
         self.vars: {str: (int, en.Type)} = {}  # position in struct, type
-        self.static_vars: {str: (int, en.Type)} = {}
+        # self.static_vars: {str: (int, en.Type)} = {}
         self.method_pointers: {str: int} = {}  # absolute addr of real function
-        self.static_method_pointers: {str: int} = {}
+        # self.static_method_pointers: {str: int} = {}
 
         self.instant_size = 0
         # self.static_size = 0
         # self.static_ptr_in_mem = 0
+
+    def extend(self, superclass):
+        self.vars.update(superclass.vars)
+        self.method_pointers.update(superclass.method_pointers)
 
     def get_attr_pos(self, attr_name: str) -> int:
         return self.vars[attr_name][0]
@@ -1013,7 +1041,7 @@ class Compiler:
             test_bo = ByteOutput(self.memory)
 
             self.compile(root, test_env, test_bo)
-            return self.memory.gp - self.memory.global_begins, self.memory.class_count * typ.CLASS_INFO_LEN
+            return self.memory.gp - self.memory.global_begins, self.memory.class_p
         else:
             child = Compiler(self.memory.literal.copy())
             return child.calculate_global_len_cla_len(root, True)
@@ -1056,15 +1084,16 @@ class Compiler:
                                                "arg count(int) and arg array(**char).")
 
         # print(self.memory.global_bytes)
+        # print(self.memory.class_info_bytes)
         final_result = ByteOutput(self.memory)
         final_result.write_int(STACK_SIZE)
         final_result.write_int(len(self.memory.literal))
         final_result.write_int(self.memory.get_global_len())
-        final_result.write_int(len(self.memory.class_info_ptr_bytes))
+        final_result.write_int(len(self.memory.class_info_bytes))
         final_result.write_int(len(self.memory.functions_bytes))
         final_result.write_one(main_take_arg)
         final_result.codes.extend(self.memory.literal)
-        final_result.codes.extend(self.memory.class_info_ptr_bytes)
+        final_result.codes.extend(self.memory.class_info_bytes)
         final_result.codes.extend(self.memory.functions_bytes)
         final_result.codes.extend(bo.codes)
         final_result.write_one(EXIT)
@@ -1378,9 +1407,6 @@ class Compiler:
 
         bo.ptr_assign(attr_addr, value_ptr, attr_tal.total_len(self.memory))
 
-    def attr_assign(self, ):
-        pass
-
     def compile_dot(self, node: ast.Dot, env: en.Environment, bo: ByteOutput, assign_const=False):
         """
 
@@ -1392,14 +1418,6 @@ class Compiler:
         """
         attr_addr, attr_tal = self.get_struct_attr_ptr_and_len(node, env, bo)
 
-        # if call:
-        #     call_node: ast.FuncCall = node.right
-        #     args = call_node.right.block.lines.copy()
-        #     args.insert(0, node.left)
-        #     res_ptr = self.memory.allocate(PTR_LEN, bo)
-        #     bo.unpack_addr(res_ptr, attr_addr, PTR_LEN)
-        #     return self.compile_ptr_call(res_ptr, attr_tal, args, env, bo, node.lf())
-        # else:
         length = attr_tal.total_len(self.memory)
         res_ptr = self.memory.allocate(length, bo)
         bo.unpack_addr(res_ptr, attr_addr, length)
@@ -1465,14 +1483,6 @@ class Compiler:
         left_ptr = self.compile(node.left, env, bo)
         struct = env.get_struct(ltn)
         name = node.right.name
-        # if isinstance(node.right, ast.NameNode):
-        #     name = node.right.name
-        #     call = False
-        # elif isinstance(node.right, ast.FuncCall):
-        #     name = node.right.left.name
-        #     call = True
-        # else:
-        #     raise lib.CompileTimeException()
         attr_tal = struct.get_attr_tal(name)
 
         attr_len = attr_tal.total_len(self.memory)
@@ -1495,12 +1505,14 @@ class Compiler:
         else:
             raise lib.CompileTimeException("Pointer too deep.")
 
-    def compile_ptr_call(self, ftn: int, ftn_tal: en.FuncType, arg_nodes: list, env: en.Environment,
-                         bo: ByteOutput, lf: tuple) -> int:
-
-        if (ftn_tal.func_type == "f" or ftn_tal.func_type == "m") and len(arg_nodes) != len(ftn_tal.param_types):
-            raise lib.CompileTimeException("Function requires {} arguments, {} given. In file '{}', at line {}."
-                                           .format(len(ftn_tal.param_types), len(arg_nodes), lf[1], lf[0]))
+    def compile_arguments(self, ftn_tal: en.FuncType, arg_nodes: list, env: en.Environment, bo: ByteOutput,
+                          lf, first_param_index=0):
+        if len(arg_nodes) + first_param_index != len(ftn_tal.param_types):
+            raise lib.CompileTimeException("Function requires {} arguments, {} given. In file '{}', at line {}"
+                                           .format(len(ftn_tal.param_types),
+                                                   len(arg_nodes) + first_param_index,
+                                                   lf[1],
+                                                   lf[0]))
         args = []  # args tuple
         for i in range(len(arg_nodes)):
             arg_node = arg_nodes[i]
@@ -1508,8 +1520,8 @@ class Compiler:
             total_len = tal.total_len(self.memory)
 
             if ftn_tal.func_type == "f" or ftn_tal.func_type == "m":
-                param_tal = ftn_tal.param_types[i]
-                if tal != param_tal:
+                param_tal = ftn_tal.param_types[i + first_param_index]
+                if not check_arg_type(tal, param_tal, env):
                     raise lib.CompileTimeException("Argument type does not match the parameter. Expected: '{}', "
                                                    "got '{}'.".format(en.type_to_readable(param_tal),
                                                                       en.type_to_readable(tal)) +
@@ -1525,6 +1537,16 @@ class Compiler:
             tup = arg_ptr, total_len
             args.append(tup)
 
+        return args
+
+    def compile_ptr_call(self, ftn: int, ftn_tal: en.FuncType, arg_nodes: list, env: en.Environment,
+                         bo: ByteOutput, lf: tuple) -> int:
+
+        if (ftn_tal.func_type == "f" or ftn_tal.func_type == "m") and len(arg_nodes) != len(ftn_tal.param_types):
+            raise lib.CompileTimeException("Function requires {} arguments, {} given. In file '{}', at line {}."
+                                           .format(len(ftn_tal.param_types), len(arg_nodes), lf[1], lf[0]))
+        args = self.compile_arguments(ftn_tal, arg_nodes, env, bo, lf)  # args tuple
+
         # print(args)
         if ftn_tal.func_type == "f" or ftn_tal.func_type == "m":
             return self.function_call(ftn, ftn_tal, args, env, bo)
@@ -1535,6 +1557,7 @@ class Compiler:
 
     def compile_call(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
         # lf = node.line_num, node.file
+        # print(node.left)
 
         ftn = self.compile(node.left, env, bo)
         ftn_tal: en.FuncType = get_func_call_final_tal(node, env)
@@ -1920,21 +1943,32 @@ class Compiler:
         env.add_struct(node.name, struct)
 
     def compile_class_stmt(self, node: ast.ClassStmt, env: en.Environment, bo: ByteOutput):
-        # this_class_id = self.memory.class_count
-        # self.memory.class_count += 1
-
+        clazz_id = self.memory.class_count
         self.memory.class_count += 1
+        clazz_info_size = calculate_clazz_info_size(node)
         if self.memory.functions_begin == 0:  # 第一次遍历获取长度
+            self.memory.class_p += clazz_info_size
             return 0
 
         # self.memory.clazz_info[node.class_name] = this_class_id
-        clazz_ptr = self.memory.define_class_ptr()
+        if node.class_name != "Object" and len(node.superclass_nodes) == 0:  # no superclasses, add 'Object'
+            node.superclass_nodes.append(ast.NameNode(node.lf(), "Object"))
+        superclasses = [env.get_struct(sc.name) for sc in node.superclass_nodes]
+        clazz_ptr = self.memory.define_class_ptr(clazz_info_size, superclasses)
 
-        static_size = 0  # total length of static variable in this class
-        instant_size = 0  # total length of instant variable in this class
+        # static_size = 0  # total length of static variable in this class
+        instant_size = 8  # total length of instant variable in this class + object header
 
-        clazz = Class(node.class_name, clazz_ptr)
+        clazz = Class(node.class_name, clazz_ptr, clazz_id, superclasses)
+        # class_scope = en.ClassEnvironment(env)
         env.add_struct(node.class_name, clazz)
+        self.memory.add_type("*" + node.class_name, PTR_LEN)
+
+        for sc in superclasses:
+            sc: Class
+            instant_size += (sc.instant_size - 8)
+            clazz.extend(sc)
+
         for line in node.block.lines:
             if isinstance(line, ast.AssignmentNode):  # variable declaration
                 type_node: ast.TypeNode = line.left
@@ -1952,6 +1986,7 @@ class Compiler:
                 tal = en.AbstractFuncType()
                 solo_name: ast.NameNode = line.title
                 clazz.vars[solo_name.name] = instant_size, tal
+                instant_size += PTR_LEN
 
                 fake_title = ast.BinaryOperator(line.lf(), "::")
                 fake_title.left = ast.NameNode(line.lf(), node.class_name)
@@ -1962,31 +1997,73 @@ class Compiler:
                 raise lib.CompileTimeException("Unexpected syntax in class. " + generate_lf(line))
 
         clazz.instant_size = instant_size
-        clazz.static_size = static_size
+        # clazz.static_size = static_size
+        # print(clazz)
         # size of instance: instant variables + clazz pointer
-        self.memory.add_type(node.class_name, instant_size + 8)
+        # self.memory.add_type(node.class_name, instant_size + typ.OBJECT_HEADER_LEN)
+        self.memory.set_class_size(clazz_ptr, instant_size)
 
         # clazz.static_ptr_in_mem = self.memory.allocate(static_size)
 
     def compile_new(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
-        lf = node.lf()
         clazz_name = node.left.name
-        obj_size = self.memory.get_type_size(clazz_name)
         clazz: Class = env.get_struct(clazz_name)
-        clazz_info_ptr = clazz.clazz_ptr
-        print(clazz, clazz_info_ptr)
+        # print(clazz, clazz_info_ptr)
 
-        size_ptr = self.memory.allocate(INT_LEN, bo)
-        bo.assign_i(size_ptr, obj_size)
+        ref_addr = self.memory.allocate(PTR_LEN, bo)
+        # print(ref_addr)
+        bo.new_object(clazz.clazz_ptr, ref_addr)
 
-        malloc = env.get("malloc", lf, False)
-        malloc_tal = env.get_type_arr_len("malloc", lf)
-        malloc_rtn = self.native_function_call(malloc, malloc_tal, [(size_ptr, INT_LEN)], env, bo)
+        bo.ptr_assign_i(ref_addr, clazz.clazz_ptr, 0)
 
-        # TODO: is array
-        bo.assign_i(malloc_rtn, clazz_info_ptr)
+        for method_name, method_ptr in clazz.method_pointers.items():
+            loc_in_obj = clazz.get_attr_pos(method_name)
+            real_attr_addr = self.memory.allocate(INT_LEN, bo)
+            bo.assign(real_attr_addr, ref_addr, PTR_LEN)
+            bo.op_i(ADD, real_attr_addr, loc_in_obj)
+            bo.ptr_assign(real_attr_addr, method_ptr, PTR_LEN)
 
-        return malloc_rtn
+        # print(clazz.method_pointers)
+
+        # calls the constructor
+        if len(node.right.block.lines) == 0:
+            if clazz.name in clazz.method_pointers:
+                constructor_ptr = clazz.method_pointers[clazz.name]
+                constructor_tal: en.FuncType = clazz.get_attr_tal(clazz.name)
+                if len(constructor_tal.param_types) == 1:
+                    self.function_call(constructor_ptr,
+                                       constructor_tal,
+                                       [(ref_addr, PTR_LEN)],  # pointer to "this"
+                                       env,
+                                       bo)
+                else:
+                    raise lib.CompileTimeException("Arguments length does not match parameter length." +
+                                                   generate_lf(node))
+        else:
+            if clazz.name in clazz.method_pointers:
+                constructor_ptr = clazz.method_pointers[clazz.name]
+                constructor_tal: en.FuncType = clazz.get_attr_tal(clazz.name)
+                self.function_call(constructor_ptr,
+                                   constructor_tal,
+                                   [(ref_addr, PTR_LEN)] +  # add pointer to "this"
+                                   self.compile_arguments(constructor_tal,
+                                                          node.right.block.lines,
+                                                          env,
+                                                          bo,
+                                                          node.lf(),
+                                                          1),
+                                   env,
+                                   bo)
+            else:
+                raise lib.CompileTimeException("Constructor of class '{}' does not take parameter, but {} given."
+                                               .format(clazz.name, len(node.right.block.lines)) +
+                                               generate_lf(node))
+
+        # # TODO: is array
+        # print(clazz_info_ptr)
+        # bo.ptr_assign(malloc_rtn, clazz_info_ptr, INT_LEN)
+
+        return ref_addr
 
     def compile_in_decrement(self, node: ast.InDecrementOperator, env: en.Environment, bo: ByteOutput):
         ptr = self.compile(node.value, env, bo, assign_const=True)
@@ -2151,6 +2228,36 @@ class Compiler:
                 elif isinstance(attr, list):
                     for item in attr:
                         self.generate_labels(item)
+
+
+def is_subclass_of(child: Class, parent: Class) -> bool:
+    if child is parent:
+        return True
+    else:
+        for sc in child.superclasses:
+            if is_subclass_of(sc, parent):
+                return True
+        return False
+
+
+def check_arg_type(arg_tal: en.Type, param_tal: en.Type, env: en.Environment) -> bool:
+    if arg_tal == param_tal:
+        return True
+    arg_refs = arg_tal.type_name.count("*")
+    param_refs = param_tal.type_name.count("*")
+    if arg_refs != param_refs:
+        return False
+    if arg_tal.type_name in PRIMITIVE_TYPES or param_tal.type_name in PRIMITIVE_TYPES:
+        return False
+    else:
+        arg_clazz_name = arg_tal.type_name[arg_refs:]
+        param_clazz_name = param_tal.type_name[param_refs:]
+        if env.is_struct(arg_clazz_name) and env.is_struct(param_clazz_name):
+            arg_clazz: Class = env.get_struct(arg_clazz_name)
+            param_clazz: Class = env.get_struct(param_clazz_name)
+            return is_subclass_of(arg_clazz, param_clazz)
+        else:
+            return False
 
 
 def index_node_depth(node: ast.IndexingNode):
@@ -2354,6 +2461,13 @@ def has_child_node(node: ast.Node, target: type) -> bool:
                     if has_child_node(attr[i], target):
                         return True
     return False
+
+
+def calculate_clazz_info_size(node: ast.ClassStmt):
+    superclasses_len = len(node.superclass_nodes) * INT_LEN
+    if superclasses_len == 0 and node.class_name != "Object":
+        superclasses_len = INT_LEN
+    return INT_LEN * 2 + superclasses_len  # info len, instance size, superclasses
 
 
 def pointer_depth(type_name: str) -> int:

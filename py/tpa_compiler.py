@@ -145,7 +145,9 @@ class TpaParser:
                 if len(tokens) < self.ins_begins:
                     line_obj = Line()
                     for tk in line_tk:
-                        if tk[0] == "%":
+                        if len(tk) == 0 or tk[0] == "#":
+                            pass
+                        elif tk[0] == "%":
                             line_obj.tokens.append(int(tk[1]))
                         else:
                             line_obj.tokens.append(int(tk))

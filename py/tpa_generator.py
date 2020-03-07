@@ -54,13 +54,19 @@ class TPAssemblyCompiler:
         # self.pc += cpl.NATIVE_FUNCTION_COUNT * INT_LEN
         # self.in_func = True
 
-        class_count = self.class_info_len // typ.CLASS_INFO_LEN
         out_stream.write("//CLASS HEADERS\n")
-        for i in range(class_count):
-            this_begin = self.class_info_begins + i * typ.CLASS_INFO_LEN
-            class_info = self.codes[this_begin: this_begin + typ.INT_LEN]
-            for j in range(3):
-                out_stream.write(str(class_info[j]) + " ")
+        clazz_index = self.class_info_begins
+        clazz_count = 0
+        while clazz_index < self.func_code_begins:
+            out_stream.write("#class" + str(clazz_count) + " ")
+            clazz_count += 1
+            this_len = typ.bytes_to_int(self.codes[clazz_index: clazz_index + 8])
+            out_stream.write(str(this_len) + " ")
+            clazz_index += 8
+            for j in range(0, this_len - 8, 8):
+                out_stream.write(str(typ.bytes_to_int(self.codes[clazz_index: clazz_index + 8])) + " ")
+                clazz_index += 8
+            out_stream.write("  ")
 
         self.total_function_count = self.read_1_int()
 
@@ -222,6 +228,12 @@ class TPAssemblyCompiler:
             out_stream.write("INC_F           %{}\n".format(self.read_one()))
         elif instruction == cpl.DEC_F:
             out_stream.write("DEC_F           %{}\n".format(self.read_one()))
+        elif instruction == cpl.NEW_OBJ:
+            out_stream.write("NEW_OBJ         %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.PTR_ASSIGN_I:
+            out_stream.write("PTR_ASSIGN_I    %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
         # followings are pseudo instructions
         elif instruction == cpl.LABEL:
             out_stream.write("LABEL           {}\n".format(self.read_1_int()))

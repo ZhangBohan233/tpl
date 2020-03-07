@@ -244,6 +244,11 @@ class GlobalEnvironment(MainAbstractEnvironment):
                                 .format(name, lf[1], lf[0]))
 
 
+class ClassEnvironment(MainAbstractEnvironment):
+    def __init__(self, outer):
+        MainAbstractEnvironment.__init__(self, outer)
+
+
 class FunctionEnvironment(MainAbstractEnvironment):
     def __init__(self, outer):
         MainAbstractEnvironment.__init__(self, outer)

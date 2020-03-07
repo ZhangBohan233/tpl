@@ -640,7 +640,7 @@ class ClassStmt(Node):
         self.class_name = name
         self.abstract = abstract
         self.doc = class_doc
-        self.superclass_nodes = [NameNode(line, "Object")]
+        self.superclass_nodes = []
 
     def __str__(self):
         return "Class {}: {}".format(self.class_name, self.block)

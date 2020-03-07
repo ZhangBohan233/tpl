@@ -1,11 +1,34 @@
 class A {
+    var a: int;
+    var b: int;
+
+    fn A() void {
+        printf("23333\n");
+        this..b = 233;
+    }
+
+    fn test() void {
+        this..b = 123;
+    }
+}
+
+
+class B extends A {
+    fn B(p: int) void {
+        this..A();
+
+        this..a = p;
+    }
+
+    fn test() void {
+        this..b = 147;
+    }
 }
 
 
 fn main() int {
-    var a: int = 66;
+    var b: *B = new B(119);
+    b..test();
 
-    //var b: A = new A();
-
-    return 77;
+    return b..b + b..a;
 }

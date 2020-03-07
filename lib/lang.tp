@@ -1,3 +1,6 @@
 const TRUE: int = 1;
 const FALSE: int = 0;
 const NULL: *void = 0;
+
+class Object {
+}

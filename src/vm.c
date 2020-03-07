@@ -12,12 +12,14 @@
 #include "heap.h"
 
 #define STACK_SIZE 1024
-#define MEMORY_SIZE 32768
+#define MEMORY_SIZE 8192
 #define RECURSION_LIMIT 1000
 #define USE_HEAP_MEM 0  // whether to use a 'heap' data structure to manage heap memory
 
 #define true_ptr(ptr) (ptr < LITERAL_START && FSP >= 0 ? ptr + FP : ptr)
 #define true_ptr_sp(ptr) (ptr < LITERAL_START ? ptr + SP : ptr)
+
+#define clazz_info_ptr(clazz_id) (CLASS_INFO_START + clazz_id * CLAZZ_INFO_SIZE)
 
 #define rshift_logical(val, n) ((int_fast64_t) ((uint_fast64_t) val >> n));
 
@@ -36,6 +38,9 @@ const int CHAR_LEN = 1;
 const int INT_LEN_2 = 16;
 //const int INT_LEN_3 = 24;
 //const int INT_LEN_4 = 32;
+
+const int OBJ_HEADER_SIZE = 8;
+const int CLAZZ_INFO_SIZE = 24;
 
 //int_fast64_t CALL_STACK_BEGINS = 1;
 int_fast64_t LITERAL_START = STACK_SIZE;
@@ -163,12 +168,13 @@ int vm_load(const unsigned char *codes, int read) {
         return 1;
     }
 
+    int_fast64_t copy_len = read - head_len - literal_size;
+
+    // 并不用复制global因为会在code里assign
+    // tpe里也并没有直接包含global的内容，只说了长度
     memcpy(MEMORY + LITERAL_START, codes + head_len, literal_size);  // copy literal
-    memcpy(MEMORY + CLASS_INFO_START, codes + head_len + literal_size, class_info_size);
-    memcpy(MEMORY + FUNCTIONS_START,
-            codes + head_len + literal_size + class_info_size,
-            func_and_code_len);
-//    memcpy(MEMORY + LITERAL_START, codes + INT_LEN * 4 + 1, copy_len);
+    // notice that the global part of the target memory is skipped
+    memcpy(MEMORY + CLASS_INFO_START, codes + head_len + literal_size, copy_len);
 
     if (USE_HEAP_MEM)
         AVAILABLE = build_heap(HEAP_START, MEMORY_SIZE, &AVA_SIZE);
@@ -437,7 +443,7 @@ int_fast64_t _inner_malloc_link(int_fast64_t allocate_len) {
     return location;
 }
 
-void _native_malloc_link(int_fast64_t ret_ptr, int_fast64_t asked_len) {
+int_fast64_t _native_malloc_link_rtn(int_fast64_t asked_len) {
     int_fast64_t real_len = asked_len + INT_LEN;
     int_fast64_t allocate_len =
             real_len % HEAP_BLOCK_SIZE == 0 ? real_len / HEAP_BLOCK_SIZE : real_len / HEAP_BLOCK_SIZE + 1;
@@ -447,14 +453,34 @@ void _native_malloc_link(int_fast64_t ret_ptr, int_fast64_t asked_len) {
         int ava_size = link_len(AVAILABLE2) * HEAP_BLOCK_SIZE - INT_LEN;
         fprintf(stderr, "Cannot allocate length %lld, available memory %d\n", asked_len, ava_size);
         ERROR_CODE = ERR_HEAP_COLLISION;
-        return;
+        return -1;
     }
 
     int_to_bytes(MEMORY + location, allocate_len);  // stores the allocated length
-    int_to_bytes(MEMORY + ret_ptr, location + INT_LEN);
+    return location + INT_LEN;
 }
 
-void _native_malloc(int_fast64_t ret_ptr, int_fast64_t asked_len) {
+void _native_malloc_link(int_fast64_t ret_ptr, int_fast64_t asked_len) {
+//    int_fast64_t real_len = asked_len + INT_LEN;
+//    int_fast64_t allocate_len =
+//            real_len % HEAP_BLOCK_SIZE == 0 ? real_len / HEAP_BLOCK_SIZE : real_len / HEAP_BLOCK_SIZE + 1;
+//    int_fast64_t location = _inner_malloc_link(allocate_len);
+//
+//    if (location <= 0) {
+//        int ava_size = link_len(AVAILABLE2) * HEAP_BLOCK_SIZE - INT_LEN;
+//        fprintf(stderr, "Cannot allocate length %lld, available memory %d\n", asked_len, ava_size);
+//        ERROR_CODE = ERR_HEAP_COLLISION;
+//        return;
+//    }
+//
+//    int_to_bytes(MEMORY + location, allocate_len);  // stores the allocated length
+    int_fast64_t alloc_location = _native_malloc_link_rtn(asked_len);
+    if (alloc_location < 0)
+        return;
+    int_to_bytes(MEMORY + ret_ptr, alloc_location);
+}
+
+int_fast8_t _native_malloc_rtn(int_fast64_t asked_len) {
     int_fast64_t real_len = asked_len + INT_LEN;
     int_fast64_t allocate_len =
             real_len % HEAP_BLOCK_SIZE == 0 ? real_len / HEAP_BLOCK_SIZE : real_len / HEAP_BLOCK_SIZE + 1;
@@ -462,7 +488,12 @@ void _native_malloc(int_fast64_t ret_ptr, int_fast64_t asked_len) {
     int_fast64_t location = find_ava(allocate_len);
 
     int_to_bytes(MEMORY + location, allocate_len);
-    int_to_bytes(MEMORY + ret_ptr, location + INT_LEN);
+    return location + INT_LEN;
+}
+
+void _native_malloc(int_fast64_t ret_ptr, int_fast64_t asked_len) {
+    int_fast64_t alloc_location = _native_malloc_rtn(asked_len);
+    int_to_bytes(MEMORY + ret_ptr, alloc_location);
 }
 
 void native_malloc(int_fast64_t arg_len, int_fast64_t ret_ptr, const unsigned char *args) {
@@ -631,6 +662,7 @@ void vm_run() {
     unsigned int reg_p1;
     unsigned int reg_p2;
     unsigned int reg_p3;
+    unsigned int reg_p4;
 
     int_fast64_t ret;
 
@@ -657,9 +689,9 @@ void vm_run() {
                 reg_p1 = MEMORY[PC++];
 //                reg_p2 = MEMORY[PC++];
 //                reg_p3 = MEMORY[PC++];
-
+//                printf("%lld\n", regs64[reg_p1].int_value);
                 memcpy(regs64[reg_p1].bytes, MEMORY + regs64[reg_p1].int_value, PTR_LEN);  // true ftn ptr
-                printf("%lld\n", regs64[reg_p1].int_value);
+//                printf("%lld\n", regs64[reg_p1].int_value);
 
                 PC_STACK[++PSP] = PC;
                 CALL_STACK[++FSP] = FP;
@@ -970,6 +1002,33 @@ void vm_run() {
             case 63:  // DEC_F
                 reg_p1 = MEMORY[PC++];
                 regs64[reg_p1].double_value--;
+                break;
+            case 70:  // NEW_OBJ
+                reg_p1 = MEMORY[PC++];  // clazz info ptr
+                reg_p2 = MEMORY[PC++];
+
+//                printf("info %lld\n", regs64[reg_p1].int_value);
+
+                // reg1 now stores object instance size (not including object header)
+                regs64[reg_p1].int_value = MEMORY[regs64[reg_p1].int_value + 8];
+//                printf("%lld\n", regs64[reg_p1].int_value);
+
+                // stores allocated addr
+                if (USE_HEAP_MEM)
+                    regs64[reg_p2].int_value = _native_malloc_rtn(
+                            regs64[reg_p1].int_value);
+                else
+                    regs64[reg_p2].int_value = _native_malloc_link_rtn(
+                            regs64[reg_p1].int_value);
+//                printf("%lld\n", regs64[reg_p2].int_value);
+                break;
+            case 71:  // PTR_ASSIGN_I
+                reg_p1 = MEMORY[PC++];  // dst addr
+                reg_p2 = MEMORY[PC++];  // value
+                reg_p3 = MEMORY[PC++];  // offset
+
+                int_to_bytes(MEMORY + regs64[reg_p1].int_value + regs64[reg_p3].int_value,
+                        regs64[reg_p2].int_value);
                 break;
             default:
                 fprintf(stderr, "Unknown instruction %d at byte pos %lld\n", instruction, PC);

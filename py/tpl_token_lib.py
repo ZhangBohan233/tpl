@@ -33,7 +33,7 @@ OP_EQ = {"+", "-", "*", "/", "%", "&", "^", "|", "<<", ">>", ">>>"}
 ESCAPES = {"n": "\n", "t": "\t", "0": "\0", "a": "\a", "r": "\r", "f": "\f", "v": "\v", "b": "\b", "\\": "\\"}
 NO_BUILD_LINE = {"catch", "finally"}
 
-NO_CLASS_NAME = {"Object"}
+NO_CLASS_NAME = {}
 
 
 def is_in_all(keyword):
