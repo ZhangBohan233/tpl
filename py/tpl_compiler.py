@@ -74,6 +74,8 @@ DEC_F = 63
 
 NEW_OBJ = 70  # NEW_OBJ   %CLAZZ_INFO   %REF_ADDR   | creates an object in heap and puts its reference in %REF
 PTR_ASSIGN_I = 71  # | assigns real value to <addr + offset> pointed by a ptr
+NEW_ARRAY = 72  # NEW_ARRAY   %CLAZZ_PTR   %SIZE_ADDR   %REF_ADDR   | similar as NEW_OBJ
+PTR_ASSIGN_OFF = 73
 
 LABEL = 128
 GOTO_L = 129
@@ -81,6 +83,9 @@ IF_ZERO_GOTO_L = 130
 
 # Number of native functions, used for generating tpa
 NATIVE_FUNCTION_COUNT = 7
+
+# Number of class info headers reserved
+RESERVED_CLASSES_COUNT = 4
 
 INT_RESULT_TABLE_INT = {
     "+": ADD,
@@ -672,6 +677,51 @@ class ByteOutput:
 
         self.manager.append_regs64(reg3, reg2, reg1)
 
+    def ptr_assign_offset(self, des_ptr: int, right: int, offset: int):
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
+
+        self.write_one(LOAD)
+        self.write_one(reg1)
+        self.write_int(des_ptr)
+
+        self.write_one(LOAD_A)
+        self.write_one(reg2)
+        self.write_int(right)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg3)
+        self.write_int(offset)
+
+        self.write_one(PTR_ASSIGN_OFF)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
+
+        self.manager.append_regs64(reg3, reg2, reg1)
+
+    def new_array(self, content_clazz_ptr, size_addr, rtn_ptr_addr):
+        reg1, reg2, reg3, reg4 = self.manager.require_regs64(4)
+
+        self.write_one(LOAD_I)
+        self.write_one(reg1)
+        self.write_int(content_clazz_ptr)
+
+        self.write_one(LOAD)
+        self.write_one(reg2)
+        self.write_int(size_addr)  # total byte size
+
+        self.write_one(NEW_ARRAY)
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
+
+        self.write_one(STORE)
+        self.write_one(reg4)
+        self.write_one(reg3)
+        self.write_int(rtn_ptr_addr)
+
+        self.manager.append_regs64(reg4, reg3, reg2, reg1)
+
     def add_label(self, label: int):
         self.write_one(LABEL)
         self.write_int(label)
@@ -737,17 +787,23 @@ class MemoryManager:
         self.global_begins = STACK_SIZE + len(literal_bytes)
         self.class_info_begins = 0
         self.functions_begin = 0
-        self.class_p = 0  # classes header before functions header
+        self.class_p = RESERVED_CLASSES_COUNT * INT_LEN  # classes header before functions header
         self.func_p = 0
         self.gp = self.global_begins
-        self.class_count = 0
+
+        # 0 reserved for int array
+        # 1 reserved for float array
+        # 2 reserved for char array
+        # 3 reserved for Object array
+        self.class_count = RESERVED_CLASSES_COUNT
 
         self.literal: bytearray = literal_bytes
         self.global_bytes = bytearray()
         self.functions_bytes = bytearray(INT_LEN)  # function counts
         self.functions = {}
         self.class_info_bytes = bytearray()
-        # self.clazz_info = {}
+        for _ in range(RESERVED_CLASSES_COUNT):
+            self.class_info_bytes.extend(typ.int_to_bytes(INT_LEN))
 
         self.blocks = []
 
@@ -761,7 +817,7 @@ class MemoryManager:
 
     def set_global_length(self, gl, class_header_len):
         self.class_info_begins = self.global_begins + gl
-        self.class_p = self.class_info_begins
+        self.class_p = self.class_info_begins + RESERVED_CLASSES_COUNT * INT_LEN
         self.functions_begin = self.class_info_begins + class_header_len  # class header
         self.func_p = self.functions_begin + INT_LEN  # reserve space for functions count
 
@@ -851,7 +907,6 @@ class MemoryManager:
         clazz_bytes[0:8] = typ.int_to_bytes(clazz_info_size)
         index = 16
         for sc in superclasses:
-            # sc: Class
             clazz_bytes[index: index + 8] = typ.int_to_bytes(sc.clazz_ptr)
             index += 8
         self.class_info_bytes.extend(clazz_bytes)
@@ -861,6 +916,9 @@ class MemoryManager:
     def set_class_size(self, clazz_ptr: int, byte_size: int):
         temp_clazz_ptr = clazz_ptr - self.class_info_begins
         self.class_info_bytes[temp_clazz_ptr + 8: temp_clazz_ptr + 16] = typ.int_to_bytes(byte_size)
+
+    def get_preset_classes_begin(self):
+        return self.class_info_begins
 
 
 class ParameterPair:
@@ -1285,9 +1343,9 @@ class Compiler:
                 tal = get_tal_of_defining_node(type_node.right, env, self.memory)
                 total_len = tal.total_len(self.memory)
 
-                if total_len == 0:  # pull the right
-                    tal = get_tal_of_evaluated_node(node.right, env)
-                    total_len = tal.total_len(self.memory)
+                # if total_len == 0:  # pull the right
+                #     tal = get_tal_of_evaluated_node(node.right, env)
+                #     total_len = tal.total_len(self.memory)
 
                 if en.is_pointer(tal):
                     assert total_len == PTR_LEN
@@ -1478,9 +1536,20 @@ class Compiler:
         if ptr_depth != node.dot_count - 1:
             raise lib.CompileTimeException("Expected a struct. " + generate_lf(node))
 
+        left_ptr = self.compile(node.left, env, bo)
+
+        if en.is_array(left_tal):  # array, treat specially
+            if isinstance(node.right, ast.NameNode) and node.right.name == "length":
+                attr_tal = en.Type("int")
+                real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
+                bo.assign(real_addr_ptr, left_ptr, INT_LEN)
+                bo.op_i(ADD, real_addr_ptr, 16)   # pos of array length in array object
+                return real_addr_ptr, attr_tal
+            else:
+                raise lib.CompileTimeException("")
+
         ltn = left_tal.type_name[ptr_depth:]
         # attr_tal = get_tal_of_evaluated_node(node, env)
-        left_ptr = self.compile(node.left, env, bo)
         struct = env.get_struct(ltn)
         name = node.right.name
         attr_tal = struct.get_attr_tal(name)
@@ -2005,65 +2074,102 @@ class Compiler:
 
         # clazz.static_ptr_in_mem = self.memory.allocate(static_size)
 
-    def compile_new(self, node: ast.FuncCall, env: en.Environment, bo: ByteOutput):
-        clazz_name = node.left.name
-        clazz: Class = env.get_struct(clazz_name)
-        # print(clazz, clazz_info_ptr)
+    def compile_new(self, node, env: en.Environment, bo: ByteOutput):
+        if isinstance(node, ast.FuncCall):  # normal object initialization
+            clazz_name = node.left.name
+            clazz: Class = env.get_struct(clazz_name)
+            # print(clazz, clazz_info_ptr)
 
-        ref_addr = self.memory.allocate(PTR_LEN, bo)
-        # print(ref_addr)
-        bo.new_object(clazz.clazz_ptr, ref_addr)
+            ref_addr = self.memory.allocate(PTR_LEN, bo)
+            # print(ref_addr)
+            bo.new_object(clazz.clazz_ptr, ref_addr)
 
-        bo.ptr_assign_i(ref_addr, clazz.clazz_ptr, 0)
+            bo.ptr_assign_i(ref_addr, clazz.clazz_ptr, 0)
 
-        for method_name, method_ptr in clazz.method_pointers.items():
-            loc_in_obj = clazz.get_attr_pos(method_name)
-            real_attr_addr = self.memory.allocate(INT_LEN, bo)
-            bo.assign(real_attr_addr, ref_addr, PTR_LEN)
-            bo.op_i(ADD, real_attr_addr, loc_in_obj)
-            bo.ptr_assign(real_attr_addr, method_ptr, PTR_LEN)
+            for method_name, method_ptr in clazz.method_pointers.items():
+                loc_in_obj = clazz.get_attr_pos(method_name)
+                real_attr_addr = self.memory.allocate(INT_LEN, bo)
+                bo.assign(real_attr_addr, ref_addr, PTR_LEN)
+                bo.op_i(ADD, real_attr_addr, loc_in_obj)
+                bo.ptr_assign(real_attr_addr, method_ptr, PTR_LEN)
 
-        # print(clazz.method_pointers)
+            # print(clazz.method_pointers)
 
-        # calls the constructor
-        if len(node.right.block.lines) == 0:
-            if clazz.name in clazz.method_pointers:
-                constructor_ptr = clazz.method_pointers[clazz.name]
-                constructor_tal: en.FuncType = clazz.get_attr_tal(clazz.name)
-                if len(constructor_tal.param_types) == 1:
+            # calls the constructor
+            if len(node.right.block.lines) == 0:
+                if clazz.name in clazz.method_pointers:
+                    constructor_ptr = clazz.method_pointers[clazz.name]
+                    constructor_tal: en.FuncType = clazz.get_attr_tal(clazz.name)
+                    if len(constructor_tal.param_types) == 1:
+                        self.function_call(constructor_ptr,
+                                           constructor_tal,
+                                           [(ref_addr, PTR_LEN)],  # pointer to "this"
+                                           env,
+                                           bo)
+                    else:
+                        raise lib.CompileTimeException("Arguments length does not match parameter length." +
+                                                       generate_lf(node))
+            else:
+                if clazz.name in clazz.method_pointers:
+                    constructor_ptr = clazz.method_pointers[clazz.name]
+                    constructor_tal: en.FuncType = clazz.get_attr_tal(clazz.name)
                     self.function_call(constructor_ptr,
                                        constructor_tal,
-                                       [(ref_addr, PTR_LEN)],  # pointer to "this"
+                                       [(ref_addr, PTR_LEN)] +  # add pointer to "this"
+                                       self.compile_arguments(constructor_tal,
+                                                              node.right.block.lines,
+                                                              env,
+                                                              bo,
+                                                              node.lf(),
+                                                              1),
                                        env,
                                        bo)
                 else:
-                    raise lib.CompileTimeException("Arguments length does not match parameter length." +
+                    raise lib.CompileTimeException("Constructor of class '{}' does not take parameter, but {} given."
+                                                   .format(clazz.name, len(node.right.block.lines)) +
                                                    generate_lf(node))
-        else:
-            if clazz.name in clazz.method_pointers:
-                constructor_ptr = clazz.method_pointers[clazz.name]
-                constructor_tal: en.FuncType = clazz.get_attr_tal(clazz.name)
-                self.function_call(constructor_ptr,
-                                   constructor_tal,
-                                   [(ref_addr, PTR_LEN)] +  # add pointer to "this"
-                                   self.compile_arguments(constructor_tal,
-                                                          node.right.block.lines,
-                                                          env,
-                                                          bo,
-                                                          node.lf(),
-                                                          1),
-                                   env,
-                                   bo)
+
+            return ref_addr
+        elif isinstance(node, ast.IndexingNode):  # array creation
+            content_type_node = node.call_obj
+            clazz_begins = self.memory.get_preset_classes_begin()
+            if isinstance(content_type_node, ast.NameNode):
+                type_name = content_type_node.name
+                if type_name == "int":
+                    clazz_ptr = clazz_begins
+                    ele_size = INT_LEN
+                elif type_name == "float":
+                    clazz_ptr = clazz_begins + INT_LEN
+                    ele_size = FLOAT_LEN
+                elif type_name == "char":
+                    clazz_ptr = clazz_begins + INT_LEN * 2
+                    ele_size = CHAR_LEN
+                else:
+                    content_clazz: Class = env.get_struct(content_type_node.name)
+                    clazz_ptr = content_clazz.clazz_ptr
+                    ele_size = PTR_LEN
+            elif isinstance(content_type_node, ast.IndexingNode):  # multi-layer array
+                clazz_ptr = clazz_begins + INT_LEN * 3  # raw object
+                ele_size = PTR_LEN
             else:
-                raise lib.CompileTimeException("Constructor of class '{}' does not take parameter, but {} given."
-                                               .format(clazz.name, len(node.right.block.lines)) +
-                                               generate_lf(node))
+                raise lib.CompileTimeException("Unexpected array content type.")
 
-        # # TODO: is array
-        # print(clazz_info_ptr)
-        # bo.ptr_assign(malloc_rtn, clazz_info_ptr, INT_LEN)
+            ref_addr = self.memory.allocate(PTR_LEN, bo)
+            if len(node.arg.lines) != 1:
+                raise lib.CompileTimeException("Array initializer must have 1 size argument." + generate_lf(node))
+            size_addr = self.compile(node.arg.lines[0], env, bo)
+            total_size_addr = self.memory.allocate(INT_LEN, bo)
+            bo.assign_i(total_size_addr, ele_size)
+            bo.add_binary_op(MUL, total_size_addr, total_size_addr, size_addr)
+            bo.new_array(clazz_ptr, total_size_addr, ref_addr)
 
-        return ref_addr
+            bo.ptr_assign_i(ref_addr, clazz_ptr, 0)
+            bo.ptr_assign_i(ref_addr, ele_size, INT_LEN)
+            bo.ptr_assign_offset(ref_addr, size_addr, INT_LEN * 2)
+
+            return ref_addr
+        else:
+            raise lib.CompileTimeException("Unexpected type after operator 'new'." + generate_lf(node))
 
     def compile_in_decrement(self, node: ast.InDecrementOperator, env: en.Environment, bo: ByteOutput):
         ptr = self.compile(node.value, env, bo, assign_const=True)
@@ -2423,6 +2529,9 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
     elif node.node_type == ast.DOT:
         node: ast.Dot
         left_tal = get_tal_of_evaluated_node(node.left, env)
+        if en.is_array(left_tal):
+            if isinstance(node.right, ast.NameNode) and node.right.name == "length":
+                return en.Type("int")
         ptr_depth = pointer_depth(left_tal.type_name)
         if ptr_depth != node.dot_count - 1:
             raise lib.TypeException()

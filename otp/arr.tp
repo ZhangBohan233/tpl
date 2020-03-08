@@ -1,0 +1,5 @@
+fn main() int {
+    var arr: *int[] = new int[7];
+
+    return arr..length;
+}

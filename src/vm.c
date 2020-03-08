@@ -41,6 +41,7 @@ const int INT_LEN_2 = 16;
 
 const int OBJ_HEADER_SIZE = 8;
 const int CLAZZ_INFO_SIZE = 24;
+const int ARRAY_HEADER_SIZE = 24;  // ptr to content_clazz: 8, ele_size: 8, ele_count: 8
 
 //int_fast64_t CALL_STACK_BEGINS = 1;
 int_fast64_t LITERAL_START = STACK_SIZE;
@@ -882,7 +883,7 @@ void vm_run() {
                 reg_p2 = MEMORY[PC++];
                 int_to_bytes(MEMORY + regs64[reg_p1].int_value, regs64[reg_p2].int_value);
                 break;
-            case 33:  // UNPACK ADDR
+            case 33:  // UNPACK_ADDR
                 reg_p1 = MEMORY[PC++];
                 reg_p2 = MEMORY[PC++];
                 reg_p3 = MEMORY[PC++];
@@ -1028,7 +1029,30 @@ void vm_run() {
                 reg_p3 = MEMORY[PC++];  // offset
 
                 int_to_bytes(MEMORY + regs64[reg_p1].int_value + regs64[reg_p3].int_value,
-                        regs64[reg_p2].int_value);
+                             regs64[reg_p2].int_value);
+                break;
+            case 72:  // NEW_ARRAY
+                reg_p1 = MEMORY[PC++];  // content clazz ptr
+                reg_p2 = MEMORY[PC++];  // size number addr
+                reg_p3 = MEMORY[PC++];  // rtn_ptr
+
+                printf("%lld %lld\n", regs64[reg_p1].int_value, regs64[reg_p2].int_value);
+                if (USE_HEAP_MEM)
+                    regs64[reg_p3].int_value = _native_malloc_rtn(
+                            regs64[reg_p2].int_value + ARRAY_HEADER_SIZE);
+                else
+                    regs64[reg_p3].int_value = _native_malloc_link_rtn(
+                            regs64[reg_p2].int_value + ARRAY_HEADER_SIZE);
+
+                break;
+            case 73:  // PTR_ASSIGN_OFFSET
+                reg_p1 = MEMORY[PC++];  // dst addr
+                reg_p2 = MEMORY[PC++];
+                reg_p3 = MEMORY[PC++];  // offset
+
+                memcpy(MEMORY + regs64[reg_p1].int_value + regs64[reg_p3].int_value,
+                       MEMORY + regs64[reg_p2].int_value,
+                       INT_LEN);
                 break;
             default:
                 fprintf(stderr, "Unknown instruction %d at byte pos %lld\n", instruction, PC);

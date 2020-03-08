@@ -33,10 +33,11 @@ class Type:
         return not self == other
 
     def total_len(self, mm):
-        arr_len = 1
-        for x in self.array_lengths:
-            arr_len *= x
-        return mm.get_type_size(self.type_name) * arr_len
+        return mm.get_type_size(self.type_name)
+        # arr_len = 1
+        # for x in self.array_lengths:
+        #     arr_len *= x
+        # return mm.get_type_size(self.type_name) * arr_len
 
     def unit_len(self, mm):
         if self.type_name[0] == "*":

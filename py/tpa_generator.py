@@ -66,7 +66,7 @@ class TPAssemblyCompiler:
             for j in range(0, this_len - 8, 8):
                 out_stream.write(str(typ.bytes_to_int(self.codes[clazz_index: clazz_index + 8])) + " ")
                 clazz_index += 8
-            out_stream.write("  ")
+            out_stream.write(" ")
 
         self.total_function_count = self.read_1_int()
 
@@ -232,6 +232,14 @@ class TPAssemblyCompiler:
             out_stream.write("NEW_OBJ         %{}  %{}\n".format(self.read_one(), self.read_one()))
         elif instruction == cpl.PTR_ASSIGN_I:
             out_stream.write("PTR_ASSIGN_I    %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
+        elif instruction == cpl.NEW_ARRAY:
+            out_stream.write("NEW_ARRAY       %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
+        elif instruction == cpl.PTR_ASSIGN_OFF:
+            out_stream.write("PTR_ASSIGN_OFF  %{}  %{}  %{}\n".format(self.read_one(),
                                                                       self.read_one(),
                                                                       self.read_one()))
         # followings are pseudo instructions
