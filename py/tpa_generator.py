@@ -242,6 +242,18 @@ class TPAssemblyCompiler:
             out_stream.write("PTR_ASSIGN_OFF  %{}  %{}  %{}\n".format(self.read_one(),
                                                                       self.read_one(),
                                                                       self.read_one()))
+        elif instruction == cpl.GET_ITEM_1:
+            out_stream.write("GET_ITEM_1      %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.GET_ITEM_8:
+            out_stream.write("GET_ITEM_8      %{}  %{}\n".format(self.read_one(), self.read_one()))
+        elif instruction == cpl.SET_ITEM_1:
+            out_stream.write("SET_ITEM_1      %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
+        elif instruction == cpl.SET_ITEM_8:
+            out_stream.write("SET_ITEM_8      %{}  %{}  %{}\n".format(self.read_one(),
+                                                                      self.read_one(),
+                                                                      self.read_one()))
         # followings are pseudo instructions
         elif instruction == cpl.LABEL:
             out_stream.write("LABEL           {}\n".format(self.read_1_int()))

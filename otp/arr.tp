@@ -1,5 +1,9 @@
 fn main() int {
     var arr: *int[] = new int[7];
 
-    return arr..length;
+    arr[1] = 132;
+    arr[2] = 123;
+    arr[3] = -72;
+
+    return arr[3];
 }

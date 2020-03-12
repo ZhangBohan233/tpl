@@ -18,6 +18,12 @@ class Type:
         self.type_name = type_name
         self.array_lengths = arr_len
 
+    def array_ele_type(self):
+        return Type(self.type_name[1:], self.array_lengths)
+
+    def readable(self):
+        return type_to_readable(self)
+
     def __str__(self):
         return "({}, {})".format(self.type_name, self.array_lengths)
 

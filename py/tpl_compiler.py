@@ -1,3 +1,14 @@
+"""
+Trash Programming Language Compiler
+
+Object header structure:
+
+Array header structure:
+0-8: pointer to content class info
+8-16: element size
+16-24: array length (element count)
+"""
+
 import py.tpl_ast as ast
 import py.tpl_environment as en
 import py.tpl_types as typ
@@ -76,6 +87,11 @@ NEW_OBJ = 70  # NEW_OBJ   %CLAZZ_INFO   %REF_ADDR   | creates an object in heap 
 PTR_ASSIGN_I = 71  # | assigns real value to <addr + offset> pointed by a ptr
 NEW_ARRAY = 72  # NEW_ARRAY   %CLAZZ_PTR   %SIZE_ADDR   %REF_ADDR   | similar as NEW_OBJ
 PTR_ASSIGN_OFF = 73
+
+GET_ITEM_1 = 74
+GET_ITEM_8 = 75  # | and stores result addr to reg1
+SET_ITEM_1 = 76
+SET_ITEM_8 = 77
 
 LABEL = 128
 GOTO_L = 129
@@ -721,6 +737,60 @@ class ByteOutput:
         self.write_int(rtn_ptr_addr)
 
         self.manager.append_regs64(reg4, reg3, reg2, reg1)
+
+    def get_item(self, length, dst_addr, arr_ptr, index_ptr):
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
+
+        self.write_one(LOAD)
+        self.write_one(reg1)
+        self.write_int(arr_ptr)
+
+        self.write_one(LOAD)
+        self.write_one(reg2)
+        self.write_int(index_ptr)
+
+        if length == 1:
+            self.write_one(GET_ITEM_1)
+        elif length == 8:
+            self.write_one(GET_ITEM_8)
+        else:
+            raise lib.CompileTimeException("Unexpected length")
+        self.write_one(reg1)
+        self.write_one(reg2)
+
+        self.write_one(STORE)
+        self.write_one(reg3)
+        self.write_one(reg1)
+        self.write_int(dst_addr)
+
+        self.manager.append_regs64(reg3, reg2, reg1)
+
+    def set_item(self, length, value_ptr, arr_ptr, index_ptr):
+        reg1, reg2, reg3 = self.manager.require_regs64(3)
+
+        self.write_one(LOAD)
+        self.write_one(reg1)
+        self.write_int(arr_ptr)
+
+        self.write_one(LOAD)
+        self.write_one(reg2)
+        self.write_int(index_ptr)
+
+        self.write_one(LOAD)
+        self.write_one(reg3)
+        self.write_int(value_ptr)
+
+        if length == 1:
+            self.write_one(SET_ITEM_1)
+        elif length == 8:
+            self.write_one(SET_ITEM_8)
+        else:
+            raise lib.CompileTimeException("Unexpected length")
+        self.write_one(reg1)
+        self.write_one(reg2)
+        self.write_one(reg3)
+
+        self.manager.append_regs64(reg3, reg2, reg1)
 
     def add_label(self, label: int):
         self.write_one(LABEL)
@@ -1398,7 +1468,7 @@ class Compiler:
         elif node.left.node_type == ast.INDEXING_NODE:  # set item
             left_node: ast.IndexingNode = node.left
             r = self.compile(node.right, env, bo)
-            self.compile_setitem(left_node, r, env, bo)
+            self.compile_setitem(left_node, r, right_tal, env, bo)
 
             return r
 
@@ -1447,18 +1517,49 @@ class Compiler:
 
         return ptr
 
-    def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, env: en.Environment, bo: ByteOutput):
-        indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
+    def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, value_tal: en.Type,
+                        env: en.Environment, bo: ByteOutput):
+        item_tal = get_tal_of_evaluated_node(node, env).array_ele_type()
+        # if item_tal != value_tal:
+        #     raise lib.CompileTimeException("Unsupported conversion from '{}' to '{}'."
+        #                                    .format(value_tal.readable(), item_tal.readable()) +
+        #                                    generate_lf(node))
 
-        bo.ptr_assign(indexing_ptr, value_ptr, unit_len)
+        ele_len = item_tal.total_len(self.memory)
+        arr_ptr = self.compile(node.call_obj, env, bo)
+        if len(node.arg.lines) != 1:
+            raise lib.CompileTimeException("Indexing takes exactly 1 argument")
+
+        index_addr = self.compile(node.arg.lines[0], env, bo)
+
+        bo.set_item(ele_len, value_ptr, arr_ptr, index_addr)
+        # indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
+        #
+        # bo.ptr_assign(indexing_ptr, value_ptr, unit_len)
 
     def compile_getitem(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
-        indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
+        res_tal = get_tal_of_evaluated_node(node, env)
+        res_true_tal = res_tal.array_ele_type()
+        ele_len = res_true_tal.total_len(self.memory)
+        # print(res_true_tal)
 
-        result_ptr = self.memory.allocate(unit_len, bo)
-        # bo.push_stack(unit_len)
-        bo.unpack_addr(result_ptr, indexing_ptr, unit_len)
-        return result_ptr
+        dst_addr = self.memory.allocate(ele_len, bo)
+        call_obj_addr = self.compile(node.call_obj, env, bo)
+
+        if len(node.arg.lines) != 1:
+            raise lib.CompileTimeException("Indexing takes exactly 1 argument")
+
+        index_addr = self.compile(node.arg.lines[0], env, bo)
+
+        bo.get_item(ele_len, dst_addr, call_obj_addr, index_addr)
+        return dst_addr
+
+        # indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
+        #
+        # result_ptr = self.memory.allocate(unit_len, bo)
+        # # bo.push_stack(unit_len)
+        # bo.unpack_addr(result_ptr, indexing_ptr, unit_len)
+        # return result_ptr
 
     def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: ByteOutput):
         attr_addr, attr_tal = self.get_struct_attr_ptr_and_len(node, env, bo)
@@ -1481,53 +1582,56 @@ class Compiler:
         bo.unpack_addr(res_ptr, attr_addr, length)
         return res_ptr
 
-    def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
+    # def get_indexing_ptr_and_unit_len(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
+    #
+    #     indexing_addr, tal, length = self.indexing_ptr(node, env, bo)
+    #
+    #     return indexing_addr, length
 
-        indexing_addr, tal, length = self.indexing_ptr(node, env, bo)
-
-        return indexing_addr, length
-
-    def indexing_ptr(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
-        if isinstance(node.call_obj, ast.IndexingNode):  # call obj is array
-            arr_addr_ptr, tal, lll = self.indexing_ptr(node.call_obj, env, bo)
-        elif isinstance(node.call_obj, ast.NameNode):
-            arr_self_addr = self.compile(node.call_obj, env, bo)
-            arr_addr_ptr = self.memory.allocate(PTR_LEN, bo)  # pointer storing the addr of arr head
-            # bo.push_stack(PTR_LEN)
-            bo.store_addr_to_des(arr_addr_ptr, arr_self_addr)
-            tal = get_tal_of_evaluated_node(node.call_obj, env)
-        elif isinstance(node.call_obj, ast.Dot):
-            arr_addr_ptr = self.compile(node.call_obj, env, bo)
-            tal = get_tal_of_evaluated_node(node.call_obj, env)
-        else:
-            raise lib.CompileTimeException("Unexpected node " + str(type(node.call_obj)))
-
-        if len(node.arg.lines) != 1:
-            raise lib.CompileTimeException("Indexing takes exactly 1 argument")
-
-        node_depth = index_node_depth(node)
-        tal_depth = len(tal.array_lengths) + pointer_depth(tal.type_name)
-
-        if node_depth == tal_depth:
-            length = tal.unit_len(self.memory)
-        elif node_depth > tal_depth:
-            raise lib.CompileTimeException()
-        else:
-            length = PTR_LEN
-
-        index_num_ptr = self.compile(node.arg.lines[0], env, bo)
-
-        indexing_addr = self.memory.allocate(PTR_LEN, bo)
-        # bo.push_stack(PTR_LEN)
-
-        bo.unpack_addr(indexing_addr, arr_addr_ptr, PTR_LEN)  # now store the addr of array content
-        unit_len_ptr = self.memory.allocate(INT_LEN, bo)
-        # bo.push_stack(INT_LEN)
-        bo.assign_i(unit_len_ptr, length)
-        bo.add_binary_op(MUL, unit_len_ptr, unit_len_ptr, index_num_ptr)
-        bo.add_binary_op(ADD, indexing_addr, indexing_addr, unit_len_ptr)
-
-        return indexing_addr, tal, length
+    # def indexing_ptr(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
+    #     obj_tal = get_tal_of_evaluated_node(node.call_obj, env)
+    #     res_tal = get_tal_of_evaluated_node(node, env)
+    #     print(obj_tal, res_tal)
+        # if isinstance(node.call_obj, ast.IndexingNode):  # call obj is array
+        #     arr_addr_ptr, tal, lll = self.indexing_ptr(node.call_obj, env, bo)
+        # elif isinstance(node.call_obj, ast.NameNode):
+        #     arr_self_addr = self.compile(node.call_obj, env, bo)
+        #     arr_addr_ptr = self.memory.allocate(PTR_LEN, bo)  # pointer storing the addr of arr head
+        #     # bo.push_stack(PTR_LEN)
+        #     bo.store_addr_to_des(arr_addr_ptr, arr_self_addr)
+        #     tal = get_tal_of_evaluated_node(node.call_obj, env)
+        # elif isinstance(node.call_obj, ast.Dot):
+        #     arr_addr_ptr = self.compile(node.call_obj, env, bo)
+        #     tal = get_tal_of_evaluated_node(node.call_obj, env)
+        # else:
+        #     raise lib.CompileTimeException("Unexpected node " + str(type(node.call_obj)))
+        #
+        # if len(node.arg.lines) != 1:
+        #     raise lib.CompileTimeException("Indexing takes exactly 1 argument")
+        #
+        # node_depth = index_node_depth(node)
+        # tal_depth = len(tal.array_lengths) + pointer_depth(tal.type_name)
+        #
+        # if node_depth == tal_depth:
+        #     length = tal.unit_len(self.memory)
+        # elif node_depth > tal_depth:
+        #     raise lib.CompileTimeException()
+        # else:
+        #     length = PTR_LEN
+        #
+        # index_num_ptr = self.compile(node.arg.lines[0], env, bo)
+        #
+        # indexing_addr = self.memory.allocate(PTR_LEN, bo)
+        # # bo.push_stack(PTR_LEN)
+        #
+        # bo.unpack_addr(indexing_addr, arr_addr_ptr, PTR_LEN)  # now store the addr of array content
+        # unit_len_ptr = self.memory.allocate(INT_LEN, bo)
+        # # bo.push_stack(INT_LEN)
+        # bo.assign_i(unit_len_ptr, length)
+        # bo.add_binary_op(MUL, unit_len_ptr, unit_len_ptr, index_num_ptr)
+        # bo.add_binary_op(ADD, indexing_addr, indexing_addr, unit_len_ptr)
+        #
+        # return indexing_addr, tal, length
 
     def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> \
             (int, en.Type):

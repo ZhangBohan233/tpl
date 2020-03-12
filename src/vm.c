@@ -1036,7 +1036,7 @@ void vm_run() {
                 reg_p2 = MEMORY[PC++];  // size number addr
                 reg_p3 = MEMORY[PC++];  // rtn_ptr
 
-                printf("%lld %lld\n", regs64[reg_p1].int_value, regs64[reg_p2].int_value);
+//                printf("%lld %lld\n", regs64[reg_p1].int_value, regs64[reg_p2].int_value);
                 if (USE_HEAP_MEM)
                     regs64[reg_p3].int_value = _native_malloc_rtn(
                             regs64[reg_p2].int_value + ARRAY_HEADER_SIZE);
@@ -1053,6 +1053,40 @@ void vm_run() {
                 memcpy(MEMORY + regs64[reg_p1].int_value + regs64[reg_p3].int_value,
                        MEMORY + regs64[reg_p2].int_value,
                        INT_LEN);
+                break;
+            case 74:  // GET_ITEM_1
+                break;
+            case 75:  // GET_ITEM_8
+                reg_p1 = MEMORY[PC++];  // array header
+                reg_p2 = MEMORY[PC++];  // index
+
+                // reg2 now stores offset from array
+                regs64[reg_p2].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value + 8) *
+                        regs64[reg_p2].int_value;
+
+                // 24 is the array header size
+                regs64[reg_p1].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value + 24 +
+                        regs64[reg_p2].int_value);
+//                printf("%lld %lld,,,\n", regs64[reg_p1].int_value, regs64[reg_p2].int_value);
+                break;
+            case 76:  // SET_ITEM_1
+                break;
+            case 77:  // SET_ITEM_8
+                reg_p1 = MEMORY[PC++];  // array header
+                reg_p2 = MEMORY[PC++];  // index
+                reg_p3 = MEMORY[PC++];  // value
+
+                // reg2 now stores offset from array
+                regs64[reg_p2].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value + 8) *
+                                           regs64[reg_p2].int_value;
+
+                // reg2 now stores real addr to be assigned
+                regs64[reg_p2].int_value = regs64[reg_p1].int_value + 24 + regs64[reg_p2].int_value;
+
+                int_to_bytes(MEMORY + regs64[reg_p2].int_value, regs64[reg_p3].int_value);
+
+//                printf("%lld %lld %lld\n",
+//                        regs64[reg_p1].int_value, regs64[reg_p2].int_value, regs64[reg_p3].int_value);
                 break;
             default:
                 fprintf(stderr, "Unknown instruction %d at byte pos %lld\n", instruction, PC);
