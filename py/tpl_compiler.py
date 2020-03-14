@@ -1389,9 +1389,11 @@ class Compiler:
         lf = node.line_num, node.file
 
         if not isinstance(node.right, ast.UndefinedNode):
-            right_tal = get_tal_of_evaluated_node(node.right, env)
+            right_tal = get_tal_of_evaluated_node(node.right, env, self.memory)
             if right_tal.type_name == "void":
                 raise lib.CompileTimeException("Cannot assign variable with value type 'void'. " + generate_lf(node))
+        else:
+            right_tal = None
 
         if node.left.node_type == ast.NAME_NODE:  # assign
             r = self.compile(node.right, env, bo)
@@ -1419,14 +1421,20 @@ class Compiler:
 
                 if en.is_pointer(tal):
                     assert total_len == PTR_LEN
+                    if right_tal is not None and \
+                            (total_len != right_tal.total_len(self.memory) or
+                             tal.array_depth != right_tal.array_depth):
+                        raise lib.CompileTimeException("Unsupported conversion from '{}' to '{}'. "
+                                                       .format(right_tal.readable(), tal.readable())
+                                                       + generate_lf(node))
                     ptr = self.memory.allocate(PTR_LEN, bo)
                     # bo.push_stack(PTR_LEN)
 
                     r = self.compile(node.right, env, bo)
 
                     bo.assign(ptr, r, PTR_LEN)
-                elif en.is_array(tal):  # right cannot be binary operator
-                    ptr = self.compile_array_creation(node.right, env, tal, bo)
+                # elif en.is_array(tal):  # right cannot be binary operator
+                #     ptr = self.compile_array_creation(node.right, env, tal, bo)
 
                 else:
                     ptr = self.memory.allocate(total_len, bo)
@@ -1520,10 +1528,10 @@ class Compiler:
     def compile_setitem(self, node: ast.IndexingNode, value_ptr: int, value_tal: en.Type,
                         env: en.Environment, bo: ByteOutput):
         item_tal = get_tal_of_evaluated_node(node, env).array_ele_type()
-        # if item_tal != value_tal:
-        #     raise lib.CompileTimeException("Unsupported conversion from '{}' to '{}'."
-        #                                    .format(value_tal.readable(), item_tal.readable()) +
-        #                                    generate_lf(node))
+        if item_tal != value_tal:
+            raise lib.CompileTimeException("Unsupported conversion from '{}' to '{}'."
+                                           .format(value_tal.readable(), item_tal.readable()) +
+                                           generate_lf(node))
 
         ele_len = item_tal.total_len(self.memory)
         arr_ptr = self.compile(node.call_obj, env, bo)
@@ -1533,9 +1541,6 @@ class Compiler:
         index_addr = self.compile(node.arg.lines[0], env, bo)
 
         bo.set_item(ele_len, value_ptr, arr_ptr, index_addr)
-        # indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
-        #
-        # bo.ptr_assign(indexing_ptr, value_ptr, unit_len)
 
     def compile_getitem(self, node: ast.IndexingNode, env: en.Environment, bo: ByteOutput):
         res_tal = get_tal_of_evaluated_node(node, env)
@@ -1553,13 +1558,6 @@ class Compiler:
 
         bo.get_item(ele_len, dst_addr, call_obj_addr, index_addr)
         return dst_addr
-
-        # indexing_ptr, unit_len = self.get_indexing_ptr_and_unit_len(node, env, bo)
-        #
-        # result_ptr = self.memory.allocate(unit_len, bo)
-        # # bo.push_stack(unit_len)
-        # bo.unpack_addr(result_ptr, indexing_ptr, unit_len)
-        # return result_ptr
 
     def compile_attr_assign(self, node: ast.Dot, value_ptr: int, env: en.Environment, bo: ByteOutput):
         attr_addr, attr_tal = self.get_struct_attr_ptr_and_len(node, env, bo)
@@ -1592,46 +1590,46 @@ class Compiler:
     #     obj_tal = get_tal_of_evaluated_node(node.call_obj, env)
     #     res_tal = get_tal_of_evaluated_node(node, env)
     #     print(obj_tal, res_tal)
-        # if isinstance(node.call_obj, ast.IndexingNode):  # call obj is array
-        #     arr_addr_ptr, tal, lll = self.indexing_ptr(node.call_obj, env, bo)
-        # elif isinstance(node.call_obj, ast.NameNode):
-        #     arr_self_addr = self.compile(node.call_obj, env, bo)
-        #     arr_addr_ptr = self.memory.allocate(PTR_LEN, bo)  # pointer storing the addr of arr head
-        #     # bo.push_stack(PTR_LEN)
-        #     bo.store_addr_to_des(arr_addr_ptr, arr_self_addr)
-        #     tal = get_tal_of_evaluated_node(node.call_obj, env)
-        # elif isinstance(node.call_obj, ast.Dot):
-        #     arr_addr_ptr = self.compile(node.call_obj, env, bo)
-        #     tal = get_tal_of_evaluated_node(node.call_obj, env)
-        # else:
-        #     raise lib.CompileTimeException("Unexpected node " + str(type(node.call_obj)))
-        #
-        # if len(node.arg.lines) != 1:
-        #     raise lib.CompileTimeException("Indexing takes exactly 1 argument")
-        #
-        # node_depth = index_node_depth(node)
-        # tal_depth = len(tal.array_lengths) + pointer_depth(tal.type_name)
-        #
-        # if node_depth == tal_depth:
-        #     length = tal.unit_len(self.memory)
-        # elif node_depth > tal_depth:
-        #     raise lib.CompileTimeException()
-        # else:
-        #     length = PTR_LEN
-        #
-        # index_num_ptr = self.compile(node.arg.lines[0], env, bo)
-        #
-        # indexing_addr = self.memory.allocate(PTR_LEN, bo)
-        # # bo.push_stack(PTR_LEN)
-        #
-        # bo.unpack_addr(indexing_addr, arr_addr_ptr, PTR_LEN)  # now store the addr of array content
-        # unit_len_ptr = self.memory.allocate(INT_LEN, bo)
-        # # bo.push_stack(INT_LEN)
-        # bo.assign_i(unit_len_ptr, length)
-        # bo.add_binary_op(MUL, unit_len_ptr, unit_len_ptr, index_num_ptr)
-        # bo.add_binary_op(ADD, indexing_addr, indexing_addr, unit_len_ptr)
-        #
-        # return indexing_addr, tal, length
+    # if isinstance(node.call_obj, ast.IndexingNode):  # call obj is array
+    #     arr_addr_ptr, tal, lll = self.indexing_ptr(node.call_obj, env, bo)
+    # elif isinstance(node.call_obj, ast.NameNode):
+    #     arr_self_addr = self.compile(node.call_obj, env, bo)
+    #     arr_addr_ptr = self.memory.allocate(PTR_LEN, bo)  # pointer storing the addr of arr head
+    #     # bo.push_stack(PTR_LEN)
+    #     bo.store_addr_to_des(arr_addr_ptr, arr_self_addr)
+    #     tal = get_tal_of_evaluated_node(node.call_obj, env)
+    # elif isinstance(node.call_obj, ast.Dot):
+    #     arr_addr_ptr = self.compile(node.call_obj, env, bo)
+    #     tal = get_tal_of_evaluated_node(node.call_obj, env)
+    # else:
+    #     raise lib.CompileTimeException("Unexpected node " + str(type(node.call_obj)))
+    #
+    # if len(node.arg.lines) != 1:
+    #     raise lib.CompileTimeException("Indexing takes exactly 1 argument")
+    #
+    # node_depth = index_node_depth(node)
+    # tal_depth = len(tal.array_lengths) + pointer_depth(tal.type_name)
+    #
+    # if node_depth == tal_depth:
+    #     length = tal.unit_len(self.memory)
+    # elif node_depth > tal_depth:
+    #     raise lib.CompileTimeException()
+    # else:
+    #     length = PTR_LEN
+    #
+    # index_num_ptr = self.compile(node.arg.lines[0], env, bo)
+    #
+    # indexing_addr = self.memory.allocate(PTR_LEN, bo)
+    # # bo.push_stack(PTR_LEN)
+    #
+    # bo.unpack_addr(indexing_addr, arr_addr_ptr, PTR_LEN)  # now store the addr of array content
+    # unit_len_ptr = self.memory.allocate(INT_LEN, bo)
+    # # bo.push_stack(INT_LEN)
+    # bo.assign_i(unit_len_ptr, length)
+    # bo.add_binary_op(MUL, unit_len_ptr, unit_len_ptr, index_num_ptr)
+    # bo.add_binary_op(ADD, indexing_addr, indexing_addr, unit_len_ptr)
+    #
+    # return indexing_addr, tal, length
 
     def get_struct_attr_ptr_and_len(self, node: ast.Dot, env: en.Environment, bo: ByteOutput) -> \
             (int, en.Type):
@@ -1647,7 +1645,7 @@ class Compiler:
                 attr_tal = en.Type("int")
                 real_addr_ptr = self.memory.allocate(PTR_LEN, bo)
                 bo.assign(real_addr_ptr, left_ptr, INT_LEN)
-                bo.op_i(ADD, real_addr_ptr, 16)   # pos of array length in array object
+                bo.op_i(ADD, real_addr_ptr, 16)  # pos of array length in array object
                 return real_addr_ptr, attr_tal
             else:
                 raise lib.CompileTimeException("")
@@ -2258,10 +2256,13 @@ class Compiler:
             else:
                 raise lib.CompileTimeException("Unexpected array content type.")
 
+            outermost_arr = node
+            while isinstance(outermost_arr.call_obj, ast.IndexingNode):
+                outermost_arr = outermost_arr.call_obj
             ref_addr = self.memory.allocate(PTR_LEN, bo)
-            if len(node.arg.lines) != 1:
+            if len(outermost_arr.arg.lines) != 1:
                 raise lib.CompileTimeException("Array initializer must have 1 size argument." + generate_lf(node))
-            size_addr = self.compile(node.arg.lines[0], env, bo)
+            size_addr = self.compile(outermost_arr.arg.lines[0], env, bo)
             total_size_addr = self.memory.allocate(INT_LEN, bo)
             bo.assign_i(total_size_addr, ele_size)
             bo.add_binary_op(MUL, total_size_addr, total_size_addr, size_addr)
@@ -2502,22 +2503,23 @@ def get_tal_of_defining_node(node: ast.Node, env: en.Environment, mem: MemoryMan
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
         tn_al_inner: en.Type = get_tal_of_defining_node(node.call_obj, env, mem)
-        if len(node.arg.lines) == 0:
-            return en.Type(tn_al_inner.type_name, 0)
-        length_lit = node.arg.lines[0]
-        if not isinstance(length_lit, ast.Literal) or length_lit.lit_type != 0:
-            raise lib.CompileTimeException("Array length must be fixed int literal. " +
-                                           generate_lf(node))
-        lit_pos = length_lit.lit_pos
-        arr_len_b = mem.literal[lit_pos: lit_pos + INT_LEN]
-        arr_len_v = typ.bytes_to_int(arr_len_b)
-        # return type_name, arr_len_inner * typ.bytes_to_int(arr_len_b)
-        return en.Type(tn_al_inner.type_name, *tn_al_inner.array_lengths, arr_len_v)
+        return en.Type(tn_al_inner.type_name, tn_al_inner.array_depth + 1)
+        # if len(node.arg.lines) == 0:
+        #     return en.Type(tn_al_inner.type_name, 0)
+        # length_lit = node.arg.lines[0]
+        # if not isinstance(length_lit, ast.Literal) or length_lit.lit_type != 0:
+        #     raise lib.CompileTimeException("Array length must be fixed int literal. " +
+        #                                    generate_lf(node))
+        # lit_pos = length_lit.lit_pos
+        # arr_len_b = mem.literal[lit_pos: lit_pos + INT_LEN]
+        # arr_len_v = typ.bytes_to_int(arr_len_b)
+        # # return type_name, arr_len_inner * typ.bytes_to_int(arr_len_b)
+        # return en.Type(tn_al_inner.type_name, *tn_al_inner.array_lengths, arr_len_v)
     elif node.node_type == ast.UNARY_OPERATOR:
         node: ast.UnaryOperator
         tal = get_tal_of_defining_node(node.value, env, mem)
         if node.operation == "unpack":
-            return en.Type("*" + tal.type_name, *tal.array_lengths)
+            return en.Type("*" + tal.type_name, tal.array_depth)
         else:
             raise lib.UnexpectedSyntaxException()
     elif node.node_type == ast.BINARY_OPERATOR:
@@ -2554,7 +2556,7 @@ def get_tal_of_node_self(node: ast.Node, env: en.Environment) -> en.Type:
         print(2223)
 
 
-def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
+def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment, mem: MemoryManager = None) -> en.Type:
     if node.node_type == ast.LITERAL:
         node: ast.Literal
         return LITERAL_TYPE_TABLE[node.lit_type]
@@ -2566,12 +2568,15 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         return env.get_type_arr_len(node.name, (node.line_num, node.file))
     elif node.node_type == ast.UNARY_OPERATOR:
         node: ast.UnaryOperator
-        tal = get_tal_of_evaluated_node(node.value, env)
+        if node.operation == "new":
+            tal = get_tal_of_defining_node(node.value, env, mem)
+            return en.Type("*" + tal.type_name, tal.array_depth)
+        tal = get_tal_of_evaluated_node(node.value, env, mem)
         if node.operation == "unpack":
             if len(tal.type_name) > 1 and tal.type_name[0] == "*":
                 return en.Type(tal.type_name[1:])
-            elif len(tal.array_lengths) > 0:
-                return en.Type(tal.type_name, *tal.array_lengths[1:])
+            elif tal.array_depth > 0:
+                return en.Type(tal.type_name, tal.array_depth - 1)
             else:
                 raise lib.TypeException("Cannot unpack a non-pointer type")
         elif node.operation == "pack":
@@ -2584,11 +2589,11 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
         node: ast.BinaryOperator
         if node.operation in BOOL_RESULT_TABLE:
             return en.Type("int")
-        return get_tal_of_evaluated_node(node.left, env)
+        return get_tal_of_evaluated_node(node.left, env, mem)
     elif node.node_type == ast.TERNARY_OPERATOR:
         node: ast.TernaryOperator
         if node.operation == "?" and isinstance(node.right, ast.TypeNode):
-            return get_tal_of_evaluated_node(node.right.left, env)
+            return get_tal_of_evaluated_node(node.right.left, env, mem)
         else:
             raise lib.CompileTimeException("Unknown ternary operator")
     elif node.node_type == ast.FUNCTION_CALL:
@@ -2612,27 +2617,25 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
                 func_tal: en.FuncType = env.get_type_arr_len(name, (node.line_num, node.file))
                 return func_tal.rtype
         elif isinstance(call_obj, ast.FuncCall):
-            return get_tal_of_evaluated_node(call_obj, env)
+            return get_tal_of_evaluated_node(call_obj, env, mem)
         elif isinstance(call_obj, ast.Dot):
-            return get_tal_of_evaluated_node(call_obj, env)
+            return get_tal_of_evaluated_node(call_obj, env, mem)
     elif node.node_type == ast.INDEXING_NODE:  # array
         node: ast.IndexingNode
         # return get_tal_of_ordinary_node(node.call_obj, env)
-        tal_co = get_tal_of_evaluated_node(node.call_obj, env)
-        if en.is_array(tal_co):
-            return en.Type(tal_co.type_name, *tal_co.array_lengths[1:])
-        elif tal_co.type_name[0] == "*":
+        tal_co = get_tal_of_evaluated_node(node.call_obj, env, mem)
+        if tal_co.array_depth == 1:
             return en.Type(tal_co.type_name[1:])
         else:
-            raise lib.TypeException()
+            return en.Type(tal_co.type_name, tal_co.array_depth - 1)
     elif node.node_type == ast.IN_DECREMENT_OPERATOR:
         node: ast.InDecrementOperator
-        return get_tal_of_evaluated_node(node.value, env)
+        return get_tal_of_evaluated_node(node.value, env, mem)
     elif node.node_type == ast.NULL_STMT:
         return en.Type("*void")
     elif node.node_type == ast.DOT:
         node: ast.Dot
-        left_tal = get_tal_of_evaluated_node(node.left, env)
+        left_tal = get_tal_of_evaluated_node(node.left, env, mem)
         if en.is_array(left_tal):
             if isinstance(node.right, ast.NameNode) and node.right.name == "length":
                 return en.Type("int")
@@ -2651,9 +2654,9 @@ def get_tal_of_evaluated_node(node: ast.Node, env: en.Environment) -> en.Type:
             raise lib.TypeException()
     elif node.node_type == ast.IN_DECREMENT_OPERATOR:
         node: ast.InDecrementOperator
-        return get_tal_of_evaluated_node(node.value, env)
+        return get_tal_of_evaluated_node(node.value, env, mem)
     elif isinstance(node, ast.BlockStmt) and node.standalone:
-        ele_tal = get_tal_of_evaluated_node(node.lines[0], env)
+        ele_tal = get_tal_of_evaluated_node(node.lines[0], env, mem)
         return en.Type(ele_tal.type_name, len(node.lines))
     else:
         raise lib.TypeException("Cannot get type and array length")

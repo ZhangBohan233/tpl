@@ -1055,10 +1055,22 @@ void vm_run() {
                        INT_LEN);
                 break;
             case 74:  // GET_ITEM_1
+                reg_p1 = MEMORY[PC++];  // array header
+                reg_p2 = MEMORY[PC++];  // index
+
+                // reg2 now stores offset from array
+                regs64[reg_p2].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value + 8) *
+                                           regs64[reg_p2].int_value;
+
+                // 24 is the array header size
+                regs64[reg_p1].int_value = MEMORY[regs64[reg_p1].int_value + 24 +
+                                                        regs64[reg_p2].int_value];
                 break;
             case 75:  // GET_ITEM_8
                 reg_p1 = MEMORY[PC++];  // array header
                 reg_p2 = MEMORY[PC++];  // index
+
+                // TODO: check range
 
                 // reg2 now stores offset from array
                 regs64[reg_p2].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value + 8) *
@@ -1070,6 +1082,18 @@ void vm_run() {
 //                printf("%lld %lld,,,\n", regs64[reg_p1].int_value, regs64[reg_p2].int_value);
                 break;
             case 76:  // SET_ITEM_1
+                reg_p1 = MEMORY[PC++];  // array header
+                reg_p2 = MEMORY[PC++];  // index
+                reg_p3 = MEMORY[PC++];  // value
+
+                // reg2 now stores offset from array
+                regs64[reg_p2].int_value = bytes_to_int(MEMORY + regs64[reg_p1].int_value + 8) *
+                                           regs64[reg_p2].int_value;
+
+                // reg2 now stores real addr to be assigned
+                regs64[reg_p2].int_value = regs64[reg_p1].int_value + 24 + regs64[reg_p2].int_value;
+
+                MEMORY[regs64[reg_p2].int_value] = regs64[reg_p3].int_value;
                 break;
             case 77:  // SET_ITEM_8
                 reg_p1 = MEMORY[PC++];  // array header

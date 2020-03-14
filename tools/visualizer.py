@@ -108,6 +108,10 @@ class Visualizer:
             elif isinstance(node, ast.StructNode):
                 child = self.insert(parent, node, repr(node), note_to_this)
                 self.add_item(node.block, child, "struct body")
+            elif isinstance(node, ast.IndexingNode):
+                child = self.insert(parent, node, repr(node), note_to_this)
+                self.add_item(node.call_obj, child, "call obj")
+                self.add_item(node.arg, child, "args")
             else:
                 self.tree_view.insert(parent, 'end', text="Unknown type " + type(node).__name__)
         else:

@@ -14,18 +14,24 @@ class Undefined:
 
 
 class Type:
-    def __init__(self, type_name: str, *arr_len):
+    def __init__(self, type_name: str, array_depth=0):
         self.type_name = type_name
-        self.array_lengths = arr_len
+        self.array_depth = array_depth
 
     def array_ele_type(self):
-        return Type(self.type_name[1:], self.array_lengths)
+        return self
+        # if self.array_depth == 0:
+        #     return Type(self.type_name[1:])
+        # else:
+        #     return Type(self.type_name, self.array_depth)
+        # return Type(self.type_name, self.array_depth)
+        # return Type(self.type_name[1:], self.array_lengths)
 
     def readable(self):
         return type_to_readable(self)
 
     def __str__(self):
-        return "({}, {})".format(self.type_name, self.array_lengths)
+        return "({}, {})".format(self.type_name, self.array_depth)
 
     def __repr__(self):
         return self.__str__()
@@ -33,7 +39,7 @@ class Type:
     def __eq__(self, other):
         return isinstance(other, Type) and \
                (self.type_name == other.type_name or ptr_cast_able(self, other)) and \
-               self.array_lengths == other.array_lengths
+               self.array_depth == other.array_depth
 
     def __ne__(self, other):
         return not self == other
@@ -93,17 +99,17 @@ def type_to_readable(t: Type) -> str:
         s += type_to_readable(t.rtype)
         return s
     else:
-        if len(t.array_lengths) == 0:
+        if t.array_depth == 0:
             return t.type_name
         else:
             r = t.type_name
-            for ar in t.array_lengths:
-                r += "[" + str(ar) + "]"
+            for _ in range(t.array_depth):
+                r += "[]"
             return r
 
 
 def is_array(t: Type) -> bool:
-    return len(t.array_lengths) > 0
+    return t.array_depth > 0
 
 
 def is_pointer(t: Type) -> bool:

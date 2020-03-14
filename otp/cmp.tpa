@@ -1,99 +1,194 @@
 //STACK SIZE
 1024
 //LITERAL LENGTH:
-80
+64
 //GLOBAL MEMORY LENGTH:
 24
 //CLASS INFO LENGTH:
 48
 //FUNCTIONS LENGTH:
-552
+1377
 //MAIN TAKES ARG:
 %0
 //LITERALS:
-0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7 0 0 0 0 0 0 0 132 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 123 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 72 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 34 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 
 //CLASS HEADERS
 #class0 8  #class1 8  #class2 8  #class3 8  #class4 16 8  
 //FUNCTIONS COUNT:
 8
 //FUNCTION POINTERS:
-1248 1256 1264 1272 1280 1288 1296 1304 
+1232 1240 1248 1256 1264 1272 1280 1288 
 //NATIVE FUNCTIONS COUNT:
 7
 
 //FUNCTIONS: 
 
 //FUNCTION 7:
-#256 SP_TO_FP
-#257 LOAD_I          %0  40
-#267 PUSH            %0
-#269 LOAD_I          %0  8
-#279 STORE           %1  %0  $16
-#290 LOAD            %0  $16
-#300 LOAD            %1  $1056
-#310 MUL             %0  %1
-#313 STORE           %2  %0  $16
-#324 LOAD_I          %0  1128
-#334 LOAD            %1  $16
-#344 NEW_ARRAY       %0  %1  %2
-#348 STORE           %3  %2  $8
-#359 LOAD            %0  $8
-#369 LOAD_I          %1  1128
-#379 LOAD_I          %2  0
-#389 PTR_ASSIGN_I    %0  %1  %2
-#393 LOAD            %0  $8
-#403 LOAD_I          %1  8
-#413 LOAD_I          %2  8
-#423 PTR_ASSIGN_I    %0  %1  %2
-#427 LOAD            %0  $8
-#437 LOAD_A          %1  $1056
-#447 LOAD_I          %2  16
-#457 PTR_ASSIGN_OFF  %0  %1  %2
-#461 LOAD_A          %0  $0
-#471 LOAD_A          %1  $8
-#481 LOAD_I          %2  8
-#491 ASSIGN          %0  %1  %2
-#495 LOAD            %0  $0
-#505 LOAD            %1  $1040
-#515 LOAD            %2  $1064
-#525 SET_ITEM_8      %0  %1  %2
-#529 LOAD            %0  $0
-#539 LOAD            %1  $1072
-#549 LOAD            %2  $1080
-#559 SET_ITEM_8      %0  %1  %2
-#563 LOAD            %0  $1096
-#573 NEG             %0
-#575 STORE           %1  %0  $24
-#586 LOAD            %0  $0
-#596 LOAD            %1  $1088
-#606 LOAD            %2  $24
-#616 SET_ITEM_8      %0  %1  %2
-#620 LOAD            %0  $0
-#630 LOAD            %1  $1088
-#640 GET_ITEM_8      %0  %1
-#643 STORE           %2  %0  $32
-#654 LOAD_A          %0  $32
-#664 LOAD_I          %1  8
-#674 FP_TO_SP
-#675 RETURN          %0  %1
-#678 FP_TO_SP
-#679 STOP
+#240 SP_TO_FP
+#241 LOAD_I          %0  128
+#251 PUSH            %0
+#253 LOAD_I          %0  8
+#263 STORE           %1  %0  $16
+#274 LOAD            %0  $16
+#284 LOAD            %1  $1056
+#294 MUL             %0  %1
+#297 STORE           %2  %0  $16
+#308 LOAD_I          %0  1136
+#318 LOAD            %1  $16
+#328 NEW_ARRAY       %0  %1  %2
+#332 STORE           %3  %2  $8
+#343 LOAD            %0  $8
+#353 LOAD_I          %1  1136
+#363 LOAD_I          %2  0
+#373 PTR_ASSIGN_I    %0  %1  %2
+#377 LOAD            %0  $8
+#387 LOAD_I          %1  8
+#397 LOAD_I          %2  8
+#407 PTR_ASSIGN_I    %0  %1  %2
+#411 LOAD            %0  $8
+#421 LOAD_A          %1  $1056
+#431 LOAD_I          %2  16
+#441 PTR_ASSIGN_OFF  %0  %1  %2
+#445 LOAD_A          %0  $0
+#455 LOAD_A          %1  $8
+#465 LOAD_I          %2  8
+#475 ASSIGN          %0  %1  %2
+#479 LOAD_I          %0  8
+#489 STORE           %1  %0  $32
+#500 LOAD            %0  $32
+#510 LOAD            %1  $1064
+#520 MUL             %0  %1
+#523 STORE           %2  %0  $32
+#534 LOAD_I          %0  1112
+#544 LOAD            %1  $32
+#554 NEW_ARRAY       %0  %1  %2
+#558 STORE           %3  %2  $24
+#569 LOAD            %0  $24
+#579 LOAD_I          %1  1112
+#589 LOAD_I          %2  0
+#599 PTR_ASSIGN_I    %0  %1  %2
+#603 LOAD            %0  $24
+#613 LOAD_I          %1  8
+#623 LOAD_I          %2  8
+#633 PTR_ASSIGN_I    %0  %1  %2
+#637 LOAD            %0  $24
+#647 LOAD_A          %1  $1064
+#657 LOAD_I          %2  16
+#667 PTR_ASSIGN_OFF  %0  %1  %2
+#671 LOAD            %0  $0
+#681 LOAD            %1  $1048
+#691 LOAD            %2  $24
+#701 SET_ITEM_8      %0  %1  %2
+#705 LOAD_I          %0  8
+#715 STORE           %1  %0  $48
+#726 LOAD            %0  $48
+#736 LOAD            %1  $1064
+#746 MUL             %0  %1
+#749 STORE           %2  %0  $48
+#760 LOAD_I          %0  1112
+#770 LOAD            %1  $48
+#780 NEW_ARRAY       %0  %1  %2
+#784 STORE           %3  %2  $40
+#795 LOAD            %0  $40
+#805 LOAD_I          %1  1112
+#815 LOAD_I          %2  0
+#825 PTR_ASSIGN_I    %0  %1  %2
+#829 LOAD            %0  $40
+#839 LOAD_I          %1  8
+#849 LOAD_I          %2  8
+#859 PTR_ASSIGN_I    %0  %1  %2
+#863 LOAD            %0  $40
+#873 LOAD_A          %1  $1064
+#883 LOAD_I          %2  16
+#893 PTR_ASSIGN_OFF  %0  %1  %2
+#897 LOAD            %0  $0
+#907 LOAD            %1  $1040
+#917 LOAD            %2  $40
+#927 SET_ITEM_8      %0  %1  %2
+#931 LOAD_I          %0  8
+#941 STORE           %1  %0  $64
+#952 LOAD            %0  $64
+#962 LOAD            %1  $1064
+#972 MUL             %0  %1
+#975 STORE           %2  %0  $64
+#986 LOAD_I          %0  1112
+#996 LOAD            %1  $64
+#1006 NEW_ARRAY       %0  %1  %2
+#1010 STORE           %3  %2  $56
+#1021 LOAD            %0  $56
+#1031 LOAD_I          %1  1112
+#1041 LOAD_I          %2  0
+#1051 PTR_ASSIGN_I    %0  %1  %2
+#1055 LOAD            %0  $56
+#1065 LOAD_I          %1  8
+#1075 LOAD_I          %2  8
+#1085 PTR_ASSIGN_I    %0  %1  %2
+#1089 LOAD            %0  $56
+#1099 LOAD_A          %1  $1064
+#1109 LOAD_I          %2  16
+#1119 PTR_ASSIGN_OFF  %0  %1  %2
+#1123 LOAD            %0  $0
+#1133 LOAD            %1  $1064
+#1143 LOAD            %2  $56
+#1153 SET_ITEM_8      %0  %1  %2
+#1157 LOAD            %0  $0
+#1167 LOAD            %1  $1048
+#1177 GET_ITEM_8      %0  %1
+#1180 STORE           %2  %0  $72
+#1191 LOAD            %0  $72
+#1201 LOAD            %1  $1040
+#1211 LOAD            %2  $1072
+#1221 SET_ITEM_8      %0  %1  %2
+#1225 LOAD            %0  $0
+#1235 LOAD            %1  $1048
+#1245 GET_ITEM_8      %0  %1
+#1248 STORE           %2  %0  $88
+#1259 LOAD            %0  $88
+#1269 LOAD            %1  $1040
+#1279 GET_ITEM_8      %0  %1
+#1282 STORE           %2  %0  $80
+#1293 LOAD            %0  $80
+#1303 LOAD            %1  $1080
+#1313 ADD             %0  %1
+#1316 STORE           %2  %0  $96
+#1327 LOAD            %0  $0
+#1337 LOAD            %1  $1048
+#1347 GET_ITEM_8      %0  %1
+#1350 STORE           %2  %0  $104
+#1361 LOAD            %0  $104
+#1371 LOAD            %1  $1048
+#1381 LOAD            %2  $96
+#1391 SET_ITEM_8      %0  %1  %2
+#1395 LOAD            %0  $0
+#1405 LOAD            %1  $1048
+#1415 GET_ITEM_8      %0  %1
+#1418 STORE           %2  %0  $120
+#1429 LOAD            %0  $120
+#1439 LOAD            %1  $1048
+#1449 GET_ITEM_8      %0  %1
+#1452 STORE           %2  %0  $112
+#1463 LOAD_A          %0  $112
+#1473 LOAD_I          %1  8
+#1483 FP_TO_SP
+#1484 RETURN          %0  %1
+#1487 FP_TO_SP
+#1488 STOP
 
 
 //MAIN:
-LOAD_A          %0  $1104
+LOAD_A          %0  $1088
 LOAD_A          %1  $1040
 LOAD_I          %2  8
 ASSIGN          %0  %1  %2
-LOAD_A          %0  $1112
+LOAD_A          %0  $1096
 LOAD_A          %1  $1048
 LOAD_I          %2  8
 ASSIGN          %0  %1  %2
-LOAD_A          %0  $1120
+LOAD_A          %0  $1104
 LOAD_A          %1  $1048
 LOAD_I          %2  8
 ASSIGN          %0  %1  %2
-LOAD_A          %0  $1240
+LOAD_A          %0  $1224
 LOAD_A          %1  $1
 SET_RET         %1
 CALL            %0
